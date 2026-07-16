@@ -70,6 +70,11 @@ function RepsSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, theme }
 
   const confirmSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Alert.alert is a no-op on react-native-web → use window.confirm there.
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(t('workoutSession.skipSetConfirm', { n: setIndex + 1 }))) onSkip();
+      return;
+    }
     Alert.alert(t('workoutSession.skipSet'), t('workoutSession.skipSetConfirm', { n: setIndex + 1 }), [
       { text: t('workoutSession.cancel'), style: 'cancel' },
       { text: t('workoutSession.skip'), style: 'destructive', onPress: onSkip },
@@ -124,10 +129,10 @@ function RepsSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, theme }
         />
       </View>
       <Pressable onPress={complete} hitSlop={12} style={[styles.doneBtn, narrow && styles.doneBtnWide, { backgroundColor: Colors.primary }]}>
-        <Ionicons name="checkmark" size={16} color="#fff" />
+        <Ionicons name="checkmark" size={18} color="#fff" />
       </Pressable>
       <Pressable onPress={confirmSkip} hitSlop={12} style={styles.skipBtn}>
-        <Ionicons name="close" size={16} color={theme.textMuted} />
+        <Ionicons name="close" size={18} color="#F87171" />
       </Pressable>
     </View>
   );
@@ -305,8 +310,12 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, theme }
           <Text style={[styles.holdStartText, { color: Colors.accent }]}>{t('workoutSession.start')}</Text>
         </Pressable>
         <Pressable
-          onLongPress={() => {
+          onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            if (Platform.OS === 'web') {
+              if (typeof window !== 'undefined' && window.confirm(t('workoutSession.skipSetConfirm', { n: setIndex + 1 }))) onSkip();
+              return;
+            }
             Alert.alert(t('workoutSession.setOptions'), '', [
               { text: t('workoutSession.skipSet'), style: 'destructive', onPress: onSkip },
               { text: t('workoutSession.cancel'), style: 'cancel' },
@@ -575,8 +584,12 @@ function EmomSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, theme }
           <Text style={[styles.holdStartText, { color: Colors.accent }]}>{t('workoutSession.start')}</Text>
         </Pressable>
         <Pressable
-          onLongPress={() => {
+          onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            if (Platform.OS === 'web') {
+              if (typeof window !== 'undefined' && window.confirm(t('workoutSession.skipSetConfirm', { n: setIndex + 1 }))) onSkip();
+              return;
+            }
             Alert.alert(t('workoutSession.setOptions'), '', [
               { text: t('workoutSession.skipSet'), style: 'destructive', onPress: onSkip },
               { text: t('workoutSession.cancel'), style: 'cancel' },
@@ -1387,12 +1400,13 @@ const styles = StyleSheet.create({
   inlineInputWide: { width: 54, height: 36, fontSize: 15 },
   inlineUnit: { fontSize: 9, fontWeight: '700' as const, letterSpacing: 0.6, textTransform: 'uppercase' as const },
   doneBtn: {
-    width: 30, height: 30, borderRadius: 15,
-    justifyContent: 'center', alignItems: 'center', marginLeft: 4,
+    width: 34, height: 34, borderRadius: 17,
+    justifyContent: 'center', alignItems: 'center', marginLeft: 6,
   },
-  doneBtnWide: { width: 34, height: 34, borderRadius: 17 },
+  doneBtnWide: { width: 38, height: 38, borderRadius: 19 },
   skipBtn: {
-    width: 28, height: 28, borderRadius: 14,
+    width: 34, height: 34, borderRadius: 17, marginLeft: 4,
+    borderWidth: 1.5, borderColor: 'rgba(248,113,113,0.5)', backgroundColor: 'rgba(248,113,113,0.08)',
     justifyContent: 'center', alignItems: 'center',
   },
   noteRow: {

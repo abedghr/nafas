@@ -789,7 +789,8 @@ export default function PrepareWorkoutScreen() {
   const [preWorkout, setPreWorkout] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [templateName, setTemplateName] = useState('');
-  const [changingType, setChangingType] = useState(false);
+  const [typePickerOpen, setTypePickerOpen] = useState(false);
+  const [typeSearch, setTypeSearch] = useState('');
 
   useEffect(() => {
     if (templateId) {
@@ -968,50 +969,25 @@ export default function PrepareWorkoutScreen() {
             )}
 
             <View style={[s.nameCard, { backgroundColor: theme.card }]}>
+              <Text style={[s.nameLabel, { color: theme.textSecondary }]}>{t('workoutPrep.whatAreYouTraining')}</Text>
               {(() => {
                 const selected = workoutType ? trainingTypes.find(x => x.name === workoutType) : null;
-                const collapsed = !!workoutType && !changingType && workoutType !== 'Custom';
-                if (collapsed && selected) {
-                  // compact: show the picked type + a Change button (frees space for exercises)
-                  const label = t(`workoutTypeNames.${selected.name}`, { defaultValue: selected.name });
-                  return (
-                    <View style={s.typeSelectedRow}>
-                      <View style={s.typeSelectedChip}>
-                        <Ionicons name={(selected.icon || 'barbell-outline') as any} size={16} color={Colors.primary} />
-                        <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.primary }}>{label}</Text>
-                      </View>
-                      <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setChangingType(true); }} hitSlop={8} style={s.typeChangeBtn}>
-                        <Ionicons name="swap-horizontal" size={14} color={theme.textSecondary} />
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: theme.textSecondary }}>{t('workoutPrep.change', { defaultValue: 'Change' })}</Text>
-                      </Pressable>
-                    </View>
-                  );
-                }
+                const label = selected ? t(`workoutTypeNames.${selected.name}`, { defaultValue: selected.name }) : '';
                 return (
-                  <>
-                    <Text style={[s.nameLabel, { color: theme.textSecondary }]}>{t('workoutPrep.whatAreYouTraining')}</Text>
-                    <View style={s.typeChipsGrid}>
-                      {trainingTypes.map(wt => {
-                        const active = workoutType === wt.name;
-                        const label = t(`workoutTypeNames.${wt.name}`, { defaultValue: wt.name });
-                        return (
-                          <Pressable
-                            key={wt.name}
-                            onPress={() => {
-                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                              setWorkoutType(active ? null : wt.name as WorkoutType);
-                              if (wt.name !== 'Custom') setWorkoutName('');
-                              setChangingType(false);
-                            }}
-                            style={[s.typeGridChip, { backgroundColor: active ? Colors.primary + '20' : theme.surface, borderColor: active ? Colors.primary : theme.border }]}
-                          >
-                            <Ionicons name={(wt.icon || 'barbell-outline') as any} size={16} color={active ? Colors.primary : theme.textSecondary} />
-                            <Text style={{ fontSize: 12, fontWeight: '600', color: active ? Colors.primary : theme.textSecondary }}>{label}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </>
+                  <Pressable
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTypeSearch(''); setTypePickerOpen(true); }}
+                    style={[s.typeDropdown, { backgroundColor: theme.surface, borderColor: selected ? Colors.primary : theme.border }]}
+                  >
+                    {selected ? (
+                      <View style={s.typeDropdownSel}>
+                        <Ionicons name={(selected.icon || 'barbell-outline') as any} size={18} color={Colors.primary} />
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.primary }}>{label}</Text>
+                      </View>
+                    ) : (
+                      <Text style={{ fontSize: 15, color: theme.textMuted }}>{t('workoutPrep.selectType', { defaultValue: 'Select training type' })}</Text>
+                    )}
+                    <Ionicons name="chevron-down" size={18} color={theme.textSecondary} />
+                  </Pressable>
                 );
               })()}
 
@@ -1117,6 +1093,48 @@ export default function PrepareWorkoutScreen() {
           </Pressable>
         </View>
       </View>
+
+      <Modal visible={typePickerOpen} transparent animationType="slide" onRequestClose={() => setTypePickerOpen(false)}>
+        <View style={s.typeSheetBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setTypePickerOpen(false)} />
+          <View style={[s.typeSheet, { backgroundColor: theme.background, paddingBottom: Platform.OS === 'web' ? 24 : insets.bottom + 16 }]}>
+            <View style={s.typeSheetHandle} />
+            <Text style={[s.typeSheetTitle, { color: theme.text }]}>{t('workoutPrep.whatAreYouTraining')}</Text>
+            <View style={[s.typeSearchWrap, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Ionicons name="search" size={16} color={theme.textMuted} />
+              <TextInput style={[s.typeSearchInput, { color: theme.text }]} value={typeSearch} onChangeText={setTypeSearch} placeholder={t('common.search', { defaultValue: 'Search' })} placeholderTextColor={theme.textMuted} autoFocus autoCapitalize="none" />
+            </View>
+            <ScrollView style={{ maxHeight: 380 }} keyboardShouldPersistTaps="handled">
+              {trainingTypes
+                .filter(wt => {
+                  const label = t(`workoutTypeNames.${wt.name}`, { defaultValue: wt.name });
+                  const q = typeSearch.toLowerCase();
+                  return !q || label.toLowerCase().includes(q) || wt.name.toLowerCase().includes(q);
+                })
+                .map(wt => {
+                  const active = workoutType === wt.name;
+                  const label = t(`workoutTypeNames.${wt.name}`, { defaultValue: wt.name });
+                  return (
+                    <Pressable
+                      key={wt.name}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setWorkoutType(wt.name as WorkoutType);
+                        if (wt.name !== 'Custom') setWorkoutName('');
+                        setTypePickerOpen(false);
+                      }}
+                      style={[s.typeOption, { borderBottomColor: theme.border }]}
+                    >
+                      <Ionicons name={(wt.icon || 'barbell-outline') as any} size={20} color={active ? Colors.primary : theme.textSecondary} />
+                      <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: active ? Colors.primary : theme.text }}>{label}</Text>
+                      {active && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
+                    </Pressable>
+                  );
+                })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       <ExercisePickerModal
         visible={showPicker}
@@ -1262,6 +1280,15 @@ const s = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
   },
+  typeDropdown: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, height: 52 },
+  typeDropdownSel: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  typeSheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  typeSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10 },
+  typeSheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(140,140,160,0.4)', marginBottom: 14 },
+  typeSheetTitle: { fontSize: 18, fontWeight: '700', marginBottom: 14 },
+  typeSearchWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, height: 46, marginBottom: 8 },
+  typeSearchInput: { flex: 1, fontSize: 15 },
+  typeOption: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
   typeSelectedRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   typeSelectedChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: Colors.primary + '18' },
   typeChangeBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7 },
