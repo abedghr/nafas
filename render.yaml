@@ -15,7 +15,7 @@ services:
       # Public URL baked into the web build → the app calls its own API.
       # Must match the service's URL. If you rename the service, update this.
       - key: EXPO_PUBLIC_API_URL
-        value: https://nafas.onrender.com
+        value: https://nafas-kxm7.onrender.com
       # Postgres from Neon — set this secret in the dashboard (sync:false = not in git).
       - key: DATABASE_URL
         sync: false
@@ -27,6 +27,10 @@ services:
         value: 15m
       - key: JWT_REFRESH_TTL
         value: 30d
+      # Demo mode: any new signup verifies with this fixed OTP (no email needed).
+      # Remove this once real SMTP is configured.
+      - key: AUTH_DEV_OTP
+        value: "000000"
       # OTP email (optional). Leave blank to only log codes; fill for real emails.
       - key: SMTP_HOST
         sync: false

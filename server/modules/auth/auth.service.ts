@@ -46,6 +46,15 @@ async function createOtp(email: string, purpose: "verify" | "reset") {
 }
 
 async function consumeOtp(email: string, code: string, purpose: "verify" | "reset") {
+  // Demo/no-email mode: when AUTH_DEV_OTP is set, that fixed code always verifies
+  // (so signups work without SMTP). Off unless the env var is present.
+  const devOtp = process.env.AUTH_DEV_OTP;
+  if (devOtp && code === devOtp) {
+    // consume any pending code for tidiness, but don't require one to exist
+    await db.update(otpCodes).set({ consumedAt: new Date() })
+      .where(and(eq(otpCodes.email, email), eq(otpCodes.purpose, purpose), isNull(otpCodes.consumedAt)));
+    return;
+  }
   const [otp] = await db
     .select().from(otpCodes)
     .where(and(eq(otpCodes.email, email), eq(otpCodes.purpose, purpose), isNull(otpCodes.consumedAt)))
