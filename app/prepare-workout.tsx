@@ -3,7 +3,6 @@ import {
   View, Text, Pressable, StyleSheet, ScrollView, Platform, Modal,
   TextInput, Alert, Dimensions, KeyboardAvoidingView, Switch,
 } from 'react-native';
-import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -254,13 +253,15 @@ function SetRow({ setIndex, config, onUpdate, onRemove, theme }: {
   );
 }
 
-function ExerciseCard({ exercise, index, onUpdate, onRemove, drag, isActive, theme }: {
+function ExerciseCard({ exercise, index, onUpdate, onRemove, onMoveUp, onMoveDown, canMoveUp, canMoveDown, theme }: {
   exercise: PrepExercise;
   index: number;
   onUpdate: (ex: PrepExercise) => void;
   onRemove: () => void;
-  drag?: () => void;
-  isActive?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
@@ -286,19 +287,25 @@ function ExerciseCard({ exercise, index, onUpdate, onRemove, drag, isActive, the
   };
 
   return (
-    <View style={[s.exCard, { backgroundColor: theme.card, opacity: isActive ? 0.9 : 1, borderColor: isActive ? Colors.primary : 'transparent', borderWidth: 1 }]}>
+    <View style={[s.exCard, { backgroundColor: theme.card, borderColor: 'transparent', borderWidth: 1 }]}>
         <View style={s.exCardHeader}>
-          {drag && (
-            <Pressable onLongPress={drag} delayLongPress={120} hitSlop={8} style={s.dragHandle}>
-              <Ionicons name="reorder-three" size={22} color={theme.textMuted} />
+          <View style={s.reorderCol}>
+            <Pressable onPress={onMoveUp} disabled={!canMoveUp} hitSlop={6} style={s.reorderBtn}>
+              <Ionicons name="chevron-up" size={18} color={canMoveUp ? theme.textSecondary : theme.textMuted + '55'} />
             </Pressable>
-          )}
+            <Pressable onPress={onMoveDown} disabled={!canMoveDown} hitSlop={6} style={s.reorderBtn}>
+              <Ionicons name="chevron-down" size={18} color={canMoveDown ? theme.textSecondary : theme.textMuted + '55'} />
+            </Pressable>
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={[s.exCardName, { color: theme.text }]} numberOfLines={1}>{exercise.name}</Text>
           </View>
           <View style={[s.muscleTag, { backgroundColor: Colors.primary + '18' }]}>
             <Text style={[s.muscleTagText, { color: Colors.primary }]}>{exercise.muscleGroup}</Text>
           </View>
+          <Pressable onPress={onRemove} hitSlop={8} style={{ marginLeft: 8 }}>
+            <Ionicons name="trash-outline" size={18} color={theme.textMuted} />
+          </Pressable>
         </View>
 
         {exercise.sets.map((setConfig, si) => (
@@ -769,7 +776,7 @@ export default function PrepareWorkoutScreen() {
   const { templateId } = useLocalSearchParams<{ templateId?: string }>();
   const {
     workoutTemplates, addWorkoutTemplate, setActiveSession,
-    customExercises, addCustomExercise, user,
+    customExercises, addCustomExercise, user, workoutTypes,
   } = useApp();
   const theme = Colors.dark;
 
@@ -827,6 +834,24 @@ export default function PrepareWorkoutScreen() {
   const removeExercise = useCallback((idx: number) => {
     setExercises(prev => prev.filter((_, i) => i !== idx));
   }, []);
+
+  const moveExercise = useCallback((idx: number, dir: -1 | 1) => {
+    setExercises(prev => {
+      const j = idx + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const arr = [...prev];
+      [arr[idx], arr[j]] = [arr[j], arr[idx]];
+      return arr;
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
+
+  // training types from backend (localized), with a Custom option appended
+  const trainingTypes = useMemo(() => {
+    const fromApi = (workoutTypes || []).map((wt: any) => ({ name: wt.name as string, icon: (wt.icon || WORKOUT_TYPE_ICONS[wt.name] || 'barbell-outline') as string }));
+    const base = fromApi.length ? fromApi : WORKOUT_TYPES.filter(w => w !== 'Custom').map(w => ({ name: w, icon: WORKOUT_TYPE_ICONS[w] || 'barbell-outline' }));
+    return [...base, { name: 'Custom', icon: WORKOUT_TYPE_ICONS['Custom'] || 'create-outline' }];
+  }, [workoutTypes]);
 
   const resolvedName = useMemo(() => {
     if (workoutType && workoutType !== 'Custom') return workoutType;
@@ -921,14 +946,11 @@ export default function PrepareWorkoutScreen() {
         <View style={{ width: 32 }} />
       </View>
 
-      <DraggableFlatList
-        data={exercises}
-        keyExtractor={(item) => item.uid}
-        onDragEnd={({ data }) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExercises(data); }}
+      <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: topPad + 60, paddingBottom: 320 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: topPad + 60, paddingBottom: 300 }}
         keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={
+      >
           <View style={{ gap: 14, marginBottom: 14 }}>
             {workoutTemplates.length > 0 && exercises.length === 0 && (
               <Pressable
@@ -947,20 +969,25 @@ export default function PrepareWorkoutScreen() {
             <View style={[s.nameCard, { backgroundColor: theme.card }]}>
               <Text style={[s.nameLabel, { color: theme.textSecondary }]}>{t('workoutPrep.whatAreYouTraining')}</Text>
               <View style={s.typeChipsGrid}>
-                {WORKOUT_TYPES.map(wt => (
-                  <Pressable
-                    key={wt}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setWorkoutType(workoutType === wt ? null : wt as WorkoutType);
-                      if (wt !== 'Custom') setWorkoutName('');
-                    }}
-                    style={[s.typeGridChip, { backgroundColor: workoutType === wt ? Colors.primary + '20' : theme.surface, borderColor: workoutType === wt ? Colors.primary : theme.border }]}
-                  >
-                    <Ionicons name={(WORKOUT_TYPE_ICONS[wt] || 'barbell-outline') as any} size={16} color={workoutType === wt ? Colors.primary : theme.textSecondary} />
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: workoutType === wt ? Colors.primary : theme.textSecondary }}>{t(`workoutTypeNames.${wt}`)}</Text>
-                  </Pressable>
-                ))}
+                {trainingTypes.map(wt => {
+                  const active = workoutType === wt.name;
+                  // prefer an i18n label if one exists, else the backend/localized name
+                  const label = t(`workoutTypeNames.${wt.name}`, { defaultValue: wt.name });
+                  return (
+                    <Pressable
+                      key={wt.name}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setWorkoutType(active ? null : wt.name as WorkoutType);
+                        if (wt.name !== 'Custom') setWorkoutName('');
+                      }}
+                      style={[s.typeGridChip, { backgroundColor: active ? Colors.primary + '20' : theme.surface, borderColor: active ? Colors.primary : theme.border }]}
+                    >
+                      <Ionicons name={(wt.icon || 'barbell-outline') as any} size={16} color={active ? Colors.primary : theme.textSecondary} />
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: active ? Colors.primary : theme.textSecondary }}>{label}</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
 
               {workoutType === 'Custom' && (
@@ -988,26 +1015,23 @@ export default function PrepareWorkoutScreen() {
               </View>
             )}
           </View>
-        }
-        renderItem={({ item, drag, isActive, getIndex }) => {
-          const i = getIndex() ?? 0;
-          return (
-            <ScaleDecorator>
-              <View style={{ marginBottom: 14 }}>
-                <ExerciseCard
-                  exercise={item}
-                  index={i}
-                  onUpdate={updated => updateExercise(i, updated)}
-                  onRemove={() => removeExercise(i)}
-                  drag={drag}
-                  isActive={isActive}
-                  theme={theme}
-                />
-              </View>
-            </ScaleDecorator>
-          );
-        }}
-      />
+
+          {exercises.map((item, i) => (
+            <View key={item.uid} style={{ marginBottom: 14 }}>
+              <ExerciseCard
+                exercise={item}
+                index={i}
+                onUpdate={updated => updateExercise(i, updated)}
+                onRemove={() => removeExercise(i)}
+                onMoveUp={() => moveExercise(i, -1)}
+                onMoveDown={() => moveExercise(i, 1)}
+                canMoveUp={i > 0}
+                canMoveDown={i < exercises.length - 1}
+                theme={theme}
+              />
+            </View>
+          ))}
+      </ScrollView>
 
       <View style={[s.bottomBar, { paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 8 }]}>
         <LinearGradient
@@ -1213,6 +1237,8 @@ const s = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
   },
+  reorderCol: { marginRight: 8, justifyContent: 'center', alignItems: 'center' },
+  reorderBtn: { paddingVertical: 1 },
   dragHandle: {
     marginRight: 4,
     justifyContent: 'center',
