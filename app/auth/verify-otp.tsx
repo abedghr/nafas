@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, Pressable, StyleSheet, Platform, TextInput,
-  Keyboard, TouchableWithoutFeedback,
+  View, Text, Pressable, StyleSheet, Platform, TextInput, Keyboard,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -107,7 +106,6 @@ export default function VerifyOTPScreen() {
   const codeComplete = otp.every(d => d !== '');
 
   return (
-    <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 8 : insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
@@ -200,7 +198,6 @@ export default function VerifyOTPScreen() {
         </Pressable>
       </View>
     </View>
-    </TouchableWithoutFeedback>
   );
 }
 
