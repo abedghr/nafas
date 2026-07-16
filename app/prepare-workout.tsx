@@ -1096,16 +1096,19 @@ export default function PrepareWorkoutScreen() {
       </View>
 
       <Modal visible={typePickerOpen} transparent animationType="slide" onRequestClose={() => setTypePickerOpen(false)}>
-        <View style={s.typeSheetBackdrop}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.typeSheetBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setTypePickerOpen(false)} />
           <View style={[s.typeSheet, { backgroundColor: theme.background, paddingBottom: Platform.OS === 'web' ? 24 : insets.bottom + 16 }]}>
             <View style={s.typeSheetHandle} />
-            <Text style={[s.typeSheetTitle, { color: theme.text }]}>{t('workoutPrep.whatAreYouTraining')}</Text>
+            <View style={s.typeSheetHead}>
+              <Text style={[s.typeSheetTitle, { color: theme.text }]}>{t('workoutPrep.whatAreYouTraining')}</Text>
+              <Pressable onPress={() => setTypePickerOpen(false)} hitSlop={10}><Ionicons name="close" size={22} color={theme.textMuted} /></Pressable>
+            </View>
             <View style={[s.typeSearchWrap, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <Ionicons name="search" size={16} color={theme.textMuted} />
-              <TextInput style={[s.typeSearchInput, { color: theme.text }]} value={typeSearch} onChangeText={setTypeSearch} placeholder={t('common.search', { defaultValue: 'Search' })} placeholderTextColor={theme.textMuted} autoFocus autoCapitalize="none" />
+              <TextInput style={[s.typeSearchInput, { color: theme.text }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]} value={typeSearch} onChangeText={setTypeSearch} placeholder={t('common.search', { defaultValue: 'Search' })} placeholderTextColor={theme.textMuted} autoFocus autoCapitalize="none" />
             </View>
-            <ScrollView style={{ maxHeight: 380 }} keyboardShouldPersistTaps="handled">
+            <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.42 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               {trainingTypes
                 .filter(wt => {
                   const label = t(`workoutTypeNames.${wt.name}`, { defaultValue: wt.name });
@@ -1134,7 +1137,7 @@ export default function PrepareWorkoutScreen() {
                 })}
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <ExercisePickerModal
@@ -1286,10 +1289,11 @@ const s = StyleSheet.create({
   typeSheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   typeSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10 },
   typeSheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(140,140,160,0.4)', marginBottom: 14 },
-  typeSheetTitle: { fontSize: 18, fontWeight: '700', marginBottom: 14 },
+  typeSheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  typeSheetTitle: { fontSize: 18, fontWeight: '700', flex: 1 },
   typeSearchWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, height: 46, marginBottom: 8 },
   typeSearchInput: { flex: 1, fontSize: 15 },
-  typeOption: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
+  typeOption: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 2, borderBottomWidth: StyleSheet.hairlineWidth },
   typeSelectedRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   typeSelectedChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: Colors.primary + '18' },
   typeChangeBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7 },
