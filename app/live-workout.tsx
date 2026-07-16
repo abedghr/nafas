@@ -1151,6 +1151,25 @@ export default function LiveWorkoutScreen() {
         keyboardDismissMode="interactive"
         automaticallyAdjustKeyboardInsets
       >
+        {(() => {
+          let done = 0, total = 0, vol = 0;
+          for (const ex of session.exercises) for (const st of ex.sets) {
+            total++;
+            if (st.status === 'done') { done++; if (st.actual?.type === 'reps') vol += (st.actual.reps || 0) * (st.actual.weight || 0); }
+          }
+          const pct = total ? done / total : 0;
+          return (
+            <View style={[styles.progressCard, { backgroundColor: theme.card }]}>
+              <View style={styles.progRow}>
+                <View style={styles.progStat}><Text style={[styles.progVal, { color: theme.text }]}>{done}/{total}</Text><Text style={[styles.progLbl, { color: theme.textMuted }]}>{t('workoutSession.sets')}</Text></View>
+                <View style={styles.progStat}><Text style={[styles.progVal, { color: theme.text }]}>{Math.round(vol).toLocaleString()}</Text><Text style={[styles.progLbl, { color: theme.textMuted }]}>{t('workoutSession.volume')} (kg)</Text></View>
+                <View style={styles.progStat}><Text style={[styles.progVal, { color: Colors.primary }]}>{Math.round(pct * 100)}%</Text><Text style={[styles.progLbl, { color: theme.textMuted }]}>{t('workoutSession.done')}</Text></View>
+              </View>
+              <View style={styles.progTrack}><View style={[styles.progFill, { width: `${Math.round(pct * 100)}%` }]} /></View>
+            </View>
+          );
+        })()}
+
         {session.preWorkout && (
           <Animated.View entering={FadeInDown.duration(300)}>
             <View style={[styles.preWorkoutCard, { backgroundColor: theme.card, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
@@ -1318,6 +1337,13 @@ const styles = StyleSheet.create({
   finishBtnGrad: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16 },
   finishBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' as const },
   scrollContent: { paddingHorizontal: 16, gap: 12 },
+  progressCard: { borderRadius: 16, padding: 16, gap: 12 },
+  progRow: { flexDirection: 'row' },
+  progStat: { flex: 1, alignItems: 'center', gap: 3 },
+  progVal: { fontSize: 18, fontFamily: 'Rubik_700Bold' },
+  progLbl: { fontSize: 11, fontFamily: 'Rubik_400Regular' },
+  progTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(0,200,150,0.15)', overflow: 'hidden' },
+  progFill: { height: '100%', borderRadius: 3, backgroundColor: '#00C896' },
   preWorkoutCard: { borderRadius: 16, padding: 16 },
   preWorkoutRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   preWorkoutText: { flex: 1, fontSize: 15, fontWeight: '500' as const },
