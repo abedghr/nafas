@@ -31,6 +31,9 @@ services:
       # Remove this once real SMTP is configured.
       - key: AUTH_DEV_OTP
         value: "000000"
+      # allow the admin dashboard (separate static site) to call the API cross-origin
+      - key: CORS_ORIGINS
+        value: https://nafas-admin.onrender.com
       # OTP email (optional). Leave blank to only log codes; fill for real emails.
       - key: SMTP_HOST
         sync: false
@@ -42,3 +45,18 @@ services:
         sync: false
       - key: SMTP_FROM
         value: Nafas <no-reply@nafas.app>
+
+  # Admin dashboard — separate free static site (Vite SPA in admin/).
+  - type: web
+    name: nafas-admin
+    runtime: static
+    rootDir: admin
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://nafas-kxm7.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

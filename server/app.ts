@@ -28,6 +28,11 @@ function setupCors(app: express.Application) {
         origins.add(`https://${d.trim()}`),
       );
     }
+    // Explicit allowed origins (e.g. the admin dashboard site). Full origins,
+    // comma-separated: CORS_ORIGINS=https://nafas-admin.onrender.com
+    if (process.env.CORS_ORIGINS) {
+      process.env.CORS_ORIGINS.split(",").forEach((o) => { const v = o.trim(); if (v) origins.add(v); });
+    }
     const origin = req.header("origin");
     const isLocalhost =
       origin?.startsWith("http://localhost:") ||
