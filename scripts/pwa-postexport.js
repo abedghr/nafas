@@ -16,7 +16,7 @@ if (fs.existsSync(iconSrc)) fs.copyFileSync(iconSrc, path.join(dist, 'icon.png')
 const manifest = {
   name: 'Nafas', short_name: 'Nafas', start_url: '/', scope: '/',
   display: 'standalone', orientation: 'portrait',
-  background_color: '#0A0A0F', theme_color: '#00C896',
+  background_color: '#0A0A0F', theme_color: '#0A0A0F',
   icons: [
     { src: '/icon.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
     { src: '/icon.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
@@ -24,14 +24,22 @@ const manifest = {
 };
 fs.writeFileSync(path.join(dist, 'manifest.webmanifest'), JSON.stringify(manifest, null, 2));
 
+// theme-color = the app's dark background so the iOS status-bar / safe-area zone
+// matches the app (green here paints the notch area white/odd). The <style> forces
+// a dark page background so no white shows behind the status bar or on overscroll.
 const head = `
-    <meta name="theme-color" content="#00C896" />
+    <meta name="theme-color" content="#0A0A0F" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Nafas" />
     <link rel="apple-touch-icon" href="/icon.png" />
-    <link rel="manifest" href="/manifest.webmanifest" />`;
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <style>
+      html, body, #root { background-color: #0A0A0F; }
+      html, body { margin: 0; min-height: 100%; }
+      #root { min-height: 100vh; }
+    </style>`;
 
 let html = fs.readFileSync(indexPath, 'utf-8');
 if (!html.includes('apple-mobile-web-app-capable')) {
