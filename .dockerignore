@@ -1,0 +1,16 @@
+.git
+node_modules
+dist
+server_dist
+static-build
+uploads
+.expo
+.metro-cache
+ios
+android
+admin/node_modules
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store

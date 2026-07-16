@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: nafas_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nafas
+      POSTGRES_PASSWORD: nafas
+      POSTGRES_DB: nafas
+    ports:
+      - "5433:5432"
+    volumes:
+      - nafas_pgdata:/var/lib/postgresql/data
+
+volumes:
+  nafas_pgdata:

@@ -1,0 +1,799 @@
+# نَفَس (Nafas) — Smart Fitness Platform
+## React Native App — Full Specification for Replit
+
+---
+
+## Project Overview
+
+**Nafas** is an AI-powered sports and fitness platform that unifies community, training, nutrition, coaching, tournaments, and real-world gym/restaurant discovery into one seamless mobile experience.
+
+- **App Name:** نَفَس (Nafas)
+- **Platform:** React Native (iOS + Android)
+- **Languages Supported:** Arabic 🇸🇦 and English 🇬🇧 (full i18n support)
+- **Data:** Use mock data for all features
+- **Design Style:** Modern, dark/light theme toggle, sports-focused UI
+
+---
+
+## Tech Stack
+
+```
+React Native (Expo preferred)
+React Navigation (Bottom Tab + Stack + Drawer)
+React Native Maps
+i18n / react-i18next (Arabic + English)
+AsyncStorage (local mock persistence)
+Mock JSON data files for all entities
+```
+
+---
+
+## App Structure — Bottom Navigation Bar
+
+```
+[ Communities ] [ Social ] [ AI Coach ] [ Nutrition ] [ Profile ]
+```
+
+---
+
+## 1. Onboarding & Registration
+
+### Two User Types:
+- **Athlete (User)**
+- **Coach**
+
+---
+
+### 1.1 Athlete Registration Flow
+
+**Screen 1 — Role Selection**
+- "I'm an Athlete" button
+- "I'm a Coach" button
+
+**Screen 2 — Physical Info**
+- Height (cm)
+- Weight (kg)
+- Age
+- Gender (Male / Female)
+
+**Screen 3 — Interests (Multi-select)**
+- Calisthenics
+- Gym / Weightlifting
+- Football
+- Tennis
+- Running
+- Swimming
+- CrossFit
+
+**Screen 4 — Goals (Single select)**
+- Build Muscle
+- Lose Weight / Shred
+- Learn a Skill
+- Improve Fitness
+
+→ After completion: navigate to personalized **Home / Community Feed**
+
+---
+
+### 1.2 Coach Registration Flow
+
+**Screen 1 — Role: "I'm a Coach"**
+
+**Screen 2 — Coach Details**
+- Upload Certificates (image/PDF mock)
+- Years of Experience
+- Gyms previously worked at
+- Specialization (e.g., Calisthenics, Bodybuilding, CrossFit, Football)
+
+**Screen 3 — Setup Profile**
+- Profile photo
+- Bio
+- Social links
+
+→ After completion: navigate to **Coach Dashboard**
+
+---
+
+## 2. Communities
+
+### 2.1 Communities Home Screen
+
+Display sport communities as **cards/boxes** in a grid or horizontal scroll:
+
+```
+[ All 🌐 ] [ Calisthenics ] [ Gym ] [ Football ] [ Tennis ] [ Running ] [ CrossFit ]
+```
+
+- **All** = mixed feed from all communities
+- Cards show: Community name, icon, member count, activity level
+- Sort by: Most Active / Highest Rated
+
+---
+
+### 2.2 Inside a Community Screen
+
+Layout: **Sidebar drawer** (slide from left) + main content area
+
+**Sidebar contains:**
+- 📰 Feed / Posts
+- 🎥 Videos
+- 🔥 Trends
+- 👨‍🏫 Coaches
+- 🏆 Tournaments
+- 📊 Leaderboard
+
+**Main Feed shows:**
+- Posts (text, image, video)
+- Active Challenges / Trends (e.g., "1-Min Handstand Challenge 🔥 +40% this week")
+- Featured Coaches in this community
+- Upcoming Tournaments
+
+---
+
+### 2.3 Post to Community
+
+After finishing a workout, user can tap **"Share to Community"**
+
+Post includes:
+- Exercise name
+- Sets / Reps / Weight
+- Optional video
+- Community tag selector
+
+---
+
+## 3. Social Feed
+
+### 3.1 Social Screen (Main Tab)
+
+- Global feed of posts from followed users and communities
+- Stories row at top (mock)
+- Post types: workout share, video, progress photo, text post
+- Actions: Like, Comment, Share, Save
+- Follow / Unfollow users
+
+### 3.2 User Profiles (Public)
+- Profile photo, bio, follower/following count
+- Posts tab
+- Workouts tab
+- Achievements / Badges tab
+- Follow button
+
+---
+
+## 4. AI Coach (Main Tab)
+
+This tab is the user's **personal training hub**.
+
+### 4.1 Dashboard
+- Today's workout plan (AI-generated or manual)
+- Quick stats: weekly workouts done, total volume, streak
+- AI tip of the day (e.g., "Your energy was lower yesterday — consider a deload today")
+
+---
+
+### 4.2 Start Workout
+
+**Step 1 — Select Workout Type:**
+```
+Push Day | Pull Day | Leg Day | Upper Body | Full Body | Cardio | Custom
+```
+
+**Step 2 — Workout Logger:**
+- Add exercises (search from mock exercise library)
+- For each exercise: sets, reps, weight (kg/lbs)
+- Pre-workout toggle: "Did you take pre-workout? 💊"
+- Rest timer between sets
+- Notes field
+
+**Step 3 — Finish & Save:**
+- Summary: total volume, duration, exercises done
+- Option: **Share to Social / Community**
+- Workout saved to history
+
+---
+
+### 4.3 Workout History & Progress
+
+- Calendar view of past workouts
+- Weekly / Monthly volume charts
+- Per-exercise progress (e.g., Bench Press progression over time)
+- Compare with last week
+
+---
+
+### 4.4 InBody / Body Composition Tracker
+
+- Upload InBody test results (mock image or manual entry)
+- Fields: Weight, Muscle Mass, Body Fat %, BMI, Water %
+- Visual chart: progress over months
+- Insights:
+  - Best performance period
+  - Monthly comparison
+  - Annual average
+
+---
+
+### 4.5 AI Smart Training Plan
+
+**User input:** "I want to learn Handstand in 4 months"
+
+**AI asks:**
+- Current level? (Beginner / Intermediate / Advanced)
+- How many training days per week?
+
+**AI generates monthly plan:**
+```
+Month 1: Shoulder strengthening & wrist conditioning
+Month 2: Wall-assisted holds & balance drills
+Month 3: Wall control & kick-up practice
+Month 4: Free-standing hold attempts
+```
+
+**AI Warnings:**
+- "Most people who rush this skill get injured — reduce speed"
+- Compare with successful user journeys
+
+**AI Suggestions:**
+- If plan seems unrealistic, AI flags it and recommends adjustment
+
+---
+
+### 4.6 AI Features (Smart Insights)
+
+| Feature | Description |
+|---|---|
+| AI Personal Coach | Daily energy & performance tips |
+| AI Mistake Detection | Warns about high injury-risk patterns |
+| AI Nutrition Optimizer | Suggests macro adjustments based on workout intensity |
+| AI Community Matching | "This user has the same goal and level as you" |
+| AI Trend Detection | "Handstand Challenge is up 40% this week" |
+
+---
+
+## 5. Nutrition (Main Tab)
+
+### 5.1 Daily Nutrition Dashboard
+
+- Daily macro targets (calculated from user profile + goal)
+- Progress bars: Protein / Carbs / Fats / Calories
+- Starts at 0 every morning
+- Meals log: Breakfast, Lunch, Dinner, Snacks
+
+**Macro Calculation (mock logic):**
+```
+Protein: weight (kg) × 2g  (for muscle gain)
+Carbs: remaining calories / 4
+Fats: 20-25% of total calories
+```
+
+---
+
+### 5.2 Log a Meal
+
+- Search food from mock food database
+- Common foods pre-loaded: eggs, chicken breast, rice, oats, etc.
+- Each food shows: protein, carbs, fats, calories
+- Add portion size → auto-calculates macros
+- Option to add meal from **Healthy Restaurants** menu
+
+---
+
+### 5.3 21-Day Commitment Challenge
+
+- User opts into a 21-day nutrition plan
+- Each day resets at midnight
+- End of 21 days: full compliance report
+  - Days fully on track ✅
+  - Days where goals were missed ❌
+  - Streak count 🔥
+
+---
+
+### 5.4 End-of-Day Summary
+
+- Pie chart: macros consumed
+- Compliance percentage
+- AI suggestion: "You hit 95% today! Great job 💪"
+
+---
+
+## 6. Discover / Explore Screens
+
+Accessible from **bottom nav or Community sidebar**
+
+### 6.1 Gyms
+
+**List View:**
+- Gym card shows: Name, rating ⭐, distance 📍, image, sport type tags
+
+**Filters:** Calisthenics / CrossFit / Bodybuilding / Boxing / Swimming
+
+**Gym Profile Page:**
+- Photos gallery
+- Facilities list (e.g., Sauna, Pool, Parking)
+- Subscription plans & prices
+- Working hours
+- Coaches list (linked to coach profiles)
+- Upcoming Tournaments
+- Posts / Updates feed
+
+---
+
+### 6.2 Coaches
+
+**List View:**
+- Coach card: photo, name, specialization, rating, price/session
+
+**Coach Profile Page:**
+- Bio & certifications
+- Sport types
+- Rating & reviews
+- Posts feed
+- **Before/After Section** — showcase client transformations
+- Courses (with levels & subscriptions)
+- PT Sessions (price, duration, booking mock)
+- One-on-one session booking (mock)
+
+---
+
+### 6.3 Tournaments
+
+**List View:**
+- Tournament card: name, sport, date, location, prize
+
+**Tournament Detail Page:**
+- Description
+- Rounds / Bracket
+- Levels (Beginner / Intermediate / Pro)
+- Awards & prizes
+- Participants list
+- Register button
+
+**After Winning:**
+- Badge added to user profile: 🏆 "Winner – Calisthenics Championship 2026"
+
+---
+
+### 6.4 Map Screen
+
+Interactive map showing:
+- 📍 Nearby Gyms
+- 🥗 Healthy Restaurants
+- 🏆 Tournament venues
+- 🏃 Running/activity spots
+
+**Filters:** Gyms / Restaurants / Tournaments / Parks
+
+Tap a pin → show quick card with name, rating, distance → tap to open full profile
+
+---
+
+### 6.5 Healthy Restaurants
+
+**List View:**
+- Restaurant card: name, image, rating, distance, cuisine type
+
+**Restaurant Profile:**
+- Full menu with macro info per dish
+- Protein / Carbs / Fats per meal
+- Add meal directly to Nutrition Tracker button
+
+---
+
+### 6.6 Ready to Train / Find a Partner
+
+**How it works:**
+1. User taps "I'm Ready to Train 🟢"
+2. Selects activity: Running / Gym / Calisthenics / Football / etc.
+3. App shows nearby users who are also "Ready"
+4. Both users tap **Accept**
+5. Location / meeting point confirmed (mock)
+6. Shared workout session is logged for both users
+
+**States:**
+- 🟢 Ready
+- 🔴 Not Available
+- 🕐 Scheduled (set future time)
+
+---
+
+## 7. User Profile (Main Tab)
+
+### 7.1 Profile Screen
+
+- Profile photo, name, username
+- Bio
+- Sport interests tags
+- Follower / Following count
+- **Rank Badge** (see ranking system below)
+- Stats: total workouts, total volume, streak
+
+**Tabs:**
+- Posts
+- Workouts
+- Achievements
+- InBody History
+
+---
+
+### 7.2 User Ranking System
+
+User rank is calculated based on:
+- Number of workouts logged
+- Tournaments participated in
+- Tournament placements (Winner / Runner-up / Participant)
+- Community engagement
+
+**Ranks (mock):**
+```
+🥉 Beginner Athlete
+🥈 Active Athlete  
+🥇 Competitive Athlete
+💎 Elite Athlete
+🏆 Champion
+```
+
+---
+
+## 8. Coach Dashboard
+
+For users registered as coaches:
+
+- Profile management
+- Upload/manage certificates
+- Create courses:
+  - Course name, description, level (Beginner / Mid / Advanced)
+  - Price (free or paid)
+  - Add subscription tiers
+- Manage sessions
+- View client list
+- Upload Before/After content for clients
+- View ratings & reviews
+
+---
+
+## Mock Data Structure
+
+### users.json
+```json
+[
+  {
+    "id": "u1",
+    "name": "Ahmed Al-Rashidi",
+    "username": "ahmed_fit",
+    "type": "athlete",
+    "avatar": "https://i.pravatar.cc/150?img=1",
+    "height": 178,
+    "weight": 82,
+    "age": 24,
+    "gender": "male",
+    "interests": ["calisthenics", "gym"],
+    "goal": "build_muscle",
+    "rank": "competitive_athlete",
+    "followers": 320,
+    "following": 145
+  }
+]
+```
+
+### coaches.json
+```json
+[
+  {
+    "id": "c1",
+    "name": "Khalid Mansour",
+    "specialization": ["calisthenics", "crossfit"],
+    "rating": 4.8,
+    "reviewsCount": 94,
+    "pricePerSession": 150,
+    "currency": "SAR",
+    "certifications": ["ACE Certified", "CrossFit Level 2"],
+    "bio": "10 years experience in calisthenics coaching.",
+    "avatar": "https://i.pravatar.cc/150?img=5",
+    "gym": "g1"
+  }
+]
+```
+
+### gyms.json
+```json
+[
+  {
+    "id": "g1",
+    "name": "Iron Peak Gym",
+    "rating": 4.6,
+    "distance": "1.2 km",
+    "address": "King Fahad Road, Riyadh",
+    "lat": 24.7136,
+    "lng": 46.6753,
+    "image": "https://source.unsplash.com/400x200/?gym",
+    "types": ["bodybuilding", "crossfit"],
+    "facilities": ["Sauna", "Parking", "Showers", "Café"],
+    "subscriptions": [
+      { "name": "Monthly", "price": 200, "currency": "SAR" },
+      { "name": "Yearly", "price": 1800, "currency": "SAR" }
+    ],
+    "workingHours": "6:00 AM – 12:00 AM"
+  }
+]
+```
+
+### workouts.json
+```json
+[
+  {
+    "id": "w1",
+    "userId": "u1",
+    "type": "Push Day",
+    "date": "2026-02-18",
+    "duration": 62,
+    "preWorkout": true,
+    "exercises": [
+      {
+        "name": "Bench Press",
+        "sets": [
+          { "reps": 10, "weight": 80 },
+          { "reps": 8, "weight": 85 },
+          { "reps": 6, "weight": 90 }
+        ]
+      },
+      {
+        "name": "Overhead Press",
+        "sets": [
+          { "reps": 10, "weight": 50 },
+          { "reps": 8, "weight": 55 }
+        ]
+      }
+    ],
+    "totalVolume": 3420,
+    "sharedTo": ["gym", "calisthenics"]
+  }
+]
+```
+
+### nutrition_log.json
+```json
+[
+  {
+    "id": "n1",
+    "userId": "u1",
+    "date": "2026-02-18",
+    "meals": [
+      {
+        "type": "Breakfast",
+        "items": [
+          { "name": "Eggs", "quantity": 3, "protein": 18, "carbs": 2, "fat": 15, "calories": 215 },
+          { "name": "Oats", "quantity": 80, "protein": 10, "carbs": 54, "fat": 6, "calories": 310 }
+        ]
+      }
+    ],
+    "totals": { "protein": 28, "carbs": 56, "fat": 21, "calories": 525 },
+    "targets": { "protein": 164, "carbs": 300, "fat": 60, "calories": 2400 }
+  }
+]
+```
+
+### tournaments.json
+```json
+[
+  {
+    "id": "t1",
+    "name": "Riyadh Calisthenics Open 2026",
+    "sport": "calisthenics",
+    "date": "2026-03-15",
+    "location": "Al Malaz Sports Hall, Riyadh",
+    "lat": 24.6877,
+    "lng": 46.7219,
+    "levels": ["Beginner", "Intermediate", "Pro"],
+    "awards": ["🥇 SAR 5000", "🥈 SAR 2500", "🥉 SAR 1000"],
+    "registeredCount": 48,
+    "organizer": "g1",
+    "image": "https://source.unsplash.com/400x200/?fitness,competition"
+  }
+]
+```
+
+### restaurants.json
+```json
+[
+  {
+    "id": "r1",
+    "name": "FitBite Kitchen",
+    "rating": 4.5,
+    "distance": "0.8 km",
+    "lat": 24.7200,
+    "lng": 46.6800,
+    "image": "https://source.unsplash.com/400x200/?healthy,food",
+    "menu": [
+      {
+        "name": "Grilled Chicken Plate",
+        "protein": 45,
+        "carbs": 30,
+        "fat": 8,
+        "calories": 372,
+        "price": 35,
+        "currency": "SAR"
+      }
+    ]
+  }
+]
+```
+
+### posts.json
+```json
+[
+  {
+    "id": "p1",
+    "userId": "u1",
+    "community": "calisthenics",
+    "content": "Finally nailed my first 10-second free handstand! 🤸‍♂️",
+    "media": "https://source.unsplash.com/400x400/?fitness",
+    "likes": 142,
+    "comments": 18,
+    "timestamp": "2026-02-18T09:30:00Z",
+    "workoutRef": "w1"
+  }
+]
+```
+
+### communities.json
+```json
+[
+  { "id": "all", "name": "All", "icon": "🌐", "members": 52000, "activity": "very_high" },
+  { "id": "calisthenics", "name": "Calisthenics", "icon": "🤸", "members": 18400, "activity": "high" },
+  { "id": "gym", "name": "Gym", "icon": "🏋️", "members": 31000, "activity": "very_high" },
+  { "id": "football", "name": "Football", "icon": "⚽", "members": 24500, "activity": "high" },
+  { "id": "tennis", "name": "Tennis", "icon": "🎾", "members": 8900, "activity": "medium" },
+  { "id": "running", "name": "Running", "icon": "🏃", "members": 15200, "activity": "high" }
+]
+```
+
+---
+
+## Screen Map (Navigation)
+
+```
+App
+├── Onboarding
+│   ├── RoleSelection
+│   ├── AthleteSetup (3 screens)
+│   └── CoachSetup (3 screens)
+│
+├── MainTabs
+│   ├── Communities
+│   │   ├── CommunitiesList
+│   │   └── CommunityScreen (with sidebar)
+│   │       ├── Feed
+│   │       ├── Videos
+│   │       ├── Trends
+│   │       ├── Coaches
+│   │       └── Tournaments
+│   │
+│   ├── Social
+│   │   ├── SocialFeed
+│   │   ├── PostDetail
+│   │   └── UserProfile
+│   │
+│   ├── AICoach
+│   │   ├── CoachDashboard
+│   │   ├── StartWorkout
+│   │   ├── WorkoutLogger
+│   │   ├── WorkoutHistory
+│   │   ├── InBodyTracker
+│   │   ├── SmartPlan
+│   │   └── AIInsights
+│   │
+│   ├── Nutrition
+│   │   ├── NutritionDashboard
+│   │   ├── LogMeal
+│   │   ├── FoodSearch
+│   │   ├── CommitmentChallenge
+│   │   └── DailySummary
+│   │
+│   └── Profile
+│       ├── MyProfile
+│       ├── EditProfile
+│       ├── Achievements
+│       └── CoachDashboard (if coach)
+│
+├── Explore (accessible from communities/map icon)
+│   ├── GymsList
+│   ├── GymProfile
+│   ├── CoachesList
+│   ├── CoachProfile
+│   ├── TournamentsList
+│   ├── TournamentDetail
+│   ├── MapExplore
+│   ├── RestaurantsList
+│   ├── RestaurantProfile
+│   └── ReadyToTrain
+```
+
+---
+
+## UI & Design Guidelines
+
+- **Primary Color:** `#00C896` (Mint Green — energy & health)
+- **Background Dark:** `#0F0F0F`
+- **Background Light:** `#F5F5F5`
+- **Card Background Dark:** `#1A1A1A`
+- **Accent:** `#FF6B35` (Orange — for alerts, highlights)
+- **Text Primary:** `#FFFFFF` (dark mode) / `#111111` (light mode)
+- **Font:** Use system font or Inter
+
+**Component Style:**
+- Rounded cards (border-radius: 16px)
+- Subtle shadows
+- Gradient overlays on images
+- Bottom sheet modals for quick actions
+- Smooth tab transitions
+
+---
+
+## i18n Keys Example
+
+```json
+// en.json
+{
+  "nav": {
+    "communities": "Communities",
+    "social": "Social",
+    "ai_coach": "AI Coach",
+    "nutrition": "Nutrition",
+    "profile": "Profile"
+  },
+  "onboarding": {
+    "role_question": "Who are you?",
+    "athlete": "I'm an Athlete",
+    "coach": "I'm a Coach"
+  },
+  "workout": {
+    "start": "Start Workout",
+    "push_day": "Push Day",
+    "pull_day": "Pull Day",
+    "finish": "Finish & Save"
+  }
+}
+
+// ar.json
+{
+  "nav": {
+    "communities": "المجتمعات",
+    "social": "التواصل",
+    "ai_coach": "المدرب الذكي",
+    "nutrition": "التغذية",
+    "profile": "الملف"
+  },
+  "onboarding": {
+    "role_question": "من أنت؟",
+    "athlete": "أنا رياضي",
+    "coach": "أنا كوتش"
+  },
+  "workout": {
+    "start": "ابدأ التمرين",
+    "push_day": "بوش دي",
+    "pull_day": "بول دي",
+    "finish": "احفظ التمرين"
+  }
+}
+```
+
+---
+
+## Important Notes for Replit
+
+1. **Use mock data only** — no real backend required. Load all data from local JSON files.
+2. **React Navigation** — use Bottom Tab Navigator for main 5 tabs, Stack Navigator for inner screens, Drawer Navigator for community sidebar.
+3. **RTL Support** — when language is Arabic, flip layout direction using `I18nManager.forceRTL(true)`.
+4. **Map** — use `react-native-maps` with mock coordinates for gyms, restaurants, and tournament venues.
+5. **Charts** — use `react-native-chart-kit` or `victory-native` for progress charts.
+6. **Image placeholders** — use `https://picsum.photos` or `https://source.unsplash.com` for all mock images.
+7. **Start with these screens first:** Onboarding → Communities → AI Coach (workout logger) → Nutrition Dashboard → Profile.
+8. **AI responses** — simulate AI by returning pre-written mock responses based on user input keywords.
+9. **Storage** — use AsyncStorage to persist user session, workout logs, and nutrition logs across sessions.
+10. **Language toggle** — add toggle in Profile settings to switch between Arabic and English instantly.
+
+---
+
+*Built with ❤️ for the Arab athletic community — نَفَس, breathe sport.*

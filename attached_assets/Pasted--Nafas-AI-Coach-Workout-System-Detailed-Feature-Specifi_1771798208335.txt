@@ -1,0 +1,620 @@
+# نَفَس (Nafas) — AI Coach: Workout System
+## Detailed Feature Specification for Replit
+
+---
+
+## Overview
+
+The Workout System lives inside the **AI Coach** tab. It covers 4 phases:
+1. **Prepare** — Build the workout plan before starting
+2. **Live Session** — Active workout with timer + set checking
+3. **Finish** — Stats, comparison, AI insights
+4. **Save & Share** — Reuse workouts + share as social post
+
+---
+
+## FULL FLOW
+
+```
+[ AI Coach Tab ]
+      │
+      ├──► [ Saved Workouts Library ]
+      │           └──► [ Workout Detail Page ] ──► [ Share as Post ]
+      │
+      └──► [ Prepare Workout Screen ]
+                  │  (add name, exercises, sets config)
+                  ▼
+           [ START WORKOUT ] ──► Global timer begins
+                  │
+                  ▼
+           [ Live Workout Screen ]
+                  │  (check sets, edit on the fly, rest timer)
+                  ▼
+           [ FINISH WORKOUT ]
+                  │
+                  ▼
+           [ Workout Summary Screen ]
+                  │  (stats + comparison + AI insight)
+                  ├──► Save to Library
+                  └──► Share as Post (Strava-style card)
+```
+
+---
+
+## SCREEN 1 — Workout Dashboard (AI Coach Tab Home)
+
+- Primary CTA button: **"+ Prepare Workout"**
+- Secondary button: **"Saved Workouts"**
+- Quick stats row: workouts this week / total volume / current streak
+- Recent workouts list (last 5 as cards showing: name, date, duration, total volume)
+
+---
+
+## SCREEN 2 — Prepare Workout Screen
+
+User builds the full workout before the timer starts.
+
+---
+
+### 2.1 Workout Name
+
+- Text input at top of screen: **Workout Name** (e.g. "Push Day", "Handstand Practice", "EMOM Monday")
+- Required — user cannot proceed without entering a name
+- Name is saved with the workout log and appears in history
+
+---
+
+### 2.2 Adding Exercises
+
+Two ways to add an exercise:
+
+**A) From Exercise Library**
+- Search bar
+- Filter chips by muscle group: Chest / Back / Shoulders / Arms / Legs / Core / Cardio / Calisthenics / Full Body
+- Each result shows: exercise name, muscle group tag, default set type
+
+**B) Create Custom Exercise**
+- Button: **"+ Create Custom Exercise"**
+- Fields:
+  - Exercise Name (text input) — required
+  - Muscle Group (dropdown)
+  - Default Set Type (see Section 2.3)
+  - Notes / description (optional)
+- Saved permanently to the user's personal exercise library
+- Custom exercises appear in search results for all future workouts with a "Custom" badge
+
+---
+
+### 2.3 Set Types
+
+When adding a set to any exercise, user selects the **Set Type**. Each set within the same exercise can have a different type. Supported types:
+
+---
+
+#### Type 1 — REPS
+Standard rep-based set.
+
+Fields:
+- Reps (number)
+- Weight (kg / lbs) — optional, can be bodyweight
+
+Example: `3 sets x 10 reps @ 80 kg`
+
+---
+
+#### Type 2 — HOLD / TIMED HOLD
+For static exercises like Plank, Handstand Hold, L-Sit, Wall Sit.
+
+Fields:
+- Hold Duration (seconds or minutes)
+- Weight (optional, e.g. weighted plank)
+
+Example: `3 sets x 30 sec hold`
+
+---
+
+#### Type 3 — INTERVAL (Reps Every X Minutes)
+For exercises performed on a repeating timer within a total duration.
+
+Fields:
+- Reps per round (number)
+- Every (X minutes) — interval duration
+- Total Duration (minutes)
+
+Example: `Push-ups — 15 reps every 1 min for 10 min`
+System auto-calculates: total rounds = 10, total reps = 150
+
+---
+
+#### Type 4 — EMOM (Every Minute On the Minute)
+Structured block where a specific exercise is performed at the start of each minute.
+
+Fields:
+- Total Duration (minutes) = number of rounds
+- Per round: exercise + reps or hold target
+- Multiple exercises can alternate per minute (odd/even minutes)
+
+Example:
+```
+EMOM 10 min:
+  Odd minutes  → 10 Pull-ups
+  Even minutes → 15 Push-ups
+```
+
+---
+
+#### Type 5 — AMRAP (As Many Rounds As Possible)
+User completes as many full rounds of an exercise list as possible within a time cap.
+
+Fields:
+- Time cap (minutes)
+- Exercise list with target reps per exercise per round
+
+During live session: user taps "+ Round" each time they complete a full round.
+
+---
+
+#### Type 6 — FOR TIME
+User completes a fixed amount of work as fast as possible.
+
+Fields:
+- Exercise list with rep targets per exercise
+- Optional time cap
+
+During live session: timer counts up, stops when user marks it done.
+
+---
+
+### 2.4 Exercise Card in Prepare Screen
+
+Each exercise added to the workout shows as a card:
+
+```
+┌─────────────────────────────────────────────┐
+│  Bench Press                    [Chest]      │
+│  ─────────────────────────────────────────  │
+│  Set 1:  [REPS]  [ 10 reps ]  [ 80 kg ] [x] │
+│  Set 2:  [REPS]  [ 8  reps ]  [ 85 kg ] [x] │
+│  Set 3:  [REPS]  [ 6  reps ]  [ 90 kg ] [x] │
+│                                              │
+│  [ + Add Set ]                               │
+│  Rest between sets: [ 90 sec ]               │
+│  ─────────────────────────────────────────  │
+│              [Edit]    [Delete Exercise]      │
+└─────────────────────────────────────────────┘
+```
+
+- Each set row has its own type selector (dropdown or pill selector)
+- Rest duration is configurable per exercise (shown in seconds)
+- Exercises are reorderable via drag handle
+- Delete individual sets with the [x] button, or delete the whole exercise
+
+---
+
+### 2.5 Prepare Screen Bottom Actions
+
+- **"+ Add Exercise"** button — opens exercise picker
+- **"Save as Template"** — saves exercise structure for reuse (no performance data)
+- **"Start Workout"** — begins the live session and starts the global timer
+
+---
+
+## SCREEN 3 — Live Workout Screen
+
+Activated when user taps **"Start Workout"**. The global workout timer starts immediately.
+
+---
+
+### 3.1 Header Bar
+
+```
+┌───────────────────────────────────────────┐
+│  Push Day                   00:14:32  [Finish] │
+└───────────────────────────────────────────┘
+```
+
+- Workout name on the left
+- Global elapsed timer counting up in center/right
+- **Finish** button on the far right — triggers end-of-workout confirmation
+
+---
+
+### 3.2 Exercise & Set Tracking
+
+Each set is displayed as a tappable row:
+
+```
+Bench Press                              [Chest]
+────────────────────────────────────────────────
+  ✅  Set 1    10 reps    80 kg        [DONE]
+  ⬜  Set 2     8 reps    85 kg    [Mark Done]
+  ⬜  Set 3     6 reps    90 kg    [Mark Done]
+
+  ▬▬▬  Rest: 01:28 remaining  [Skip Rest]  ▬▬▬
+```
+
+- Tapping **[Mark Done]** on a set:
+  - Marks the set as done (checkmark + dimmed styling)
+  - Automatically starts a rest countdown timer as a floating banner at the bottom of the screen
+  - Rest timer shows remaining time + "Skip Rest" button
+  - Rest timer does NOT block the user from interacting with the screen
+- Completed sets are shown with a check and dimmed
+- Current active set is highlighted
+
+---
+
+### 3.3 Live Behavior Per Set Type
+
+**REPS:** User taps [Mark Done]. Optionally edit actual reps if different from planned before confirming.
+
+**HOLD:** A [Start Hold] button appears. Tapping it starts a countdown. When countdown ends, set is auto-marked done. User can also tap [Done] early.
+
+**INTERVAL:** A countdown timer shows for each interval window. System counts rounds automatically. User can pause/resume. At end of total duration, the block is auto-complete.
+
+**EMOM:** Timer shows current minute number and which exercise is active. Visual flash/highlight at each new minute. User manually marks each minute done, or it auto-advances.
+
+**AMRAP:** Countdown timer counts down from time cap. User taps **"+ Round"** each time they complete a full round. At time cap, user confirms total rounds completed.
+
+**FOR TIME:** Timer counts up. User taps **"Done"** when all reps are complete. Elapsed time is recorded.
+
+---
+
+### 3.4 Inline Editing During Live Session
+
+The workout timer keeps running while user edits. All edits happen inline without leaving the screen.
+
+**Per Set actions (swipe left on set row or long press):**
+- **Edit** — change reps, weight, hold duration inline via small input fields
+- **Skip / Disable** — marks set as skipped (strikethrough style, excluded from stats, still visible)
+- **Delete** — removes the set entirely from the session
+
+**Per Exercise actions (tap the 3-dot menu on the exercise card):**
+- **Edit Exercise** — rename or change muscle group
+- **Add Set** — add an extra set to this exercise mid-workout
+- **Reorder** — drag handle to move exercise up/down
+- **Skip Entire Exercise** — marks all remaining sets as skipped at once
+- **Delete Exercise** — removes from the current session
+
+**Add New Exercise mid-workout:**
+- A floating **"+ Add Exercise"** button is always visible at the bottom of the screen
+- Opens the same exercise picker (library + custom)
+- Added exercise appears at the bottom of the live list
+
+---
+
+### 3.5 Pre-Workout Toggle
+
+Shown at the top of the Live Workout screen:
+- **"Pre-workout taken? 💊"** — Yes / No toggle
+- Can be toggled at any time during the session
+- Saved with the workout log for long-term tracking and correlation with performance
+
+---
+
+## SCREEN 4 — Finish Workout
+
+User taps **"Finish"** button in the header. A confirmation bottom sheet appears:
+
+```
+┌──────────────────────────────────┐
+│  Finish workout?                 │
+│  2 sets are still pending        │
+│                                  │
+│  [ Finish Anyway ]               │
+│  [ Keep Going ]                  │
+└──────────────────────────────────┘
+```
+
+After confirming → navigate to Workout Summary Screen. Timer stops.
+
+---
+
+## SCREEN 5 — Workout Summary Screen
+
+Auto-generated after finishing. Divided into clear sections.
+
+---
+
+### 5.1 This Workout Stats
+
+| Metric | Value |
+|---|---|
+| Workout Name | Push Day |
+| Date & Time | Feb 18, 2026 · 7:30 AM |
+| Total Duration | 1h 02min |
+| Exercises | 5 |
+| Total Sets | 14 |
+| Sets Completed | 12 (2 skipped) |
+| Total Reps | 128 |
+| Total Volume | 8,640 kg |
+| Pre-workout | Yes |
+
+---
+
+### 5.2 Comparison with Previous Same-Type Workout
+
+System finds the most recent workout log with the same name. If no previous exists, shows: "First time doing this workout! Keep it up 🎉"
+
+If previous exists, show a comparison card:
+
+```
+vs. Last Push Day — Feb 11, 2026
+
+Volume:      8,640 kg   ▲ +420 kg  (+5.1%)
+Duration:    1h 02min   ▼ -3 min
+Sets Done:   12 / 14    ▲ +1 set
+Top Lift:    90 kg      ▲ +5 kg (Bench Press)
+```
+
+Per-exercise breakdown table:
+
+| Exercise | Today | Last Time | Change |
+|---|---|---|---|
+| Bench Press | 90 kg x 6 | 85 kg x 6 | +5 kg |
+| OHP | 55 kg x 8 | 55 kg x 7 | +1 rep |
+| Cable Flys | 30 kg x 12 | 32.5 kg x 10 | -2.5 kg |
+
+---
+
+### 5.3 AI Performance Insight
+
+A short AI-generated text block based on the data:
+
+```
+AI Insight
+
+Great session! Your bench press hit a new 6-rep max at 90 kg.
+Overall volume is up 5% from last week — solid progressive overload.
+Consider increasing OHP weight next session since reps are consistent.
+You skipped 2 sets — if energy was low, check your sleep and nutrition logs.
+```
+
+---
+
+### 5.4 Summary Screen Action Buttons
+
+- **"Save Workout"** — saves the full completed log to history (auto-saved, this confirms it)
+- **"Save as Template"** — saves just the exercise structure (without weights/logs) for future reuse
+- **"Share Workout"** — opens the Share Card screen (Screen 6)
+
+---
+
+## SCREEN 6 — Share Workout (Strava-Style Card)
+
+User can generate a shareable image card from their completed workout.
+
+---
+
+### 6.1 Share Card Layout
+
+A visual card is auto-generated:
+
+```
+┌──────────────────────────────────────────────┐
+│                                    نَفَس      │
+│  PUSH DAY                                    │
+│  Feb 18, 2026 · 7:30 AM                      │
+│  ──────────────────────────────────────────  │
+│  1h 02min        8,640 kg        12 sets     │
+│  Duration        Volume          Completed   │
+│  ──────────────────────────────────────────  │
+│  Bench Press · OHP · Cable Flys              │
+│  Tricep Dips · Lateral Raises                │
+│  ──────────────────────────────────────────  │
+│  Top Lift: Bench Press — 90 kg               │
+│  Volume ▲ +5.1% vs last session              │
+│                                              │
+│  @ahmed_fit                                  │
+└──────────────────────────────────────────────┘
+```
+
+Card styling options (user can pick):
+- **Dark** — dark background, mint accent (default)
+- **Gradient** — mint-to-dark gradient
+- **Light** — light background, dark text
+
+---
+
+### 6.2 Share Options
+
+After generating the card:
+- **"Post to Community"** — opens post composer with card pre-attached. User selects which community (Gym / Calisthenics / etc.) and writes an optional caption.
+- **"Post to My Profile"** — posts to the user's own social feed
+- **"Save Image"** — saves card to device photo library
+- **"Share via..."** — native device share sheet (WhatsApp, Instagram, etc.)
+
+When posting to community or profile:
+- Card image is attached automatically
+- Exercise tags are auto-populated from the workout
+- User can write an additional caption
+
+---
+
+## SCREEN 7 — Saved Workouts Library
+
+Accessible from AI Coach tab via the "Saved Workouts" button.
+
+---
+
+### 7.1 Two Tabs
+
+**Templates tab** — saved workout structures (no logs, reusable skeletons)
+**History tab** — all completed workout logs with full performance data
+
+Each card shows:
+- Workout name
+- Date (for history) or "Template" badge
+- Duration / Volume / Exercise count
+- Muscle group tags
+
+---
+
+### 7.2 Workout Detail Page
+
+Opening any saved workout or template shows the full detail view:
+
+- Workout name + date and time
+- Full stats (duration, volume, sets, reps)
+- Full exercise list with all sets and logged weights
+- AI insight text (for completed logs)
+- Comparison summary (for completed logs)
+
+**Action buttons:**
+- **"Use as Template"** — loads this workout into the Prepare screen. Sets and weights are pre-filled. User can edit before starting.
+- **"Share"** — opens the Share Card screen
+- **"Edit Name"** — rename the saved entry
+- **"Delete"** — remove from library (with confirmation)
+
+---
+
+## MOCK DATA STRUCTURE
+
+### workout_templates.json
+```json
+[
+  {
+    "id": "tmpl_1",
+    "userId": "u1",
+    "name": "Push Day",
+    "createdAt": "2026-01-10",
+    "exercises": [
+      {
+        "exerciseId": "ex_bench",
+        "name": "Bench Press",
+        "muscleGroup": "Chest",
+        "restSeconds": 90,
+        "sets": [
+          { "type": "reps", "reps": 10, "weight": 80 },
+          { "type": "reps", "reps": 8,  "weight": 85 },
+          { "type": "reps", "reps": 6,  "weight": 90 }
+        ]
+      },
+      {
+        "exerciseId": "ex_plank",
+        "name": "Plank Hold",
+        "muscleGroup": "Core",
+        "restSeconds": 60,
+        "sets": [
+          { "type": "hold", "durationSeconds": 60 },
+          { "type": "hold", "durationSeconds": 60 }
+        ]
+      },
+      {
+        "exerciseId": "ex_pushup_interval",
+        "name": "Push-ups",
+        "muscleGroup": "Chest",
+        "sets": [
+          {
+            "type": "interval",
+            "repsPerRound": 15,
+            "everyMinutes": 1,
+            "totalMinutes": 10
+          }
+        ]
+      }
+    ]
+  }
+]
+```
+
+### workout_logs.json
+```json
+[
+  {
+    "id": "log_1",
+    "userId": "u1",
+    "templateId": "tmpl_1",
+    "name": "Push Day",
+    "date": "2026-02-18",
+    "startTime": "07:30:00",
+    "endTime": "08:32:00",
+    "durationMinutes": 62,
+    "preWorkout": true,
+    "totalVolumeKg": 8640,
+    "totalSets": 14,
+    "completedSets": 12,
+    "skippedSets": 2,
+    "totalReps": 128,
+    "exercises": [
+      {
+        "exerciseId": "ex_bench",
+        "name": "Bench Press",
+        "sets": [
+          {
+            "type": "reps",
+            "planned": { "reps": 10, "weight": 80 },
+            "actual":  { "reps": 10, "weight": 80 },
+            "status": "done"
+          },
+          {
+            "type": "reps",
+            "planned": { "reps": 8, "weight": 85 },
+            "actual":  { "reps": 8, "weight": 85 },
+            "status": "done"
+          },
+          {
+            "type": "reps",
+            "planned": { "reps": 6, "weight": 90 },
+            "actual":  { "reps": 5, "weight": 90 },
+            "status": "done"
+          }
+        ]
+      }
+    ],
+    "aiInsight": "Great session! Bench press hit a new 6-rep max at 90 kg. Volume up 5% from last week."
+  }
+]
+```
+
+### custom_exercises.json
+```json
+[
+  {
+    "id": "custom_ex_1",
+    "userId": "u1",
+    "name": "Wall Handstand Hold",
+    "muscleGroup": "Shoulders",
+    "defaultSetType": "hold",
+    "notes": "Face the wall, hold position",
+    "isCustom": true,
+    "createdAt": "2026-01-15"
+  }
+]
+```
+
+---
+
+## SET TYPE SUMMARY TABLE
+
+| Type | Fields | Use Case |
+|---|---|---|
+| REPS | reps, weight | Bench press, squats, pull-ups |
+| HOLD | duration (seconds) | Plank, handstand, L-sit, wall sit |
+| INTERVAL | reps per round, every X min, total duration | Push-ups every 1 min for 10 min |
+| EMOM | total minutes, exercises per minute slot | CrossFit-style EMOM blocks |
+| AMRAP | time cap, exercise list + reps per round | Max rounds in time window |
+| FOR TIME | exercise list + rep targets, optional time cap | Timed completion challenges |
+
+---
+
+## IMPORTANT BEHAVIOR NOTES FOR REPLIT
+
+1. **Timer** — starts the moment user taps "Start Workout". Runs continuously. Save the start timestamp to AsyncStorage immediately so it survives app backgrounding or accidental close.
+
+2. **Auto-save** — save the current workout session state to AsyncStorage every 30 seconds during a live session. If app reopens with an unfinished session, prompt: "Resume your workout?" with elapsed time shown.
+
+3. **Set status values:** `"pending"` / `"done"` / `"skipped"` / `"in_progress"` (active holds/timers)
+
+4. **Rest timer** — appears as a floating bottom banner after a set is marked done. Shows countdown + "Skip Rest" button. Does not block scrolling or interaction with other sets.
+
+5. **Comparison logic** — find the most recent log entry where `name` matches the current workout name. If none found, show the first-time message instead of a comparison card.
+
+6. **Volume calculation** — `totalVolume = sum of (actual_reps x weight)` for all REPS-type sets with status "done". HOLD / EMOM / AMRAP are tracked separately as duration or rounds, not included in kg volume.
+
+7. **Share card** — generate as an HTML canvas element rendered to a base64 image. Include: workout name, date, 3 key stats, exercise names, performance delta vs last session, app branding and username.
+
+8. **Custom exercises** — stored in `custom_exercises` array in AsyncStorage. Appear in exercise search mixed with the default library. Always tagged with a "Custom" label to distinguish them.
+
+9. **Template vs Log distinction** — a template stores only the exercise structure (exercises + set configs, no performance data). A log stores the full completed session with actual reps, weights, timestamps, and AI insight. Both are stored and managed separately.
+
+10. **Skip behavior** — skipped sets are rendered with strikethrough styling and grayed out. They are excluded from volume and rep totals in stats and comparisons, but remain visible in the workout detail view for reference.

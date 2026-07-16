@@ -1,0 +1,48 @@
+Build the authentication and onboarding flow for Nafas, a smart fitness companion app.
+
+## Business Logic
+
+### Registration
+Two paths to join Nafas:
+
+**Social Sign-Up (Google / Apple)**
+User signs up instantly with no verification step needed — trust is inherited 
+from the social provider. User lands directly on home screen and is nudged 
+to complete their profile at their own pace.
+
+**Standard Sign-Up (Email / Password)**
+User signs up with basic info (name, email, password) and must verify their 
+email via OTP before accessing the app. This ensures only real users enter 
+the platform and keeps the user base clean and trustworthy.
+
+Once verified, the user lands on the home screen. The app will detect that their 
+profile is incomplete and prompt them to finish it at their own pace — no friction 
+at signup, better completion rates overall.
+
+### Profile Completion (post-login, step by step)
+After login, incomplete profiles are nudged to fill:
+- Physical info (height, weight, age, gender)
+- Sports interests
+- Fitness goals
+
+Each step saves independently so the user never loses progress.
+
+### Coach Identity
+All users are athletes by default. Any user can identify as a coach during signup 
+by checking "I'm a Coach" and filling in their specialty, certifications, and 
+years of experience.
+
+However, being a coach on Nafas is earned, not just declared. Verified coaches 
+are the ones who appear at the top of search results and carry a trust badge. 
+Verification is based on a combination of: certificates, number of active 
+subscribers, average client rating, and transformation posts (before/after). 
+This system rewards real results and protects athletes from unqualified coaches.
+
+### Login
+Returning users log in with email/password, Google, or Apple.
+Forgot password is handled via email OTP reset.
+
+## Goal
+The flow should feel fast, low-friction, and trustworthy — get the user in quickly, 
+earn their engagement over time, and build a verified community of coaches 
+athletes can actually trust.

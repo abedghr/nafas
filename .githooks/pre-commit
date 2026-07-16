@@ -1,0 +1,9 @@
+#!/bin/sh
+# Block commits that don't typecheck (app/server + admin). Skip with: git commit --no-verify
+echo "▶ typecheck (app + server)…"
+npm run --silent typecheck || { echo "✗ typecheck failed — fix types or commit with --no-verify"; exit 1; }
+if git diff --cached --name-only | grep -q '^admin/'; then
+  echo "▶ typecheck (admin)…"
+  npm run --silent typecheck:admin || { echo "✗ admin typecheck failed"; exit 1; }
+fi
+echo "✓ typecheck passed"

@@ -1,0 +1,64 @@
+# Nafas production — runs anywhere with Docker (a personal VPS, or locally).
+# Not tied to any company infra. Two services: the app (API + web PWA) + Postgres.
+#
+#   1. cp .env.prod.example .env.prod   &&   edit it
+#   2. docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#   3. one-time DB setup:  docker compose -f docker-compose.prod.yml exec app npm run db:push
+#      (then seeds:        docker compose -f docker-compose.prod.yml exec app npm run db:seed  ... etc.)
+#
+# HTTPS: put this behind a reverse proxy (Caddy/Nginx) or a PaaS that terminates TLS,
+# pointing your domain at the app on :5001. PUBLIC_URL must be that https URL.
+services:
+  app:
+    build:
+      context: .
+      args:
+        EXPO_PUBLIC_API_URL: ${PUBLIC_URL}     # baked into the web build → the app calls this API
+    image: nafas:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "5001"
+      DATABASE_URL: postgresql://nafas:${DB_PASSWORD}@db:5432/nafas
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_TTL: 30d
+      # OTP email — optional; without SMTP the server only logs codes (dev behaviour)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-Nafas <no-reply@nafas.app>}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+    ports:
+      - "${APP_PORT:-5001}:5001"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 25s
+      retries: 3
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nafas
+      POSTGRES_DB: nafas
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nafas -d nafas"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  uploads: {}
+  pgdata: {}

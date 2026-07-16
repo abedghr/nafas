@@ -1,0 +1,40 @@
+# Render Blueprint — free Docker web service (API + Expo web PWA in one).
+# Deploy: Render dashboard → New → Blueprint → pick this repo.
+# Then set DATABASE_URL (from Neon) in the dashboard, and redeploy.
+services:
+  - type: web
+    name: nafas
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Public URL baked into the web build → the app calls its own API.
+      # Must match the service's URL. If you rename the service, update this.
+      - key: EXPO_PUBLIC_API_URL
+        value: https://nafas.onrender.com
+      # Postgres from Neon — set this secret in the dashboard (sync:false = not in git).
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 30d
+      # OTP email (optional). Leave blank to only log codes; fill for real emails.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        value: Nafas <no-reply@nafas.app>
