@@ -789,6 +789,7 @@ export default function PrepareWorkoutScreen() {
   const [preWorkout, setPreWorkout] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [templateName, setTemplateName] = useState('');
+  const [changingType, setChangingType] = useState(false);
 
   useEffect(() => {
     if (templateId) {
@@ -967,28 +968,52 @@ export default function PrepareWorkoutScreen() {
             )}
 
             <View style={[s.nameCard, { backgroundColor: theme.card }]}>
-              <Text style={[s.nameLabel, { color: theme.textSecondary }]}>{t('workoutPrep.whatAreYouTraining')}</Text>
-              <View style={s.typeChipsGrid}>
-                {trainingTypes.map(wt => {
-                  const active = workoutType === wt.name;
-                  // prefer an i18n label if one exists, else the backend/localized name
-                  const label = t(`workoutTypeNames.${wt.name}`, { defaultValue: wt.name });
+              {(() => {
+                const selected = workoutType ? trainingTypes.find(x => x.name === workoutType) : null;
+                const collapsed = !!workoutType && !changingType && workoutType !== 'Custom';
+                if (collapsed && selected) {
+                  // compact: show the picked type + a Change button (frees space for exercises)
+                  const label = t(`workoutTypeNames.${selected.name}`, { defaultValue: selected.name });
                   return (
-                    <Pressable
-                      key={wt.name}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setWorkoutType(active ? null : wt.name as WorkoutType);
-                        if (wt.name !== 'Custom') setWorkoutName('');
-                      }}
-                      style={[s.typeGridChip, { backgroundColor: active ? Colors.primary + '20' : theme.surface, borderColor: active ? Colors.primary : theme.border }]}
-                    >
-                      <Ionicons name={(wt.icon || 'barbell-outline') as any} size={16} color={active ? Colors.primary : theme.textSecondary} />
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: active ? Colors.primary : theme.textSecondary }}>{label}</Text>
-                    </Pressable>
+                    <View style={s.typeSelectedRow}>
+                      <View style={s.typeSelectedChip}>
+                        <Ionicons name={(selected.icon || 'barbell-outline') as any} size={16} color={Colors.primary} />
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.primary }}>{label}</Text>
+                      </View>
+                      <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setChangingType(true); }} hitSlop={8} style={s.typeChangeBtn}>
+                        <Ionicons name="swap-horizontal" size={14} color={theme.textSecondary} />
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: theme.textSecondary }}>{t('workoutPrep.change', { defaultValue: 'Change' })}</Text>
+                      </Pressable>
+                    </View>
                   );
-                })}
-              </View>
+                }
+                return (
+                  <>
+                    <Text style={[s.nameLabel, { color: theme.textSecondary }]}>{t('workoutPrep.whatAreYouTraining')}</Text>
+                    <View style={s.typeChipsGrid}>
+                      {trainingTypes.map(wt => {
+                        const active = workoutType === wt.name;
+                        const label = t(`workoutTypeNames.${wt.name}`, { defaultValue: wt.name });
+                        return (
+                          <Pressable
+                            key={wt.name}
+                            onPress={() => {
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                              setWorkoutType(active ? null : wt.name as WorkoutType);
+                              if (wt.name !== 'Custom') setWorkoutName('');
+                              setChangingType(false);
+                            }}
+                            style={[s.typeGridChip, { backgroundColor: active ? Colors.primary + '20' : theme.surface, borderColor: active ? Colors.primary : theme.border }]}
+                          >
+                            <Ionicons name={(wt.icon || 'barbell-outline') as any} size={16} color={active ? Colors.primary : theme.textSecondary} />
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: active ? Colors.primary : theme.textSecondary }}>{label}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </>
+                );
+              })()}
 
               {workoutType === 'Custom' && (
                 <View style={{ marginTop: 12 }}>
@@ -1237,6 +1262,9 @@ const s = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
   },
+  typeSelectedRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  typeSelectedChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: Colors.primary + '18' },
+  typeChangeBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7 },
   reorderCol: { marginRight: 8, justifyContent: 'center', alignItems: 'center' },
   reorderBtn: { paddingVertical: 1 },
   dragHandle: {
