@@ -295,4 +295,52 @@ export const workoutService = {
     await this._setTranslations(id, (data as any).translations);
     return this.adminGetExercise(id);
   },
+
+  // ── workout types (training types) admin CRUD ────────────────────────────
+  async adminListWorkoutTypesFull() {
+    const rows = await db.select({ id: workoutTypes.id, name: workoutTypes.name, description: workoutTypes.description })
+      .from(workoutTypes).where(isNull(workoutTypes.userId)).orderBy(workoutTypes.name);
+    const links = await db.select({ workoutTypeId: exerciseWorkoutTypes.workoutTypeId }).from(exerciseWorkoutTypes);
+    const count = new Map<string, number>();
+    for (const l of links) count.set(l.workoutTypeId, (count.get(l.workoutTypeId) || 0) + 1);
+    return rows.map((r) => ({ ...r, exerciseCount: count.get(r.id) || 0 }));
+  },
+  async adminGetWorkoutType(id: string) {
+    const [row] = await db.select().from(workoutTypes).where(eq(workoutTypes.id, id));
+    if (!row) throw new ApiError(404, "NOT_FOUND", "Workout type not found");
+    const trs = await db.select().from(workoutTypeTranslations).where(eq(workoutTypeTranslations.workoutTypeId, id));
+    const translations: Record<string, { name?: string; description?: string }> = {};
+    for (const t of trs) translations[t.locale] = { name: t.name ?? undefined, description: t.description ?? undefined };
+    return { id: row.id, name: row.name, description: row.description, translations };
+  },
+  async _setWorkoutTypeTranslations(workoutTypeId: string, translations?: Record<string, { name?: string; description?: string }>) {
+    if (!translations) return;
+    for (const [locale, v] of Object.entries(translations)) {
+      if (locale === "en") continue;
+      await db.insert(workoutTypeTranslations).values({ workoutTypeId, locale, name: v.name ?? null, description: v.description ?? null })
+        .onConflictDoUpdate({ target: [workoutTypeTranslations.workoutTypeId, workoutTypeTranslations.locale], set: { name: v.name ?? null, description: v.description ?? null } });
+    }
+  },
+  async adminCreateWorkoutType(data: { name: string; description?: string; translations?: Record<string, { name?: string; description?: string }> }) {
+    const [row] = await db.insert(workoutTypes).values({ name: data.name, description: data.description ?? "", userId: null }).returning();
+    await this._setWorkoutTypeTranslations(row.id, data.translations);
+    return this.adminGetWorkoutType(row.id);
+  },
+  async adminUpdateWorkoutType(id: string, data: { name?: string; description?: string; translations?: Record<string, { name?: string; description?: string }> }) {
+    const set: Record<string, unknown> = {};
+    if (data.name !== undefined) set.name = data.name;
+    if (data.description !== undefined) set.description = data.description;
+    if (Object.keys(set).length) {
+      const [row] = await db.update(workoutTypes).set(set).where(eq(workoutTypes.id, id)).returning();
+      if (!row) throw new ApiError(404, "NOT_FOUND", "Workout type not found");
+    } else {
+      await this.adminGetWorkoutType(id);
+    }
+    await this._setWorkoutTypeTranslations(id, data.translations);
+    return this.adminGetWorkoutType(id);
+  },
+  async adminDeleteWorkoutType(id: string) {
+    // exercise↔type links cascade via FK; exercises themselves stay
+    await db.delete(workoutTypes).where(eq(workoutTypes.id, id));
+  },
 };

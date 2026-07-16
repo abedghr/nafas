@@ -5,7 +5,7 @@ import { requireAuth, requireRole } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { qstr } from "../../core/http";
 import { workoutService } from "./workout.service";
-import { ExerciseSchema, AdminExerciseInputSchema } from "./workout.schema";
+import { ExerciseSchema, AdminExerciseInputSchema, AdminWorkoutTypeInputSchema } from "./workout.schema";
 import { ENUM_SYSTEM_BODY_TARGET } from "./seed-data/body-target.enum";
 
 export const workoutAdminRouter = Router();
@@ -43,5 +43,32 @@ registry.registerPath({ method: "delete", path: "/api/admin/exercises/{id}", tag
   request: { params: idParam }, responses: { 204: { description: "Deleted" } } });
 workoutAdminRouter.delete("/:id", validate({ params: idParam }), async (req, res) => {
   await workoutService.adminDeleteExercise(String(req.params.id));
+  res.status(204).end();
+});
+
+// ── training/workout types admin CRUD (mounted at /api/admin/workout-types) ──
+export const workoutTypeAdminRouter = Router();
+workoutTypeAdminRouter.use(requireAuth, requireRole("admin"));
+
+registry.registerPath({ method: "get", path: "/api/admin/workout-types", tags: ["Admin: Workout"], summary: "List training types", security: sec,
+  responses: { 200: json(z.object({ data: z.array(z.any()) })) } });
+workoutTypeAdminRouter.get("/", async (_req, res) => res.json({ data: await workoutService.adminListWorkoutTypesFull() }));
+
+registry.registerPath({ method: "get", path: "/api/admin/workout-types/{id}", tags: ["Admin: Workout"], summary: "Get a training type", security: sec,
+  request: { params: idParam }, responses: { 200: json(z.any()) } });
+workoutTypeAdminRouter.get("/:id", validate({ params: idParam }), async (req, res) => res.json(await workoutService.adminGetWorkoutType(String(req.params.id))));
+
+registry.registerPath({ method: "post", path: "/api/admin/workout-types", tags: ["Admin: Workout"], summary: "Create a training type", security: sec,
+  request: { body: { content: { "application/json": { schema: AdminWorkoutTypeInputSchema } } } }, responses: { 201: json(z.any(), "Created") } });
+workoutTypeAdminRouter.post("/", validate({ body: AdminWorkoutTypeInputSchema }), async (req, res) => res.status(201).json(await workoutService.adminCreateWorkoutType(req.body)));
+
+registry.registerPath({ method: "patch", path: "/api/admin/workout-types/{id}", tags: ["Admin: Workout"], summary: "Update a training type", security: sec,
+  request: { params: idParam, body: { content: { "application/json": { schema: AdminWorkoutTypeInputSchema.partial() } } } }, responses: { 200: json(z.any()) } });
+workoutTypeAdminRouter.patch("/:id", validate({ params: idParam, body: AdminWorkoutTypeInputSchema.partial() }), async (req, res) => res.json(await workoutService.adminUpdateWorkoutType(String(req.params.id), req.body)));
+
+registry.registerPath({ method: "delete", path: "/api/admin/workout-types/{id}", tags: ["Admin: Workout"], summary: "Delete a training type", security: sec,
+  request: { params: idParam }, responses: { 204: { description: "Deleted" } } });
+workoutTypeAdminRouter.delete("/:id", validate({ params: idParam }), async (req, res) => {
+  await workoutService.adminDeleteWorkoutType(String(req.params.id));
   res.status(204).end();
 });

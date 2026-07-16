@@ -15,7 +15,7 @@ const en: Dict = {
   "shell.admin": "admin", "shell.logout": "Log out", "shell.searchPh": "Search…", "shell.adminUser": "Admin",
   // nav
   "nav.dashboard": "Dashboard", "nav.users": "Users", "nav.countries": "Countries",
-  "nav.exercises": "Exercises", "nav.localization": "Localization", "nav.foods": "Foods", "nav.gyms": "Gyms", "nav.facilities": "Facilities",
+  "nav.exercises": "Exercises", "nav.workoutTypes": "Training Types", "nav.localization": "Localization", "nav.foods": "Foods", "nav.gyms": "Gyms", "nav.facilities": "Facilities",
   "fac.title": "Facilities", "fac.sub": "{{count}} facilities · localized catalog gyms pick from.", "fac.add": "Add facility",
   "fac.empty": "No facilities.", "fac.new": "New facility", "fac.edit": "Edit facility", "fac.col": "Facility",
   "fac.icon": "Icon (Ionicon name)", "fac.logo": "Logo (optional)", "fac.name": "Title", "fac.desc": "Description", "fac.save": "Save facility",
@@ -133,7 +133,7 @@ const ar: Dict = {
   "common.deleteConfirm": "حذف {{name}}؟", "common.nameRequiredEn": "الاسم بالإنجليزية مطلوب.",
   "shell.admin": "المشرف", "shell.logout": "تسجيل الخروج", "shell.searchPh": "بحث…", "shell.adminUser": "مشرف",
   "nav.dashboard": "لوحة التحكم", "nav.users": "المستخدمون", "nav.countries": "الدول",
-  "nav.exercises": "التمارين", "nav.localization": "الترجمة", "nav.foods": "الأطعمة", "nav.gyms": "الصالات", "nav.facilities": "المرافق",
+  "nav.exercises": "التمارين", "nav.workoutTypes": "أنواع التدريب", "nav.localization": "الترجمة", "nav.foods": "الأطعمة", "nav.gyms": "الصالات", "nav.facilities": "المرافق",
   "fac.title": "المرافق", "fac.sub": "{{count}} مرفق · دليل مُترجم تختار منه الصالات.", "fac.add": "إضافة مرفق",
   "fac.empty": "لا توجد مرافق.", "fac.new": "مرفق جديد", "fac.edit": "تعديل المرفق", "fac.col": "المرفق",
   "fac.icon": "الأيقونة (اسم Ionicon)", "fac.logo": "الشعار (اختياري)", "fac.name": "العنوان", "fac.desc": "الوصف", "fac.save": "حفظ المرفق",

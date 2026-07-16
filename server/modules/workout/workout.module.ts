@@ -1,6 +1,6 @@
 import type { AppModule } from "../types";
 import { workoutRouter } from "./workout.routes";
-import { workoutAdminRouter } from "./workout.admin.routes";
+import { workoutAdminRouter, workoutTypeAdminRouter } from "./workout.admin.routes";
 
 export const workoutModule: AppModule = {
   name: "workout",
@@ -9,5 +9,6 @@ export const workoutModule: AppModule = {
   },
   registerAdmin(admin) {
     admin.use("/exercises", workoutAdminRouter); // scoped — avoids the global requireAuth leaking onto other admin routes
+    admin.use("/workout-types", workoutTypeAdminRouter);
   },
 };

@@ -32,6 +32,15 @@ export const AdminExerciseInputSchema = z
 
 export type AdminExerciseInput = z.infer<typeof AdminExerciseInputSchema>;
 
+export const AdminWorkoutTypeInputSchema = z
+  .object({
+    name: z.string().min(1),
+    description: z.string().optional(),
+    translations: z.record(z.string(), z.object({ name: z.string().optional(), description: z.string().optional() })).optional(),
+  })
+  .openapi("AdminWorkoutTypeInput");
+export type AdminWorkoutTypeInput = z.infer<typeof AdminWorkoutTypeInputSchema>;
+
 export const TemplateExerciseSchema = z
   .object({
     exerciseId: z.string(),

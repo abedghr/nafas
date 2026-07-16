@@ -7,6 +7,7 @@ import { Placeholder } from "../pages/Placeholder";
 import { Countries } from "../pages/Countries";
 import { Users } from "../pages/Users";
 import { Exercises } from "../pages/Exercises";
+import { WorkoutTypes } from "../pages/WorkoutTypes";
 import { Localization } from "../pages/Localization";
 import { Foods } from "../pages/Foods";
 import { Gyms } from "../pages/Gyms";
@@ -34,6 +35,7 @@ export function Router() {
         { path: "users", element: <Users /> },
         { path: "countries", element: <Countries /> },
         { path: "exercises", element: <Exercises /> },
+        { path: "workout-types", element: <WorkoutTypes /> },
         { path: "localization", element: <Localization /> },
         { path: "foods", element: <Foods /> },
         { path: "gyms", element: <Gyms /> },
