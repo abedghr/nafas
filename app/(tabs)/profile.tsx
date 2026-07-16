@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, Pressable, StyleSheet, ScrollView, Platform, Switch, Alert,
+  View, Text, Pressable, StyleSheet, ScrollView, Platform, Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,6 +11,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/lib/i18n';
 import { useApp } from '@/lib/app-context';
+import { confirmDialog, alertDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 import { ranks, sportInterests } from '@/lib/mock-data';
 import { gymsApi } from '@/src/features/gyms/api';
@@ -90,27 +91,16 @@ export default function ProfileScreen() {
     router.replace('/auth');
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    Alert.alert(
-      t('profile.delete_account'),
-      t('profile.delete_account_confirm'),
-      [
-        { text: t('workoutSession.cancel'), style: 'cancel' },
-        {
-          text: t('profile.delete_account'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAccount();
-              router.replace('/auth');
-            } catch (e: any) {
-              Alert.alert(t('profile.delete_account'), e?.message || t('discover.save_failed'));
-            }
-          },
-        },
-      ],
-    );
+    if (await confirmDialog({ title: t('profile.delete_account'), message: t('profile.delete_account_confirm'), destructive: true, confirmText: t('profile.delete_account'), cancelText: t('workoutSession.cancel') })) {
+      try {
+        await deleteAccount();
+        router.replace('/auth');
+      } catch (e: any) {
+        await alertDialog(t('profile.delete_account'), e?.message || t('discover.save_failed'));
+      }
+    }
   };
 
   const isCoach = user?.type === 'coach';

@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
-  Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useApp, WorkoutLog, LogExercise } from '@/lib/app-context';
+import { confirmDialog, alertDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 
 function formatDuration(minutes: number): string {
@@ -115,7 +115,7 @@ export default function WorkoutDetailScreen() {
         sets: ex.sets.map((s) => s.planned),
       })),
     });
-    Alert.alert(t('workoutSession.templateSaved'), t('workoutSession.templateSavedMessage', { name: currentLog.name }));
+    alertDialog(t('workoutSession.templateSaved'), t('workoutSession.templateSavedMessage', { name: currentLog.name }));
   }, [currentLog, user, addWorkoutTemplate, t]);
 
   const handleShare = useCallback(() => {
@@ -124,25 +124,14 @@ export default function WorkoutDetailScreen() {
     router.push(`/share-workout?logId=${currentLog.id}` as any);
   }, [currentLog]);
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (!currentLog) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(
-      t('workoutSession.deleteWorkout'),
-      t('workoutSession.deleteWorkoutConfirm', { name: currentLog.name }),
-      [
-        { text: t('workoutSession.cancel'), style: 'cancel' },
-        {
-          text: t('workoutSession.delete'),
-          style: 'destructive',
-          onPress: () => {
-            deleteWorkoutLog(currentLog.id);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            router.back();
-          },
-        },
-      ]
-    );
+    if (await confirmDialog({ title: t('workoutSession.deleteWorkout'), message: t('workoutSession.deleteWorkoutConfirm', { name: currentLog.name }), destructive: true, confirmText: t('workoutSession.delete'), cancelText: t('workoutSession.cancel') })) {
+      deleteWorkoutLog(currentLog.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.back();
+    }
   }, [currentLog, deleteWorkoutLog, t]);
 
   if (!currentLog) {

@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useApp, WorkoutTemplate, WorkoutLog } from '@/lib/app-context';
+import { confirmDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 
 type Tab = 'templates' | 'history';
@@ -50,23 +50,12 @@ export default function SavedWorkoutsScreen() {
   const topPadding = Platform.OS === 'web' ? 67 : insets.top;
   const [activeTab, setActiveTab] = useState<Tab>('templates');
 
-  const handleDeleteTemplate = useCallback((template: WorkoutTemplate) => {
+  const handleDeleteTemplate = useCallback(async (template: WorkoutTemplate) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(
-      t('workoutSession.deleteTemplate'),
-      t('workoutSession.deleteTemplateConfirm', { name: template.name }),
-      [
-        { text: t('workoutSession.cancel'), style: 'cancel' },
-        {
-          text: t('workoutSession.delete'),
-          style: 'destructive',
-          onPress: () => {
-            deleteWorkoutTemplate(template.id);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          },
-        },
-      ]
-    );
+    if (await confirmDialog({ title: t('workoutSession.deleteTemplate'), message: t('workoutSession.deleteTemplateConfirm', { name: template.name }), destructive: true, confirmText: t('workoutSession.delete'), cancelText: t('workoutSession.cancel') })) {
+      deleteWorkoutTemplate(template.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
   }, [deleteWorkoutTemplate, t]);
 
   const handleTemplatePress = useCallback((template: WorkoutTemplate) => {

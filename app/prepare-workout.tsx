@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ScrollView, Platform, Modal,
-  TextInput, Alert, Dimensions, KeyboardAvoidingView, Switch,
+  TextInput, Dimensions, KeyboardAvoidingView, Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,6 +12,7 @@ import * as Crypto from 'expo-crypto';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
+import { alertDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
 import type { SetConfig, TemplateExercise, WorkoutType, WorkoutTemplate } from '@/lib/app-context';
@@ -532,7 +533,7 @@ function CreateCustomModal({ visible, onClose, onSave, theme }: {
 
   const handleSave = () => {
     if (!name.trim()) {
-      Alert.alert(t('workoutPrep.requiredTitle'), t('workoutPrep.enterExerciseName'));
+      alertDialog(t('workoutPrep.requiredTitle'), t('workoutPrep.enterExerciseName'));
       return;
     }
     onSave({
@@ -870,11 +871,11 @@ export default function PrepareWorkoutScreen() {
 
   const handleSaveTemplate = () => {
     if (!resolvedName) {
-      Alert.alert(t('workoutPrep.nameRequiredTitle'), t('workoutPrep.nameRequiredOrType'));
+      alertDialog(t('workoutPrep.nameRequiredTitle'), t('workoutPrep.nameRequiredOrType'));
       return;
     }
     if (exercises.length === 0) {
-      Alert.alert(t('workoutPrep.noExercisesTitle'), t('workoutPrep.noExercisesSaveMsg'));
+      alertDialog(t('workoutPrep.noExercisesTitle'), t('workoutPrep.noExercisesSaveMsg'));
       return;
     }
     setTemplateName(resolvedName); // prefill, user can override (optional)
@@ -900,16 +901,16 @@ export default function PrepareWorkoutScreen() {
       })),
     });
     setShowSaveModal(false);
-    Alert.alert(t('workoutPrep.savedTitle'), t('workoutPrep.savedToMyWorkouts', { name }));
+    alertDialog(t('workoutPrep.savedTitle'), t('workoutPrep.savedToMyWorkouts', { name }));
   };
 
   const handleStartWorkout = () => {
     if (!resolvedName) {
-      Alert.alert(t('workoutPrep.nameRequiredTitle'), workoutType === 'Custom' ? t('workoutPrep.nameRequiredCustom') : t('workoutPrep.nameRequiredSelectOrEnter'));
+      alertDialog(t('workoutPrep.nameRequiredTitle'), workoutType === 'Custom' ? t('workoutPrep.nameRequiredCustom') : t('workoutPrep.nameRequiredSelectOrEnter'));
       return;
     }
     if (exercises.length === 0) {
-      Alert.alert(t('workoutPrep.noExercisesTitle'), t('workoutPrep.noExercisesStartMsg'));
+      alertDialog(t('workoutPrep.noExercisesTitle'), t('workoutPrep.noExercisesStartMsg'));
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1041,7 +1042,7 @@ export default function PrepareWorkoutScreen() {
         />
         <Pressable
           onPress={() => {
-            if (!resolvedName) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); Alert.alert(t('workoutPrep.pickTypeFirst'), t('workoutPrep.pickTypeHint')); return; }
+            if (!resolvedName) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); alertDialog(t('workoutPrep.pickTypeFirst'), t('workoutPrep.pickTypeHint')); return; }
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setShowPicker(true);
           }}

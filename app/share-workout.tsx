@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
-  Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useApp, LogExercise } from '@/lib/app-context';
+import { alertDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 
 type CardStyle = 'dark' | 'gradient' | 'light';
@@ -235,12 +235,12 @@ export default function ShareWorkoutScreen() {
 
   const handlePostToCommunity = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert(t('workoutSession.comingSoon'), t('workoutSession.postToCommunitySoon'));
+    alertDialog(t('workoutSession.comingSoon'), t('workoutSession.postToCommunitySoon'));
   };
 
   const handleSaveToGallery = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert(t('workoutSession.imageSaved'), t('workoutSession.imageSavedMessage'));
+    alertDialog(t('workoutSession.imageSaved'), t('workoutSession.imageSavedMessage'));
   };
 
   const handleDone = () => {

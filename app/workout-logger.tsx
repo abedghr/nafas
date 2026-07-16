@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ScrollView, Platform,
-  TextInput, FlatList, Modal, Alert, Dimensions,
+  TextInput, FlatList, Modal, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,6 +11,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeIn, FadeOut, useSharedValue, useAnimatedStyle, withSpring, withRepeat, withTiming } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
+import { confirmDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 import { workoutTypes, exerciseLibrary } from '@/src/features/workout/library-cache';
 import * as Crypto from 'expo-crypto';
@@ -302,12 +303,11 @@ export default function WorkoutLoggerScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, []);
 
-  const handleClose = () => {
+  const handleClose = async () => {
     if (exercises.length > 0) {
-      Alert.alert(t('workoutPrep.discardWorkoutTitle'), t('workoutPrep.discardWorkoutMsg'), [
-        { text: t('workoutPrep.cancel'), style: 'cancel' },
-        { text: t('workoutPrep.discard'), style: 'destructive', onPress: () => router.back() },
-      ]);
+      if (await confirmDialog({ title: t('workoutPrep.discardWorkoutTitle'), message: t('workoutPrep.discardWorkoutMsg'), destructive: true, confirmText: t('workoutPrep.discard'), cancelText: t('workoutPrep.cancel') })) {
+        router.back();
+      }
     } else {
       router.back();
     }

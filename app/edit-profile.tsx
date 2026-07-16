@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, Platform, TextInput, KeyboardAvoidingView, Alert } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, Platform, TextInput, KeyboardAvoidingView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
+import { alertDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 import { sportInterests, goals } from '@/lib/mock-data';
 import { authApi } from '@/src/features/auth/api';
@@ -59,10 +60,10 @@ export default function EditProfileScreen() {
     const uname = username.trim().toLowerCase();
     const mail = email.trim().toLowerCase();
     if (uname && uname.length < 3) {
-      Alert.alert(t('discover.username'), t('discover.username_too_short')); return;
+      await alertDialog(t('discover.username'), t('discover.username_too_short')); return;
     }
     if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
-      Alert.alert(t('discover.email'), t('discover.email_invalid')); return;
+      await alertDialog(t('discover.email'), t('discover.email_invalid')); return;
     }
     setSaving(true);
     const patch: Record<string, unknown> = {
@@ -83,7 +84,7 @@ export default function EditProfileScreen() {
     } catch (e: any) {
       setSaving(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(t('discover.save'), e?.message || t('discover.save_failed'));
+      await alertDialog(t('discover.save'), e?.message || t('discover.save_failed'));
     }
   };
 

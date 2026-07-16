@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, Pressable, StyleSheet, Platform, TextInput,
-  FlatList, Switch, Alert,
+  FlatList, Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useApp } from '@/lib/app-context';
+import { alertDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 import { users, readyToTrainUsers, sportInterests } from '@/lib/mock-data';
 import type { ReadyUser } from '@/lib/mock-data';
@@ -38,10 +39,9 @@ function PartnerCard({ item, theme, index }: { item: ReadyUser; theme: typeof Co
 
   const handleTrainTogether = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(
+    alertDialog(
       'Request Sent!',
-      `Your training request has been sent to ${userData.name}. They'll be notified shortly.`,
-      [{ text: 'OK' }]
+      `Your training request has been sent to ${userData.name}. They'll be notified shortly.`
     );
   };
 
