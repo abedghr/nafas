@@ -1560,18 +1560,19 @@ const s = StyleSheet.create({
   },
   chipsScroll: {
     flexGrow: 0,
-    height: 52,
-    marginBottom: 12,
+    marginTop: 4,
+    marginBottom: 14,
   },
   chipsContent: {
     gap: 8,
     paddingRight: 16,
+    paddingVertical: 2,
     alignItems: 'center',
   },
   filterChip: {
-    height: 38,
     paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1579,8 +1580,6 @@ const s = StyleSheet.create({
   filterChipText: {
     fontSize: 13,
     fontWeight: '600',
-    lineHeight: 18,
-    includeFontPadding: false,
   },
   exPickerItem: {
     flexDirection: 'row',
