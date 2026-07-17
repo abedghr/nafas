@@ -12,7 +12,7 @@ import * as Crypto from 'expo-crypto';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
-import { alertDialog } from '@/lib/dialog';
+import { alertDialog, confirmDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
 import type { SetConfig, TemplateExercise, WorkoutType, WorkoutTemplate } from '@/lib/app-context';
@@ -668,15 +668,29 @@ const WORKOUT_TYPE_ICONS: Record<string, string> = {
   'Custom': 'create-outline',
 };
 
-function TemplatePickerModal({ visible, onClose, onSelect, templates, theme }: {
+function TemplatePickerModal({ visible, onClose, onSelect, onDelete, templates, theme }: {
   visible: boolean;
   onClose: () => void;
   onSelect: (template: WorkoutTemplate) => void;
+  onDelete: (template: WorkoutTemplate) => void;
   templates: WorkoutTemplate[];
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
+
+  const confirmDelete = async (tmpl: WorkoutTemplate) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (await confirmDialog({
+      title: t('workoutPrep.deleteSavedWorkout', { defaultValue: 'Delete saved workout' }),
+      message: t('workoutPrep.deleteSavedWorkoutConfirm', { name: tmpl.name, defaultValue: `Delete "${tmpl.name}"? This can't be undone.` }),
+      destructive: true,
+      confirmText: t('workoutSession.delete', { defaultValue: 'Delete' }),
+      cancelText: t('workoutSession.cancel', { defaultValue: 'Cancel' }),
+    })) {
+      onDelete(tmpl);
+    }
+  };
 
   const filtered = useMemo(() => {
     if (!search.trim()) return templates;
@@ -728,38 +742,41 @@ function TemplatePickerModal({ visible, onClose, onSelect, templates, theme }: {
                 const totalSets = tmpl.exercises.reduce((a, e) => a + e.sets.length, 0);
                 const muscles = [...new Set(tmpl.exercises.map(e => e.muscleGroup))].slice(0, 3);
                 return (
-                  <Pressable
-                    key={tmpl.id}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      onSelect(tmpl);
-                      onClose();
-                    }}
-                    style={({ pressed }) => [
-                      s.templatePickerItem,
-                      { backgroundColor: pressed ? theme.card : 'transparent' },
-                    ]}
-                  >
-                    <View style={[s.templatePickerIcon, { backgroundColor: Colors.primary + '15' }]}>
-                      <Ionicons name={(WORKOUT_TYPE_ICONS[tmpl.workoutType || ''] || 'barbell-outline') as any} size={20} color={Colors.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[s.templatePickerName, { color: theme.text }]}>{tmpl.name}</Text>
-                      <Text style={[s.templatePickerMeta, { color: theme.textMuted }]}>
-                        {t('workoutPrep.templateMeta', { exercises: tmpl.exercises.length, sets: totalSets })}{tmpl.workoutType ? ` · ${tmpl.workoutType}` : ''}
-                      </Text>
-                      {muscles.length > 0 && (
-                        <View style={{ flexDirection: 'row', gap: 4, marginTop: 4 }}>
-                          {muscles.map(m => (
-                            <View key={m} style={[s.miniMuscleTag, { backgroundColor: Colors.primary + '12' }]}>
-                              <Text style={{ fontSize: 9, fontWeight: '700', color: Colors.primary }}>{m}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      )}
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
-                  </Pressable>
+                  <View key={tmpl.id} style={s.templatePickerRow}>
+                    <Pressable
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        onSelect(tmpl);
+                        onClose();
+                      }}
+                      style={({ pressed }) => [
+                        s.templatePickerItem,
+                        { flex: 1, backgroundColor: pressed ? theme.card : 'transparent' },
+                      ]}
+                    >
+                      <View style={[s.templatePickerIcon, { backgroundColor: Colors.primary + '15' }]}>
+                        <Ionicons name={(WORKOUT_TYPE_ICONS[tmpl.workoutType || ''] || 'barbell-outline') as any} size={20} color={Colors.primary} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[s.templatePickerName, { color: theme.text }]}>{tmpl.name}</Text>
+                        <Text style={[s.templatePickerMeta, { color: theme.textMuted }]}>
+                          {t('workoutPrep.templateMeta', { exercises: tmpl.exercises.length, sets: totalSets })}{tmpl.workoutType ? ` · ${tmpl.workoutType}` : ''}
+                        </Text>
+                        {muscles.length > 0 && (
+                          <View style={{ flexDirection: 'row', gap: 4, marginTop: 4 }}>
+                            {muscles.map(m => (
+                              <View key={m} style={[s.miniMuscleTag, { backgroundColor: Colors.primary + '12' }]}>
+                                <Text style={{ fontSize: 9, fontWeight: '700', color: Colors.primary }}>{m}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    </Pressable>
+                    <Pressable onPress={() => confirmDelete(tmpl)} hitSlop={10} style={s.templateDeleteBtn}>
+                      <Ionicons name="trash-outline" size={18} color="#F87171" />
+                    </Pressable>
+                  </View>
                 );
               })
             )}
@@ -776,7 +793,7 @@ export default function PrepareWorkoutScreen() {
   const insets = useSafeAreaInsets();
   const { templateId } = useLocalSearchParams<{ templateId?: string }>();
   const {
-    workoutTemplates, addWorkoutTemplate, setActiveSession,
+    workoutTemplates, addWorkoutTemplate, deleteWorkoutTemplate, setActiveSession,
     customExercises, addCustomExercise, user, workoutTypes,
   } = useApp();
   const theme = Colors.dark;
@@ -1166,6 +1183,7 @@ export default function PrepareWorkoutScreen() {
         visible={showTemplatePicker}
         onClose={() => setShowTemplatePicker(false)}
         onSelect={handleLoadTemplate}
+        onDelete={(tmpl) => { deleteWorkoutTemplate(tmpl.id); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }}
         templates={workoutTemplates}
         theme={theme}
       />
@@ -1682,6 +1700,8 @@ const s = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
+  templatePickerRow: { flexDirection: 'row', alignItems: 'center' },
+  templateDeleteBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: 6, borderRadius: 12 },
   templatePickerItem: {
     flexDirection: 'row',
     alignItems: 'center',
