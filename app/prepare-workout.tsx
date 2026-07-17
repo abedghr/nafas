@@ -461,7 +461,7 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
             ))}
           </ScrollView>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
             {filtered.map((ex, i) => (
               <Pressable
                 key={ex.id + i}
@@ -1559,19 +1559,20 @@ const s = StyleSheet.create({
     height: '100%',
   },
   chipsScroll: {
+    height: 44,          // horizontal ScrollViews need an explicit height on iOS or they collapse/clip
     flexGrow: 0,
+    flexShrink: 0,
     marginTop: 4,
     marginBottom: 14,
   },
   chipsContent: {
     gap: 8,
     paddingRight: 16,
-    paddingVertical: 2,
     alignItems: 'center',
   },
   filterChip: {
+    height: 34,
     paddingHorizontal: 16,
-    paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 1,
     justifyContent: 'center',
@@ -1580,6 +1581,7 @@ const s = StyleSheet.create({
   filterChipText: {
     fontSize: 13,
     fontWeight: '600',
+    lineHeight: 16,
   },
   exPickerItem: {
     flexDirection: 'row',
