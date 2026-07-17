@@ -1106,7 +1106,7 @@ export default function PrepareWorkoutScreen() {
             </View>
             <View style={[s.typeSearchWrap, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <Ionicons name="search" size={16} color={theme.textMuted} />
-              <TextInput style={[s.typeSearchInput, { color: theme.text }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]} value={typeSearch} onChangeText={setTypeSearch} placeholder={t('common.search', { defaultValue: 'Search' })} placeholderTextColor={theme.textMuted} autoFocus autoCapitalize="none" />
+              <TextInput style={[s.typeSearchInput, { color: theme.text }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]} value={typeSearch} onChangeText={setTypeSearch} placeholder={t('common.search', { defaultValue: 'Search' })} placeholderTextColor={theme.textMuted} autoCapitalize="none" />
             </View>
             <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.42 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               {trainingTypes
@@ -1292,7 +1292,7 @@ const s = StyleSheet.create({
   typeSheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   typeSheetTitle: { fontSize: 18, fontWeight: '700', flex: 1 },
   typeSearchWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, height: 46, marginBottom: 8 },
-  typeSearchInput: { flex: 1, fontSize: 15 },
+  typeSearchInput: { flex: 1, fontSize: 16 },
   typeOption: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 2, borderBottomWidth: StyleSheet.hairlineWidth },
   typeSelectedRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   typeSelectedChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: Colors.primary + '18' },

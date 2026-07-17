@@ -44,6 +44,18 @@ const head = `
 let html = fs.readFileSync(indexPath, 'utf-8');
 if (!html.includes('apple-mobile-web-app-capable')) {
   html = html.replace('</head>', `${head}\n  </head>`);
-  fs.writeFileSync(indexPath, html);
 }
-console.log('✓ PWA: manifest + apple meta injected, icon copied');
+
+// Lock the viewport. iOS Safari AUTO-ZOOMS the whole page when an input with
+// font-size < 16px gets focus — in the app-shell PWA that zoom breaks every
+// layout (clipped headers, overflowing sheets). maximum-scale=1 disables it.
+const viewport =
+  '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />';
+if (/<meta[^>]+name="viewport"[^>]*>/i.test(html)) {
+  html = html.replace(/<meta[^>]+name="viewport"[^>]*\/?>/i, viewport);
+} else {
+  html = html.replace('</head>', `    ${viewport}\n  </head>`);
+}
+
+fs.writeFileSync(indexPath, html);
+console.log('✓ PWA: manifest + apple meta injected, viewport locked, icon copied');
