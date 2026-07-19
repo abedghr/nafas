@@ -15,6 +15,7 @@ import { useApp } from '@/lib/app-context';
 import { alertDialog, confirmDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
+import { workoutApi } from '@/src/features/workout/api';
 import type { SetConfig, TemplateExercise, WorkoutType, WorkoutTemplate } from '@/lib/app-context';
 import { WORKOUT_TYPES, templateSig } from '@/lib/app-context';
 
@@ -254,7 +255,7 @@ function SetRow({ setIndex, config, onUpdate, onRemove, theme }: {
   );
 }
 
-function ExerciseCard({ exercise, index, onUpdate, onRemove, onMoveUp, onMoveDown, canMoveUp, canMoveDown, theme }: {
+function ExerciseCard({ exercise, index, onUpdate, onRemove, onMoveUp, onMoveDown, canMoveUp, canMoveDown, lastPerf, theme }: {
   exercise: PrepExercise;
   index: number;
   onUpdate: (ex: PrepExercise) => void;
@@ -263,6 +264,7 @@ function ExerciseCard({ exercise, index, onUpdate, onRemove, onMoveUp, onMoveDow
   onMoveDown?: () => void;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
+  lastPerf?: { date: string; weight: number; reps: number };
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
@@ -300,6 +302,23 @@ function ExerciseCard({ exercise, index, onUpdate, onRemove, onMoveUp, onMoveDow
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[s.exCardName, { color: theme.text }]} numberOfLines={1}>{exercise.name}</Text>
+            {lastPerf && (
+              <Pressable
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/exercise-progress?name=${encodeURIComponent(exercise.name)}` as any); }}
+                hitSlop={6}
+                style={s.lastPerfRow}
+              >
+                <Ionicons name="time-outline" size={11} color={theme.textMuted} />
+                <Text style={[s.lastPerfText, { color: theme.textMuted }]}>
+                  {t('workoutSession.lastTimeHint', {
+                    weight: lastPerf.weight,
+                    reps: lastPerf.reps,
+                    date: new Date(lastPerf.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
+                  })}
+                </Text>
+                <Ionicons name="stats-chart" size={11} color={Colors.primary} />
+              </Pressable>
+            )}
           </View>
           <View style={[s.muscleTag, { backgroundColor: Colors.primary + '18' }]}>
             <Text style={[s.muscleTagText, { color: Colors.primary }]}>{exercise.muscleGroup}</Text>
@@ -866,6 +885,15 @@ export default function PrepareWorkoutScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
+  // "Last time" per added exercise — helps pick the weight while planning
+  const [lastPerf, setLastPerf] = useState<Record<string, { date: string; weight: number; reps: number }>>({});
+  const exerciseNamesKey = exercises.map(e => e.name).join(',');
+  useEffect(() => {
+    const names = exerciseNamesKey ? exerciseNamesKey.split(',') : [];
+    if (!names.length) return;
+    workoutApi.lastPerformance(names).then(setLastPerf).catch(() => {});
+  }, [exerciseNamesKey]);
+
   // training types from backend (localized), with a Custom option appended
   const trainingTypes = useMemo(() => {
     const fromApi = (workoutTypes || []).map((wt: any) => ({ name: wt.name as string, icon: (wt.icon || WORKOUT_TYPE_ICONS[wt.name] || 'barbell-outline') as string }));
@@ -1046,6 +1074,7 @@ export default function PrepareWorkoutScreen() {
                 onMoveDown={() => moveExercise(i, 1)}
                 canMoveUp={i > 0}
                 canMoveDown={i < exercises.length - 1}
+                lastPerf={lastPerf[item.name]}
                 theme={theme}
               />
             </View>
@@ -1316,6 +1345,8 @@ const s = StyleSheet.create({
   typeSelectedChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: Colors.primary + '18' },
   typeChangeBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7 },
   reorderCol: { marginRight: 8, justifyContent: 'center', alignItems: 'center' },
+  lastPerfRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  lastPerfText: { fontSize: 11.5, fontWeight: '500' },
   reorderBtn: { paddingVertical: 1 },
   dragHandle: {
     marginRight: 4,
