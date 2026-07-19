@@ -13,6 +13,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
+import { workoutApi } from '@/src/features/workout/api';
 import * as Crypto from 'expo-crypto';
 import type { SetConfig, ActiveSession, LogExercise, LogSetData } from '@/lib/app-context';
 
@@ -904,6 +905,15 @@ export default function LiveWorkoutScreen() {
     };
   }, [session, setActiveSession]);
 
+  // "Last time" per exercise — what you lifted the previous time you did it
+  const [lastPerf, setLastPerf] = useState<Record<string, { date: string; weight: number; reps: number }>>({});
+  const exerciseNamesKey = session?.exercises.map(e => e.name).join(',') ?? '';
+  useEffect(() => {
+    const names = exerciseNamesKey ? exerciseNamesKey.split(',') : [];
+    if (!names.length) return;
+    workoutApi.lastPerformance(names).then(setLastPerf).catch(() => {});
+  }, [exerciseNamesKey]);
+
   const startRestTimer = useCallback((seconds: number, exerciseName: string) => {
     if (restTimerRef.current) clearInterval(restTimerRef.current);
     setRestTimer(seconds);
@@ -1198,6 +1208,18 @@ export default function LiveWorkoutScreen() {
               <View style={styles.exCardHeader}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.exCardName, { color: theme.text }]}>{ex.name}</Text>
+                  {lastPerf[ex.name] && (
+                    <View style={styles.lastPerfRow}>
+                      <Ionicons name="time-outline" size={11} color={theme.textMuted} />
+                      <Text style={[styles.lastPerfText, { color: theme.textMuted }]}>
+                        {t('workoutSession.lastTimeHint', {
+                          weight: lastPerf[ex.name].weight,
+                          reps: lastPerf[ex.name].reps,
+                          date: new Date(lastPerf[ex.name].date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
+                        })}
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <View style={[styles.muscleTag, { backgroundColor: Colors.primary + '18' }]}>
                   <Text style={[styles.muscleTagText, { color: Colors.primary }]}>{ex.muscleGroup}</Text>
@@ -1363,6 +1385,8 @@ const styles = StyleSheet.create({
   exCard: { borderRadius: 16, overflow: 'hidden' },
   exCardHeader: { flexDirection: 'row', alignItems: 'center', padding: 16, paddingBottom: 8, gap: 8 },
   exCardName: { fontSize: 16, fontWeight: '700' as const },
+  lastPerfRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  lastPerfText: { fontSize: 11.5, fontWeight: '500' as const },
   muscleTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   muscleTagText: { fontSize: 11, fontWeight: '600' as const },
   menuBtn: { width: 28, height: 28, justifyContent: 'center', alignItems: 'center' },

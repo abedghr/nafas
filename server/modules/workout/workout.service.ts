@@ -168,6 +168,56 @@ export const workoutService = {
     };
   },
 
+  // ── PRs & last performance (derived from logs on read) ────────────────────
+  // ponytail: full scan of the user's own logs per request — a personal history is
+  // tens–hundreds of rows, so this is milliseconds. Materialize a PR table if it
+  // ever grows past that.
+  async prs(userId: string, limit = 5) {
+    const rows = await db.select({ date: workoutLogs.date, exercises: workoutLogs.exercises })
+      .from(workoutLogs).where(eq(workoutLogs.userId, userId));
+    const best = new Map<string, { name: string; weight: number; reps: number; date: Date }>();
+    for (const row of rows) {
+      for (const ex of (row.exercises as any[]) ?? []) {
+        for (const s of ex?.sets ?? []) {
+          const a = s?.actual;
+          if (s?.status !== "done" || a?.type !== "reps") continue;
+          const weight = Number(a.weight) || 0;
+          if (weight <= 0) continue; // weighted PRs only — bodyweight sets don't rank
+          const reps = Number(a.reps) || 0;
+          const cur = best.get(ex.name);
+          if (!cur || weight > cur.weight || (weight === cur.weight && row.date > cur.date)) {
+            best.set(ex.name, { name: ex.name, weight, reps, date: row.date });
+          }
+        }
+      }
+    }
+    return [...best.values()].sort((a, b) => b.weight - a.weight).slice(0, limit);
+  },
+  // most recent day each named exercise was performed → best done set that day
+  async lastPerformance(userId: string, names: string[]) {
+    if (!names.length) return {};
+    const want = new Set(names);
+    const rows = await db.select({ date: workoutLogs.date, exercises: workoutLogs.exercises })
+      .from(workoutLogs).where(eq(workoutLogs.userId, userId)).orderBy(desc(workoutLogs.date));
+    const out: Record<string, { date: Date; weight: number; reps: number }> = {};
+    for (const row of rows) {
+      if (Object.keys(out).length === want.size) break; // found them all
+      for (const ex of (row.exercises as any[]) ?? []) {
+        if (!want.has(ex?.name) || out[ex.name]) continue;
+        let bestSet: { weight: number; reps: number } | null = null;
+        for (const s of ex.sets ?? []) {
+          const a = s?.actual;
+          if (s?.status !== "done" || a?.type !== "reps") continue;
+          const weight = Number(a.weight) || 0;
+          const reps = Number(a.reps) || 0;
+          if (!bestSet || weight > bestSet.weight) bestSet = { weight, reps };
+        }
+        if (bestSet) out[ex.name] = { date: row.date, ...bestSet };
+      }
+    }
+    return out;
+  },
+
   // ── active session (one per user) ─────────────────────────────────────────
   async getActiveSession(userId: string) {
     const [row] = await db.select().from(activeSessions).where(eq(activeSessions.userId, userId));

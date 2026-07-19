@@ -45,6 +45,7 @@ export const extraEn = {
     athlete: "Athlete", heroStreakMotivation: "{{n}}-day streak! Keep pushing.", heroReadyMotivation: "Ready to train? Let's go.",
     startWorkout: "Start Workout", myWorkouts: "My Workouts", statThisWeek: "This Week", statVolume: "Volume", statStreak: "Streak",
     recentWorkouts: "Recent Workouts", noWorkoutsYet: "No workouts yet", noWorkoutsYetSub: "Complete your first workout to see it here",
+    personalRecords: "Personal Records",
     today: "Today", yesterday: "Yesterday", exercisesCount: "{{n}} exercises", minutesShort: "{{n}} min", volumeK: "{{n}}K kg",
     smartInsights: "Smart Insights", aiAnalyzedFrom: "AI-analyzed from your {{n}} workouts", performanceSummary: "Performance Summary",
     perfTotalWorkouts: "Total Workouts", perfTotalVolume: "Total Volume", perfBestStreak: "Best Streak", perfAvgDuration: "Avg Duration",
@@ -122,6 +123,7 @@ export const extraEn = {
   },
   workoutSession: {
     setOptions: "Set Options", skipSet: "Skip Set", skipSetConfirm: "Skip set {{n}}? It won't count toward your workout.", cancel: "Cancel", delete: "Delete", setN: "Set {{n}}", reps: "reps", kg: "kg",
+    lastTimeHint: "Last: {{weight}} kg × {{reps}} · {{date}}",
     repsValue: "{{n}} reps", kgValue: "{{n}} kg", secondsValue: "{{n}}s", done: "DONE", getReady: "GET READY", holdStartsIn: "Hold starts in {{n}}s",
     hold: "Hold", doneEarly: "Done Early", start: "Start", emom: "EMOM", emomPrepSubtitle: "{{reps}} reps every {{sec}}s × {{intervals}}",
     intervalProgress: "Interval {{current}}/{{total}}", intervalsCompleted: "{{completed}}/{{total}} completed", skip: "Skip", finish: "Finish",
@@ -193,6 +195,7 @@ export const extraAr = {
     athlete: "رياضي", heroStreakMotivation: "سلسلة من {{n}} يوم! واصل المثابرة.", heroReadyMotivation: "هل أنت مستعد للتدريب؟ هيا بنا.",
     startWorkout: "ابدأ التمرين", myWorkouts: "تماريني", statThisWeek: "هذا الأسبوع", statVolume: "الحجم", statStreak: "السلسلة",
     recentWorkouts: "التمارين الأخيرة", noWorkoutsYet: "لا توجد تمارين بعد", noWorkoutsYetSub: "أكمل تمرينك الأول لتراه هنا",
+    personalRecords: "الأرقام القياسية",
     today: "اليوم", yesterday: "الأمس", exercisesCount: "{{n}} تمارين", minutesShort: "{{n}} دقيقة", volumeK: "{{n}} ألف كغ",
     smartInsights: "تحليلات ذكية", aiAnalyzedFrom: "تحليل بالذكاء الاصطناعي من {{n}} من تمارينك", performanceSummary: "ملخص الأداء",
     perfTotalWorkouts: "إجمالي التمارين", perfTotalVolume: "إجمالي الحجم", perfBestStreak: "أفضل سلسلة", perfAvgDuration: "متوسط المدة",
@@ -270,6 +273,7 @@ export const extraAr = {
   },
   workoutSession: {
     setOptions: "خيارات المجموعة", skipSet: "تخطّي المجموعة", skipSetConfirm: "تخطّي المجموعة {{n}}؟ لن تُحتسب ضمن تمرينك.", cancel: "إلغاء", delete: "حذف", setN: "المجموعة {{n}}", reps: "تكرارات", kg: "كغ",
+    lastTimeHint: "آخر مرة: {{weight}} كغ × {{reps}} · {{date}}",
     repsValue: "{{n}} تكرار", kgValue: "{{n}} كغ", secondsValue: "{{n}} ث", done: "تم", getReady: "استعد", holdStartsIn: "يبدأ الثبات خلال {{n}} ث",
     hold: "ثبات", doneEarly: "إنهاء مبكر", start: "ابدأ", emom: "EMOM", emomPrepSubtitle: "{{reps}} تكرار كل {{sec}} ث × {{intervals}}",
     intervalProgress: "الفترة {{current}}/{{total}}", intervalsCompleted: "{{completed}}/{{total}} مكتملة", skip: "تخطّي", finish: "إنهاء",

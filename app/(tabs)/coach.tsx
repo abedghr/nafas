@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ScrollView, Platform, Modal,
   Dimensions,
@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
 import { aiTips } from '@/lib/mock-data';
+import { workoutApi } from '@/src/features/workout/api';
 import { CompleteProfileBanner } from '@/components/CompleteProfileBanner';
 
 const { width: SW } = Dimensions.get('window');
@@ -333,6 +334,10 @@ export default function CoachScreen() {
 
   const recentLogs = useMemo(() => workoutLogs.slice(0, 5), [workoutLogs]);
 
+  // Personal records — server-derived from full history; refresh when logs change
+  const [prs, setPrs] = useState<{ name: string; weight: number; reps: number; date: string }[]>([]);
+  useEffect(() => { workoutApi.prs(5).then(setPrs).catch(() => {}); }, [workoutLogs.length]);
+
   const sessionElapsed = useMemo(() => {
     if (!activeSession) return '';
     const elapsed = Math.floor((Date.now() - activeSession.startTimestamp) / 60000);
@@ -490,6 +495,31 @@ export default function CoachScreen() {
                   </Animated.View>
                 ))}
               </View>
+
+              {prs.length > 0 && (
+                <>
+                  <Text style={[s.sectionTitle, { color: theme.text }]}>{t('workoutTab.personalRecords')}</Text>
+                  <View style={[s.prCard, { backgroundColor: theme.card }]}>
+                    {prs.map((pr, i) => (
+                      <View key={pr.name} style={[s.prRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
+                        <View style={[s.prRank, { backgroundColor: i === 0 ? '#FFD70022' : theme.surface }]}>
+                          {i === 0
+                            ? <Ionicons name="trophy" size={14} color="#FFD700" />
+                            : <Text style={[s.prRankText, { color: theme.textMuted }]}>{i + 1}</Text>}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[s.prName, { color: theme.text }]} numberOfLines={1}>{pr.name}</Text>
+                          <Text style={[s.prDate, { color: theme.textMuted }]}>
+                            {new Date(pr.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </Text>
+                        </View>
+                        <Text style={[s.prWeight, { color: Colors.primary }]}>{pr.weight} {t('workoutSession.kg')}</Text>
+                        <Text style={[s.prReps, { color: theme.textMuted }]}> × {pr.reps}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
 
               <Text style={[s.sectionTitle, { color: theme.text }]}>{t('workoutTab.recentWorkouts')}</Text>
               {recentLogs.length === 0 ? (
@@ -659,6 +689,14 @@ const s = StyleSheet.create({
   aiTipTitle: { fontSize: 15, fontFamily: 'Rubik_600SemiBold' },
   aiTipText: { fontSize: 14, fontFamily: 'Rubik_400Regular', lineHeight: 21 },
   sectionTitle: { fontSize: 17, fontFamily: 'Rubik_600SemiBold', paddingHorizontal: 20, marginTop: 24, marginBottom: 12 },
+  prCard: { marginHorizontal: 20, borderRadius: 16, paddingHorizontal: 14 },
+  prRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  prRank: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  prRankText: { fontSize: 12, fontFamily: 'Rubik_700Bold' },
+  prName: { fontSize: 14, fontFamily: 'Rubik_600SemiBold' },
+  prDate: { fontSize: 11, fontFamily: 'Rubik_400Regular', marginTop: 1 },
+  prWeight: { fontSize: 16, fontFamily: 'Rubik_700Bold' },
+  prReps: { fontSize: 12, fontFamily: 'Rubik_500Medium' },
   recCard: {
     marginHorizontal: 20, marginBottom: 8, borderRadius: 14, padding: 14,
     flexDirection: 'row', alignItems: 'center', gap: 12,

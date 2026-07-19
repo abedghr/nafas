@@ -69,6 +69,18 @@ registry.registerPath({ method: "delete", path: "/api/workout-logs/{id}", tags: 
 workoutRouter.delete("/workout-logs/:id", validate({ params: idParam }), async (req, res) => { await workoutService.deleteLog(req.user!.sub, String(req.params.id)); res.status(204).end(); });
 
 // ── active session ──
+registry.registerPath({ method: "get", path: "/api/workout/prs", tags: ["Workout"], summary: "Personal records — top exercises by max done-set weight", security: sec, responses: { 200: json(z.any()) } });
+workoutRouter.get("/workout/prs", async (req, res) => {
+  const limit = Math.min(Number(qstr(req.query.limit)) || 5, 20);
+  res.json({ data: await workoutService.prs(req.user!.sub, limit) });
+});
+
+registry.registerPath({ method: "get", path: "/api/workout/last", tags: ["Workout"], summary: "Last performance per exercise name (?names=a,b)", security: sec, responses: { 200: json(z.any()) } });
+workoutRouter.get("/workout/last", async (req, res) => {
+  const names = (qstr(req.query.names) || "").split(",").map((s) => s.trim()).filter(Boolean).slice(0, 50);
+  res.json({ data: await workoutService.lastPerformance(req.user!.sub, names) });
+});
+
 registry.registerPath({ method: "get", path: "/api/active-session", tags: ["Workout"], summary: "Resume in-progress session", security: sec, responses: { 200: json(z.any()) } });
 workoutRouter.get("/active-session", async (req, res) => res.json({ data: await workoutService.getActiveSession(req.user!.sub) }));
 
