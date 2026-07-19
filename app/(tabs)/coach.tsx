@@ -501,7 +501,11 @@ export default function CoachScreen() {
                   <Text style={[s.sectionTitle, { color: theme.text }]}>{t('workoutTab.personalRecords')}</Text>
                   <View style={[s.prCard, { backgroundColor: theme.card }]}>
                     {prs.map((pr, i) => (
-                      <View key={pr.name} style={[s.prRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
+                      <Pressable
+                        key={pr.name}
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/exercise-progress?name=${encodeURIComponent(pr.name)}` as any); }}
+                        style={({ pressed }) => [s.prRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }, { opacity: pressed ? 0.7 : 1 }]}
+                      >
                         <View style={[s.prRank, { backgroundColor: i === 0 ? '#FFD70022' : theme.surface }]}>
                           {i === 0
                             ? <Ionicons name="trophy" size={14} color="#FFD700" />
@@ -515,7 +519,8 @@ export default function CoachScreen() {
                         </View>
                         <Text style={[s.prWeight, { color: Colors.primary }]}>{pr.weight} {t('workoutSession.kg')}</Text>
                         <Text style={[s.prReps, { color: theme.textMuted }]}> × {pr.reps}</Text>
-                      </View>
+                        <Ionicons name="chevron-forward" size={15} color={theme.textMuted} />
+                      </Pressable>
                     ))}
                   </View>
                 </>

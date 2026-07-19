@@ -53,8 +53,13 @@ function getExerciseBestSet(exercise: LogExercise): { weight: number; reps: numb
 
 export default function WorkoutSummaryScreen() {
   const { t } = useTranslation();
-  const { logId } = useLocalSearchParams<{ logId: string }>();
+  const { logId, newPrs: newPrsParam } = useLocalSearchParams<{ logId: string; newPrs?: string }>();
   const { workoutLogs, workoutTemplates, addWorkoutTemplate, user, isDark } = useApp();
+
+  // new PRs detected at finish time (passed by live-workout)
+  const newPrs = useMemo<{ name: string; weight: number; reps: number; prev: number }[]>(() => {
+    try { return newPrsParam ? JSON.parse(String(newPrsParam)) : []; } catch { return []; }
+  }, [newPrsParam]);
   const insets = useSafeAreaInsets();
   const theme = isDark ? Colors.dark : Colors.light;
 
@@ -200,6 +205,29 @@ export default function WorkoutSummaryScreen() {
             </View>
           )}
         </Animated.View>
+
+        {newPrs.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(200).duration(600)}>
+            <LinearGradient colors={['#FFD70026', '#FFD70008']} style={[styles.prCelebration, { borderColor: '#FFD70055' }]}>
+              <View style={styles.prCelebHeader}>
+                <Text style={styles.prCelebEmoji}>🎉</Text>
+                <Text style={[styles.prCelebTitle, { color: '#FFD700' }]}>
+                  {newPrs.length === 1 ? t('workoutSession.newPr') : t('workoutSession.newPrs', { count: newPrs.length })}
+                </Text>
+              </View>
+              {newPrs.map((pr) => (
+                <View key={pr.name} style={styles.prCelebRow}>
+                  <Ionicons name="trophy" size={14} color="#FFD700" />
+                  <Text style={[styles.prCelebName, { color: theme.text }]} numberOfLines={1}>{pr.name}</Text>
+                  <Text style={[styles.prCelebWeight, { color: '#FFD700' }]}>{pr.weight} {t('workoutSession.kg')}</Text>
+                  {pr.prev > 0 && (
+                    <Text style={[styles.prCelebPrev, { color: theme.textMuted }]}>{t('workoutSession.prevBest', { weight: pr.prev })}</Text>
+                  )}
+                </View>
+              ))}
+            </LinearGradient>
+          </Animated.View>
+        )}
 
         <Animated.View entering={FadeInDown.delay(250).duration(600)}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('workoutSession.workoutStats')}</Text>
@@ -467,6 +495,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginTop: 20,
   },
+  prCelebration: { borderRadius: 16, borderWidth: 1, padding: 16, marginTop: 8 },
+  prCelebHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  prCelebEmoji: { fontSize: 20 },
+  prCelebTitle: { fontSize: 16, fontWeight: '800' as const },
+  prCelebRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5 },
+  prCelebName: { flex: 1, fontSize: 14, fontWeight: '600' as const },
+  prCelebWeight: { fontSize: 15, fontWeight: '800' as const },
+  prCelebPrev: { fontSize: 11, fontWeight: '500' as const },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

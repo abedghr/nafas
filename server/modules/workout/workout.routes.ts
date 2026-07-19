@@ -71,8 +71,16 @@ workoutRouter.delete("/workout-logs/:id", validate({ params: idParam }), async (
 // ── active session ──
 registry.registerPath({ method: "get", path: "/api/workout/prs", tags: ["Workout"], summary: "Personal records — top exercises by max done-set weight", security: sec, responses: { 200: json(z.any()) } });
 workoutRouter.get("/workout/prs", async (req, res) => {
-  const limit = Math.min(Number(qstr(req.query.limit)) || 5, 20);
+  // cap generous: the finish-time PR check fetches the user's full PR map
+  const limit = Math.min(Number(qstr(req.query.limit)) || 5, 500);
   res.json({ data: await workoutService.prs(req.user!.sub, limit) });
+});
+
+registry.registerPath({ method: "get", path: "/api/workout/progression", tags: ["Workout"], summary: "Per-day best set for one exercise (?name=)", security: sec, responses: { 200: json(z.any()) } });
+workoutRouter.get("/workout/progression", async (req, res) => {
+  const name = (qstr(req.query.name) || "").trim();
+  if (!name) return res.json({ data: [] });
+  res.json({ data: await workoutService.progression(req.user!.sub, name) });
 });
 
 registry.registerPath({ method: "get", path: "/api/workout/last", tags: ["Workout"], summary: "Last performance per exercise name (?names=a,b)", security: sec, responses: { 200: json(z.any()) } });

@@ -193,6 +193,29 @@ export const workoutService = {
     }
     return [...best.values()].sort((a, b) => b.weight - a.weight).slice(0, limit);
   },
+  // weight progression for one exercise: per workout day, the best done set + volume
+  async progression(userId: string, name: string, limit = 50) {
+    const rows = await db.select({ date: workoutLogs.date, exercises: workoutLogs.exercises })
+      .from(workoutLogs).where(eq(workoutLogs.userId, userId)).orderBy(workoutLogs.date);
+    const points: { date: Date; weight: number; reps: number; volume: number }[] = [];
+    for (const row of rows) {
+      for (const ex of (row.exercises as any[]) ?? []) {
+        if (ex?.name !== name) continue;
+        let best: { weight: number; reps: number } | null = null;
+        let volume = 0;
+        for (const s of ex.sets ?? []) {
+          const a = s?.actual;
+          if (s?.status !== "done" || a?.type !== "reps") continue;
+          const weight = Number(a.weight) || 0;
+          const reps = Number(a.reps) || 0;
+          volume += weight * reps;
+          if (!best || weight > best.weight) best = { weight, reps };
+        }
+        if (best) points.push({ date: row.date, ...best, volume });
+      }
+    }
+    return points.slice(-limit);
+  },
   // most recent day each named exercise was performed → best done set that day
   async lastPerformance(userId: string, names: string[]) {
     if (!names.length) return {};

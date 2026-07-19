@@ -1068,7 +1068,7 @@ export default function LiveWorkoutScreen() {
     return session.exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.status === 'pending' || s.status === 'in_progress').length, 0);
   }, [session]);
 
-  const handleFinish = useCallback(() => {
+  const handleFinish = useCallback(async () => {
     if (!session) return;
     const now = new Date();
     const startDate = new Date(session.startTimestamp);
@@ -1123,15 +1123,34 @@ export default function LiveWorkoutScreen() {
       aiInsight,
     };
 
+    // New-PR detection: compare this session's best done sets against the PR map
+    // as it stood BEFORE saving (the save below is fire-and-forget, so fetch first).
+    let newPrs: { name: string; weight: number; reps: number; prev: number }[] = [];
+    try {
+      const prevPrs = await workoutApi.prs(500);
+      const prevMap = new Map(prevPrs.map((p) => [p.name, p.weight]));
+      for (const ex of logExercises) {
+        let best: { weight: number; reps: number } | null = null;
+        for (const s of ex.sets) {
+          if (s.status !== 'done' || s.actual?.type !== 'reps') continue;
+          const weight = Number(s.actual.weight) || 0;
+          if (weight > 0 && (!best || weight > best.weight)) best = { weight, reps: Number(s.actual.reps) || 0 };
+        }
+        const prev = prevMap.get(ex.name) ?? 0;
+        if (best && best.weight > prev) newPrs.push({ name: ex.name, ...best, prev });
+      }
+    } catch {}
+
     const logId = Crypto.randomUUID();
     addWorkoutLog({ ...log, id: logId });
     setActiveSession(null);
     if (restTimerRef.current) clearInterval(restTimerRef.current);
     if (autoSaveRef.current) clearInterval(autoSaveRef.current);
 
+    if (newPrs.length) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.replace({
       pathname: '/workout-summary' as any,
-      params: { logId },
+      params: { logId, ...(newPrs.length ? { newPrs: JSON.stringify(newPrs) } : {}) },
     });
   }, [session, user, addWorkoutLog, setActiveSession]);
 
