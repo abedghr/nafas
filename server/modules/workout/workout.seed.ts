@@ -13,6 +13,7 @@ const TIME_HOLD = new Set([
   "Plank", "Side Plank", "L-Sit", "Handstand Hold", "Dead Hang", "Front Lever",
   "Back Lever", "Planche", "Human Flag", "Deep Squat Hold", "Wall Sit",
   "Hip 90/90 Stretch", "Thoracic Rotation", "World's Greatest Stretch", "Couch Stretch", "Cat-Cow",
+  "Hollow Body Hold",
 ]);
 const DISTANCE_DURATION = new Set([
   "Treadmill Run", "Cycling (Stationary)", "Rowing Machine", "Stair Climber",

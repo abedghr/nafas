@@ -670,4 +670,168 @@ export const EXERCISE_BODY_TARGETS: Record<string, BodyTargetEntry[]> = {
     { bodyTarget: ENUM_SYSTEM_BODY_TARGET.MID_BACK, percentage: 15 },
     { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_POSTERIOR, percentage: 10 },
   ],
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACCESSORY / MACHINE / ISOLATION (33) — each list sums to 100
+  // ═══════════════════════════════════════════════════════════════════════════
+  "Decline Barbell Press": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CHEST, percentage: 80 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRICEPS, percentage: 12 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 8 },
+  ],
+  "Machine Chest Press": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CHEST, percentage: 75 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 13 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRICEPS, percentage: 12 },
+  ],
+  "Pec Deck": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CHEST, percentage: 88 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 12 },
+  ],
+  "Cable Crossover": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CHEST, percentage: 85 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 15 },
+  ],
+  "T-Bar Row": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.MID_BACK, percentage: 35 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.LATS, percentage: 30 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.UPPER_BACK, percentage: 20 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.BICEPS, percentage: 10 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRAPS, percentage: 5 },
+  ],
+  "Pendlay Row": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.LATS, percentage: 35 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.MID_BACK, percentage: 30 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.UPPER_BACK, percentage: 20 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.BICEPS, percentage: 10 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.ERECTOR_SPINAE, percentage: 5 },
+  ],
+  "Straight-Arm Pulldown": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.LATS, percentage: 80 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRICEPS, percentage: 12 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_ABS, percentage: 8 },
+  ],
+  "Barbell Shrug": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRAPS, percentage: 85 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.UPPER_BACK, percentage: 10 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.FOREARMS, percentage: 5 },
+  ],
+  "Arnold Press": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 45 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_LATERAL, percentage: 30 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRICEPS, percentage: 15 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRAPS, percentage: 10 },
+  ],
+  "Cable Lateral Raise": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_LATERAL, percentage: 85 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRAPS, percentage: 10 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 5 },
+  ],
+  "Reverse Pec Deck": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_POSTERIOR, percentage: 70 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.UPPER_BACK, percentage: 20 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRAPS, percentage: 10 },
+  ],
+  "Upright Row": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_LATERAL, percentage: 45 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRAPS, percentage: 35 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.BICEPS, percentage: 12 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.FOREARMS, percentage: 8 },
+  ],
+  "Preacher Curl": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.BICEPS, percentage: 88 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.FOREARMS, percentage: 12 },
+  ],
+  "Cable Curl": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.BICEPS, percentage: 85 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.FOREARMS, percentage: 15 },
+  ],
+  "Concentration Curl": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.BICEPS, percentage: 90 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.FOREARMS, percentage: 10 },
+  ],
+  "Incline Dumbbell Curl": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.BICEPS, percentage: 85 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.FOREARMS, percentage: 15 },
+  ],
+  "Reverse Curl": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.FOREARMS, percentage: 55 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.BICEPS, percentage: 45 },
+  ],
+  "Overhead Triceps Extension": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRICEPS, percentage: 90 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 10 },
+  ],
+  "Close-Grip Bench Press": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRICEPS, percentage: 55 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CHEST, percentage: 30 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 15 },
+  ],
+  "Bench Dip": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRICEPS, percentage: 70 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CHEST, percentage: 20 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 10 },
+  ],
+  "Seated Leg Curl": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HAMSTRINGS, percentage: 90 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CALVES, percentage: 10 },
+  ],
+  "Glute Bridge": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.GLUTES, percentage: 70 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HAMSTRINGS, percentage: 20 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.ERECTOR_SPINAE, percentage: 10 },
+  ],
+  "Good Morning": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HAMSTRINGS, percentage: 40 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.GLUTES, percentage: 30 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.ERECTOR_SPINAE, percentage: 25 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_DEEP, percentage: 5 },
+  ],
+  "Dumbbell Step-up": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.QUADRICEPS, percentage: 45 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.GLUTES, percentage: 35 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HAMSTRINGS, percentage: 15 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CALVES, percentage: 5 },
+  ],
+  "Nordic Hamstring Curl": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HAMSTRINGS, percentage: 80 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.GLUTES, percentage: 12 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_DEEP, percentage: 8 },
+  ],
+  "Seated Calf Raise": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CALVES, percentage: 95 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HAMSTRINGS, percentage: 5 },
+  ],
+  "Hip Adduction (Machine)": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.ADDUCTORS, percentage: 90 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.GLUTES, percentage: 10 },
+  ],
+  "Hip Abduction (Machine)": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.GLUTES, percentage: 85 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HIP_FLEXORS, percentage: 15 },
+  ],
+  "Bicycle Crunch": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_ABS, percentage: 55 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.OBLIQUES, percentage: 35 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HIP_FLEXORS, percentage: 10 },
+  ],
+  "Crunch": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_ABS, percentage: 80 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.OBLIQUES, percentage: 20 },
+  ],
+  "Lying Leg Raise": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_ABS, percentage: 55 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HIP_FLEXORS, percentage: 30 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_DEEP, percentage: 15 },
+  ],
+  "Hollow Body Hold": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_ABS, percentage: 45 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_DEEP, percentage: 40 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HIP_FLEXORS, percentage: 15 },
+  ],
+  "Cable Woodchopper": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.OBLIQUES, percentage: 60 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_ABS, percentage: 25 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_DEEP, percentage: 15 },
+  ],
 };

@@ -48,6 +48,23 @@ const NAME_AR: Record<string, string> = {
   "Toes to Bar": "الأصابع إلى البار", "Bar Muscle-up": "مسل أب على البار",
   "Ring Muscle-up": "مسل أب على الحلق", "Chest to Bar Pull-up": "العقلة صدر إلى البار",
   "Wall Sit": "الجلوس على الحائط",
+  "Decline Barbell Press": "ضغط البار المنحدر", "Machine Chest Press": "ضغط الصدر بالجهاز",
+  "Pec Deck": "جهاز تفتيح الصدر", "Cable Crossover": "التقاطع بالكابل",
+  "T-Bar Row": "تجديف البار على شكل T", "Pendlay Row": "تجديف بيندلاي",
+  "Straight-Arm Pulldown": "السحب بذراع مستقيمة", "Barbell Shrug": "هز الكتفين بالبار",
+  "Arnold Press": "ضغط أرنولد", "Cable Lateral Raise": "الرفرفة الجانبية بالكابل",
+  "Reverse Pec Deck": "جهاز التفتيح العكسي", "Upright Row": "التجديف العمودي",
+  "Preacher Curl": "تمرين المرشد للبايسبس", "Cable Curl": "تمرين البايسبس بالكابل",
+  "Concentration Curl": "تمرين التركيز للبايسبس", "Incline Dumbbell Curl": "تمرين البايسبس المائل بالدمبل",
+  "Reverse Curl": "التمرير العكسي", "Overhead Triceps Extension": "تمديد الترايسبس العلوي",
+  "Close-Grip Bench Press": "ضغط البار بقبضة ضيقة", "Bench Dip": "الغطس على المقعد",
+  "Seated Leg Curl": "ثني الساق جالساً", "Glute Bridge": "جسر المؤخرة",
+  "Good Morning": "تمرين صباح الخير", "Dumbbell Step-up": "الصعود بالدمبل",
+  "Nordic Hamstring Curl": "ثني أوتار الركبة النوردي", "Seated Calf Raise": "رفع السمانة جالساً",
+  "Hip Adduction (Machine)": "تقريب الورك بالجهاز", "Hip Abduction (Machine)": "تبعيد الورك بالجهاز",
+  "Bicycle Crunch": "تمرين الدراجة للبطن", "Crunch": "تمرين البطن (كرنش)",
+  "Lying Leg Raise": "رفع الساقين مستلقياً", "Hollow Body Hold": "ثبات الجسم المجوف",
+  "Cable Woodchopper": "تمرين تقطيع الخشب بالكابل",
 };
 
 export async function seedExerciseAr() {
