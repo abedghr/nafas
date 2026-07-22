@@ -39,12 +39,13 @@ function formatCountdown(sec: number): string {
 type SessionExercise = ActiveSession['exercises'][number];
 type SessionSet = SessionExercise['sets'][number];
 
-function RepsSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, theme }: {
+function RepsSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
   set: SessionSet;
   setIndex: number;
   onMarkDone: () => void;
   onSkip: () => void;
   onUpdateActual: (actual: SetConfig) => void;
+  onReopen: () => void;
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
@@ -82,15 +83,10 @@ function RepsSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, theme }
     ]);
   };
 
-  // done / skipped → compact summary row
+  // done / skipped → compact summary row; tap to reopen for editing
   if (isDone || isSkipped) {
     return (
-      <Pressable
-        onLongPress={() => {
-          if (isDone) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onUpdateActual({ ...set.actual, reps: set.config.reps, weight: set.config.weight }); }
-        }}
-        style={[styles.setRow, { backgroundColor: bgColor }]}
-      >
+      <Pressable onPress={onReopen} style={[styles.setRow, { backgroundColor: bgColor }]}>
         <View style={styles.setRowLeft}>
           <Ionicons name={isDone ? 'checkmark-circle' : 'close-circle'} size={20} color={isDone ? Colors.primary : theme.textMuted} />
           <Text style={[styles.setLabel, { color: isSkipped ? theme.textMuted : theme.text }, isSkipped && styles.strikethrough]}>
@@ -106,6 +102,7 @@ function RepsSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, theme }
           <View style={[styles.doneBadge, { backgroundColor: isDone ? Colors.primary + '20' : theme.surface }]}>
             <Text style={[styles.doneBadgeText, { color: isDone ? Colors.primary : theme.textMuted }]}>{isDone ? t('workoutSession.done') : t('workoutSession.skip')}</Text>
           </View>
+          <Ionicons name="pencil" size={13} color={theme.textMuted} style={{ marginLeft: 2 }} />
         </View>
       </Pressable>
     );
@@ -165,12 +162,13 @@ function RepsSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, theme }
   );
 }
 
-function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, theme }: {
+function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
   set: SessionSet;
   setIndex: number;
   onMarkDone: () => void;
   onSkip: () => void;
   onUpdateActual: (actual: SetConfig) => void;
+  onReopen: () => void;
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
@@ -269,27 +267,31 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, theme }
 
   if (isDone) {
     return (
-      <View style={[styles.setRow, { backgroundColor: Colors.primary + '10' }]}>
+      <Pressable onPress={onReopen} style={[styles.setRow, { backgroundColor: Colors.primary + '10' }]}>
         <View style={styles.setRowLeft}>
           <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
           <Text style={[styles.setLabel, { color: theme.text }]}>{t('workoutSession.hold')}</Text>
           <Text style={[styles.setValue, { color: theme.textSecondary }]}>{t('workoutSession.secondsValue', { n: set.actual.durationSeconds || 0 })}</Text>
         </View>
-        <View style={[styles.doneBadge, { backgroundColor: Colors.primary + '20' }]}>
-          <Text style={[styles.doneBadgeText, { color: Colors.primary }]}>{t('workoutSession.done')}</Text>
+        <View style={styles.setRowRight}>
+          <View style={[styles.doneBadge, { backgroundColor: Colors.primary + '20' }]}>
+            <Text style={[styles.doneBadgeText, { color: Colors.primary }]}>{t('workoutSession.done')}</Text>
+          </View>
+          <Ionicons name="pencil" size={13} color={theme.textMuted} style={{ marginLeft: 2 }} />
         </View>
-      </View>
+      </Pressable>
     );
   }
 
   if (isSkipped) {
     return (
-      <View style={[styles.setRow, { backgroundColor: theme.surface + '80' }]}>
+      <Pressable onPress={onReopen} style={[styles.setRow, { backgroundColor: theme.surface + '80' }]}>
         <View style={styles.setRowLeft}>
           <Ionicons name="close-circle" size={20} color={theme.textMuted} />
           <Text style={[styles.setLabel, { color: theme.textMuted, textDecorationLine: 'line-through' }]}>{t('workoutSession.hold')}</Text>
         </View>
-      </View>
+        <Ionicons name="pencil" size={13} color={theme.textMuted} />
+      </Pressable>
     );
   }
 
@@ -331,12 +333,13 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, theme }
   );
 }
 
-function EmomSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, theme }: {
+function EmomSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
   set: SessionSet;
   setIndex: number;
   onMarkDone: () => void;
   onSkip: () => void;
   onUpdateActual: (actual: SetConfig) => void;
+  onReopen: () => void;
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
@@ -539,7 +542,7 @@ function EmomSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, theme }
 
   if (isDone) {
     return (
-      <View style={[styles.setRow, { backgroundColor: Colors.primary + '10' }]}>
+      <Pressable onPress={onReopen} style={[styles.setRow, { backgroundColor: Colors.primary + '10' }]}>
         <View style={styles.setRowLeft}>
           <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
           <Text style={[styles.setLabel, { color: theme.text }]}>{t('workoutSession.emom')}</Text>
@@ -547,21 +550,25 @@ function EmomSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, theme }
             {repsPerInterval}×{totalIntervals}
           </Text>
         </View>
-        <View style={[styles.doneBadge, { backgroundColor: Colors.primary + '20' }]}>
-          <Text style={[styles.doneBadgeText, { color: Colors.primary }]}>{t('workoutSession.done')}</Text>
+        <View style={styles.setRowRight}>
+          <View style={[styles.doneBadge, { backgroundColor: Colors.primary + '20' }]}>
+            <Text style={[styles.doneBadgeText, { color: Colors.primary }]}>{t('workoutSession.done')}</Text>
+          </View>
+          <Ionicons name="pencil" size={13} color={theme.textMuted} style={{ marginLeft: 2 }} />
         </View>
-      </View>
+      </Pressable>
     );
   }
 
   if (isSkipped) {
     return (
-      <View style={[styles.setRow, { backgroundColor: theme.surface + '80' }]}>
+      <Pressable onPress={onReopen} style={[styles.setRow, { backgroundColor: theme.surface + '80' }]}>
         <View style={styles.setRowLeft}>
           <Ionicons name="close-circle" size={20} color={theme.textMuted} />
           <Text style={[styles.setLabel, { color: theme.textMuted, textDecorationLine: 'line-through' }]}>{t('workoutSession.emom')}</Text>
         </View>
-      </View>
+        <Ionicons name="pencil" size={13} color={theme.textMuted} />
+      </Pressable>
     );
   }
 
@@ -605,13 +612,14 @@ function EmomSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, theme }
   );
 }
 
-function SetRowItem({ set, setIndex, exerciseIndex, onMarkDone, onSkip, onUpdateActual, theme }: {
+function SetRowItem({ set, setIndex, exerciseIndex, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
   set: SessionSet;
   setIndex: number;
   exerciseIndex: number;
   onMarkDone: () => void;
   onSkip: () => void;
   onUpdateActual: (actual: SetConfig) => void;
+  onReopen: () => void;
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
@@ -619,9 +627,9 @@ function SetRowItem({ set, setIndex, exerciseIndex, onMarkDone, onSkip, onUpdate
   const note = set.actual.note ?? set.config.note ?? '';
   const [noteOpen, setNoteOpen] = useState(!!note);
   const row =
-    setType === 'reps' ? <RepsSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} theme={theme} />
-    : setType === 'hold' ? <HoldSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} theme={theme} />
-    : setType === 'emom' ? <EmomSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} theme={theme} />
+    setType === 'reps' ? <RepsSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} onReopen={onReopen} theme={theme} />
+    : setType === 'hold' ? <HoldSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} onReopen={onReopen} theme={theme} />
+    : setType === 'emom' ? <EmomSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} onReopen={onReopen} theme={theme} />
     : null;
   return (
     <View>
@@ -979,6 +987,20 @@ export default function LiveWorkoutScreen() {
     });
   }, [updateSession]);
 
+  // reopen a done/skipped set for editing — status back to pending, actual values kept
+  const reopenSet = useCallback((exIdx: number, setIdx: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    updateSession(s => {
+      const exercises = [...s.exercises];
+      const ex = { ...exercises[exIdx] };
+      const sets = [...ex.sets];
+      sets[setIdx] = { ...sets[setIdx], status: 'pending' };
+      ex.sets = sets;
+      exercises[exIdx] = ex;
+      return { ...s, exercises };
+    });
+  }, [updateSession]);
+
   const updateSetActual = useCallback((exIdx: number, setIdx: number, actual: SetConfig) => {
     updateSession(s => {
       const exercises = [...s.exercises];
@@ -1261,6 +1283,7 @@ export default function LiveWorkoutScreen() {
                   onMarkDone={() => markSetDone(exIdx, setIdx)}
                   onSkip={() => skipSet(exIdx, setIdx)}
                   onUpdateActual={(actual) => updateSetActual(exIdx, setIdx, actual)}
+                  onReopen={() => reopenSet(exIdx, setIdx)}
                   theme={theme}
                 />
               ))}
