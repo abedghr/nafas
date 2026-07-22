@@ -148,6 +148,11 @@ export interface LogExercise {
   name: string;
   muscleGroup: string;
   sets: LogSetData[];
+  // combo grouping: movements sharing a comboId were performed as one unbroken/back-to-back
+  // combo set. Set at save time when a live-session combo is expanded into per-movement exercises.
+  comboId?: string;
+  comboLabel?: string;
+  comboUnbroken?: boolean;
 }
 
 export interface WorkoutLog {
@@ -195,6 +200,17 @@ export interface ActiveSession {
       config: SetConfig;
       actual: SetConfig;
       status: 'pending' | 'done' | 'skipped' | 'in_progress';
+    }[];
+    // ── combo set (optional) ──────────────────────────────────────────────
+    // When combo=true, this entry represents multiple movements done back-to-back
+    // as one set. `sets` stays empty; the work lives in `rounds`. On finish it is
+    // expanded into one LogExercise per component (so PRs/volume/history all work).
+    combo?: boolean;
+    unbroken?: boolean;
+    components?: { exerciseId: string; name: string; muscleGroup: string }[];
+    rounds?: {
+      status: 'pending' | 'done' | 'skipped' | 'in_progress';
+      entries: { reps: number; weight: number }[]; // aligned to components
     }[];
   }[];
 }

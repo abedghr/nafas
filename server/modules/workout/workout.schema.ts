@@ -70,6 +70,10 @@ const LogExerciseSchema = z.object({
   name: z.string(),
   muscleGroup: z.string().default(""),
   sets: z.array(LogSetSchema),
+  // combo grouping (movements sharing comboId were one back-to-back combo set)
+  comboId: z.string().optional(),
+  comboLabel: z.string().optional(),
+  comboUnbroken: z.boolean().optional(),
 });
 
 export const LogCreateSchema = z

@@ -835,6 +835,243 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, them
   );
 }
 
+// ── Combo set card (multiple movements per round, done back-to-back) ──────────
+function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReopen, onAddRound, onDelete, theme }: {
+  combo: SessionExercise;
+  onUpdateEntry: (roundIdx: number, compIdx: number, patch: { reps?: number; weight?: number }) => void;
+  onRoundDone: (roundIdx: number) => void;
+  onRoundSkip: (roundIdx: number) => void;
+  onRoundReopen: (roundIdx: number) => void;
+  onAddRound: () => void;
+  onDelete: () => void;
+  theme: typeof Colors.dark;
+}) {
+  const { t } = useTranslation();
+  const components = combo.components || [];
+  const rounds = combo.rounds || [];
+
+  return (
+    <View style={[styles.exCard, { backgroundColor: theme.card, borderWidth: 1, borderColor: Colors.accent + '30' }]}>
+      <View style={styles.exCardHeader}>
+        <View style={{ flex: 1 }}>
+          <View style={styles.comboTitleRow}>
+            <View style={[styles.comboChip, { backgroundColor: Colors.accent + '18' }]}>
+              <Ionicons name="git-merge-outline" size={11} color={Colors.accent} />
+              <Text style={[styles.comboChipText, { color: Colors.accent }]}>{t('workoutSession.combo')}</Text>
+            </View>
+            {combo.unbroken && (
+              <View style={[styles.comboChip, { backgroundColor: Colors.primary + '18' }]}>
+                <Text style={[styles.comboChipText, { color: Colors.primary }]}>{t('workoutSession.unbroken')}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.exCardName, { color: theme.text, marginTop: 4 }]}>{combo.name}</Text>
+        </View>
+        <Pressable onPress={onDelete} hitSlop={8} style={styles.menuBtn}>
+          <Ionicons name="trash-outline" size={18} color={theme.textMuted} />
+        </Pressable>
+      </View>
+
+      {rounds.map((round, ri) => {
+        const isDone = round.status === 'done';
+        const isSkipped = round.status === 'skipped';
+        // done/skipped → compact summary, tap to reopen
+        if (isDone || isSkipped) {
+          return (
+            <Pressable key={ri} onPress={() => onRoundReopen(ri)} style={[styles.comboRound, { backgroundColor: isDone ? Colors.primary + '10' : theme.surface + '80' }]}>
+              <View style={styles.comboRoundHead}>
+                <Ionicons name={isDone ? 'checkmark-circle' : 'close-circle'} size={18} color={isDone ? Colors.primary : theme.textMuted} />
+                <Text style={[styles.comboRoundLabel, { color: isSkipped ? theme.textMuted : theme.text }, isSkipped && styles.strikethrough]}>
+                  {t('workoutSession.roundN', { n: ri + 1 })}
+                </Text>
+                {!isSkipped && (
+                  <Text style={[styles.comboRoundSummary, { color: theme.textSecondary }]} numberOfLines={1}>
+                    {components.map((c, ci) => `${round.entries[ci]?.reps || 0}${round.entries[ci]?.weight ? '×' + round.entries[ci].weight : ''}`).join(' · ')}
+                  </Text>
+                )}
+                <Ionicons name="pencil" size={13} color={theme.textMuted} />
+              </View>
+            </Pressable>
+          );
+        }
+        // pending → editable component rows
+        return (
+          <View key={ri} style={[styles.comboRound, { backgroundColor: 'transparent' }]}>
+            <View style={styles.comboRoundHead}>
+              <View style={[styles.setCircle, { borderColor: theme.border }]}>
+                <Text style={[styles.setCircleText, { color: theme.textMuted }]}>{ri + 1}</Text>
+              </View>
+              <Text style={[styles.comboRoundLabel, { color: theme.text, flex: 1 }]}>{t('workoutSession.roundN', { n: ri + 1 })}</Text>
+              <Pressable onPress={() => onRoundDone(ri)} hitSlop={10} style={[styles.doneBtn, { backgroundColor: Colors.primary, marginLeft: 0 }]}>
+                <Ionicons name="checkmark" size={18} color="#fff" />
+              </Pressable>
+              <Pressable onPress={() => onRoundSkip(ri)} hitSlop={10} style={styles.skipBtn}>
+                <Ionicons name="close" size={18} color="#F87171" />
+              </Pressable>
+            </View>
+            {components.map((c, ci) => (
+              <View key={ci} style={styles.comboCompRow}>
+                <Text style={[styles.comboCompName, { color: theme.textSecondary }]} numberOfLines={1}>{c.name}</Text>
+                <View style={styles.comboCompFields}>
+                  <TextInput
+                    style={[styles.inlineInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
+                    value={String(round.entries[ci]?.reps ?? '')}
+                    onChangeText={(v) => onUpdateEntry(ri, ci, { reps: parseInt(v) || 0 })}
+                    keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                  />
+                  <Text style={[styles.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.reps')}</Text>
+                  <TextInput
+                    style={[styles.inlineInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
+                    value={String(round.entries[ci]?.weight ?? '')}
+                    onChangeText={(v) => onUpdateEntry(ri, ci, { weight: parseFloat(v) || 0 })}
+                    keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                  />
+                  <Text style={[styles.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.kg')}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        );
+      })}
+
+      <Pressable onPress={onAddRound} style={styles.comboAddRound}>
+        <Ionicons name="add" size={16} color={Colors.accent} />
+        <Text style={[styles.comboAddRoundText, { color: Colors.accent }]}>{t('workoutSession.addRound')}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ── Combo builder: pick 2+ movements + rounds/reps/weight/unbroken ────────────
+function ComboBuilderModal({ visible, onClose, onCreate, customExercises, theme }: {
+  visible: boolean;
+  onClose: () => void;
+  onCreate: (data: { components: { exerciseId: string; name: string; muscleGroup: string }[]; rounds: number; unbroken: boolean; restSeconds: number; plannedReps: number; plannedWeight: number }) => void;
+  customExercises: any[];
+  theme: typeof Colors.dark;
+}) {
+  const { t } = useTranslation();
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<{ exerciseId: string; name: string; muscleGroup: string }[]>([]);
+  const [rounds, setRounds] = useState(1);
+  const [reps, setReps] = useState('8');
+  const [unbroken, setUnbroken] = useState(true);
+
+  const reset = () => { setSearch(''); setSelected([]); setRounds(1); setReps('8'); setUnbroken(true); };
+  const close = () => { reset(); onClose(); };
+
+  const allExercises = useMemo(() => {
+    const lib = exerciseLibrary.map(e => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup }));
+    const custom = customExercises.map(e => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup }));
+    return [...lib, ...custom];
+  }, [customExercises]);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return allExercises;
+    const q = search.toLowerCase();
+    return allExercises.filter(e => e.name.toLowerCase().includes(q));
+  }, [allExercises, search]);
+
+  const toggle = (ex: { id: string; name: string; muscleGroup: string }) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelected(prev => prev.some(s => s.exerciseId === ex.id)
+      ? prev.filter(s => s.exerciseId !== ex.id)
+      : [...prev, { exerciseId: ex.id, name: ex.name, muscleGroup: ex.muscleGroup }]);
+  };
+
+  const create = () => {
+    if (selected.length < 2) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onCreate({ components: selected, rounds, unbroken, restSeconds: 90, plannedReps: parseInt(reps) || 0, plannedWeight: 0 });
+    close();
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end', flex: 1 }}>
+          <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
+            <View style={styles.modalHandle}><View style={[styles.handleBar, { backgroundColor: theme.border }]} /></View>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>{t('workoutSession.buildCombo')}</Text>
+              <Pressable onPress={close} hitSlop={8}><Ionicons name="close" size={24} color={theme.text} /></Pressable>
+            </View>
+
+            {/* selected order + config */}
+            {selected.length > 0 && (
+              <View style={styles.comboSelWrap}>
+                {selected.map((s, i) => (
+                  <View key={s.exerciseId} style={[styles.comboSelChip, { backgroundColor: Colors.accent + '18' }]}>
+                    <Text style={[styles.comboSelChipText, { color: Colors.accent }]}>{i + 1}. {s.name}</Text>
+                    <Pressable onPress={() => toggle({ id: s.exerciseId, name: s.name, muscleGroup: s.muscleGroup })} hitSlop={6}>
+                      <Ionicons name="close-circle" size={15} color={Colors.accent} />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <View style={styles.comboCfgRow}>
+              <View style={styles.comboCfgItem}>
+                <Text style={[styles.comboCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.rounds')}</Text>
+                <View style={styles.comboStepper}>
+                  <Pressable onPress={() => setRounds(r => Math.max(1, r - 1))} hitSlop={8} style={[styles.stepBtn, { borderColor: theme.border }]}><Ionicons name="remove" size={16} color={theme.text} /></Pressable>
+                  <Text style={[styles.stepVal, { color: theme.text }]}>{rounds}</Text>
+                  <Pressable onPress={() => setRounds(r => Math.min(20, r + 1))} hitSlop={8} style={[styles.stepBtn, { borderColor: theme.border }]}><Ionicons name="add" size={16} color={theme.text} /></Pressable>
+                </View>
+              </View>
+              <View style={styles.comboCfgItem}>
+                <Text style={[styles.comboCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.repsEach')}</Text>
+                <TextInput
+                  style={[styles.inlineInput, { width: 56, backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                  value={reps} onChangeText={setReps} keyboardType="numeric" placeholder="8" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                />
+              </View>
+              <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setUnbroken(u => !u); }} style={styles.comboCfgItem}>
+                <Text style={[styles.comboCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.unbroken')}</Text>
+                <View style={[styles.comboToggle, { backgroundColor: unbroken ? Colors.primary : theme.border }]}>
+                  <View style={[styles.comboToggleDot, { alignSelf: unbroken ? 'flex-end' : 'flex-start' }]} />
+                </View>
+              </Pressable>
+            </View>
+
+            <View style={[styles.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Ionicons name="search" size={18} color={theme.textMuted} />
+              <TextInput style={[styles.searchInput, { color: theme.text }]} value={search} onChangeText={setSearch} placeholder={t('workoutSession.searchExercises')} placeholderTextColor={theme.textMuted} />
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
+              {filtered.map((ex, i) => {
+                const on = selected.some(s => s.exerciseId === ex.id);
+                return (
+                  <Pressable key={ex.id + i} onPress={() => toggle(ex)} style={({ pressed }) => [styles.exPickerItem, { backgroundColor: on ? Colors.accent + '12' : pressed ? theme.card : 'transparent' }]}>
+                    <View style={[styles.exPickerIcon, { backgroundColor: (on ? Colors.accent : Colors.primary) + '15' }]}>
+                      <Ionicons name={on ? 'checkmark' : 'barbell-outline'} size={18} color={on ? Colors.accent : Colors.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.exPickerName, { color: theme.text }]}>{ex.name}</Text>
+                      <Text style={[styles.exPickerGroup, { color: theme.textMuted }]}>{ex.muscleGroup}</Text>
+                    </View>
+                    <Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={on ? Colors.accent : theme.textMuted} />
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <Pressable onPress={create} disabled={selected.length < 2} style={{ opacity: selected.length < 2 ? 0.4 : 1, marginTop: 8, marginBottom: 24 }}>
+              <LinearGradient colors={[Colors.accent, '#E85A2A']} style={styles.comboCreateBtn}>
+                <Text style={styles.comboCreateText}>
+                  {selected.length < 2 ? t('workoutSession.pickTwoPlus') : t('workoutSession.createCombo', { count: selected.length })}
+                </Text>
+              </LinearGradient>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+}
+
 function getDefaultSetConfig(type: SetConfig['type']): SetConfig {
   switch (type) {
     case 'reps': return { type: 'reps', reps: 10, weight: 0 };
@@ -885,6 +1122,7 @@ export default function LiveWorkoutScreen() {
   const [restExerciseName, setRestExerciseName] = useState('');
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
+  const [showComboBuilder, setShowComboBuilder] = useState(false);
   const [menuExerciseIndex, setMenuExerciseIndex] = useState<number | null>(null);
   const restTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1085,9 +1323,87 @@ export default function LiveWorkoutScreen() {
     }));
   }, [updateSession]);
 
+  // ── combo sets ────────────────────────────────────────────────────────────
+  const addCombo = useCallback((data: {
+    components: { exerciseId: string; name: string; muscleGroup: string }[];
+    rounds: number;
+    unbroken: boolean;
+    restSeconds: number;
+    plannedReps: number;
+    plannedWeight: number;
+  }) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const label = data.components.map(c => c.name).join(' + ');
+    const entries = data.components.map(() => ({ reps: data.plannedReps, weight: data.plannedWeight }));
+    updateSession(s => ({
+      ...s,
+      exercises: [...s.exercises, {
+        exerciseId: 'combo-' + Crypto.randomUUID(),
+        name: label,
+        muscleGroup: 'Combo',
+        restSeconds: data.restSeconds,
+        sets: [],
+        combo: true,
+        unbroken: data.unbroken,
+        components: data.components,
+        rounds: Array.from({ length: Math.max(1, data.rounds) }, () => ({
+          status: 'pending' as const,
+          entries: entries.map(e => ({ ...e })),
+        })),
+      }],
+    }));
+  }, [updateSession]);
+
+  const updateRoundEntry = useCallback((exIdx: number, roundIdx: number, compIdx: number, patch: { reps?: number; weight?: number }) => {
+    updateSession(s => {
+      const exercises = [...s.exercises];
+      const ex = { ...exercises[exIdx] };
+      const rounds = [...(ex.rounds || [])];
+      const round = { ...rounds[roundIdx], entries: rounds[roundIdx].entries.map((e, i) => i === compIdx ? { ...e, ...patch } : e) };
+      rounds[roundIdx] = round;
+      ex.rounds = rounds;
+      exercises[exIdx] = ex;
+      return { ...s, exercises };
+    });
+  }, [updateSession]);
+
+  const setRoundStatus = useCallback((exIdx: number, roundIdx: number, status: 'done' | 'skipped' | 'pending') => {
+    Haptics.impactAsync(status === 'done' ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light);
+    updateSession(s => {
+      const exercises = [...s.exercises];
+      const ex = { ...exercises[exIdx] };
+      const rounds = [...(ex.rounds || [])];
+      rounds[roundIdx] = { ...rounds[roundIdx], status };
+      ex.rounds = rounds;
+      exercises[exIdx] = ex;
+      return { ...s, exercises };
+    });
+    if (status === 'done') {
+      const ex = session?.exercises[exIdx];
+      if (ex && ex.restSeconds > 0) startRestTimer(ex.restSeconds, ex.name);
+    }
+  }, [updateSession, session, startRestTimer]);
+
+  const addRound = useCallback((exIdx: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    updateSession(s => {
+      const exercises = [...s.exercises];
+      const ex = { ...exercises[exIdx] };
+      const rounds = [...(ex.rounds || [])];
+      const last = rounds[rounds.length - 1];
+      rounds.push({ status: 'pending', entries: (last?.entries || []).map(e => ({ ...e })) });
+      ex.rounds = rounds;
+      exercises[exIdx] = ex;
+      return { ...s, exercises };
+    });
+  }, [updateSession]);
+
   const pendingCount = useMemo(() => {
     if (!session) return 0;
-    return session.exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.status === 'pending' || s.status === 'in_progress').length, 0);
+    return session.exercises.reduce((acc, ex) =>
+      acc + (ex.combo
+        ? (ex.rounds || []).filter(r => r.status === 'pending' || r.status === 'in_progress').length
+        : ex.sets.filter(s => s.status === 'pending' || s.status === 'in_progress').length), 0);
   }, [session]);
 
   const handleFinish = useCallback(async () => {
@@ -1102,28 +1418,42 @@ export default function LiveWorkoutScreen() {
     let skippedSets = 0;
     let totalReps = 0;
 
-    const logExercises: LogExercise[] = session.exercises.map(ex => ({
-      exerciseId: ex.exerciseId,
-      name: ex.name,
-      muscleGroup: ex.muscleGroup,
-      sets: ex.sets.map(s => {
-        totalSets++;
-        if (s.status === 'done') completedSets++;
-        if (s.status === 'skipped') skippedSets++;
-        if (s.status === 'done' && s.actual.type === 'reps') {
-          const reps = s.actual.reps || 0;
-          const weight = s.actual.weight || 0;
-          totalVolumeKg += reps * weight;
-          totalReps += reps;
-        }
-        return {
-          type: s.config.type,
-          planned: s.config,
-          actual: s.actual,
-          status: s.status,
-        } as LogSetData;
-      }),
-    }));
+    const tallySet = (status: string, type: string, reps: number, weight: number) => {
+      totalSets++;
+      if (status === 'done') completedSets++;
+      if (status === 'skipped') skippedSets++;
+      if (status === 'done' && type === 'reps') { totalVolumeKg += reps * weight; totalReps += reps; }
+    };
+
+    const logExercises: LogExercise[] = session.exercises.flatMap(ex => {
+      // combo → expand into one LogExercise per component; each round becomes a set.
+      if (ex.combo && ex.components) {
+        const comboId = ex.exerciseId;
+        return ex.components.map((c, ci) => ({
+          exerciseId: c.exerciseId,
+          name: c.name,
+          muscleGroup: c.muscleGroup,
+          comboId,
+          comboLabel: ex.name,
+          comboUnbroken: !!ex.unbroken,
+          sets: (ex.rounds || []).map(r => {
+            const e = r.entries[ci] || { reps: 0, weight: 0 };
+            tallySet(r.status, 'reps', e.reps || 0, e.weight || 0);
+            const cfg: SetConfig = { type: 'reps', reps: e.reps || 0, weight: e.weight || 0 };
+            return { type: 'reps', planned: cfg, actual: { ...cfg }, status: r.status } as LogSetData;
+          }),
+        }));
+      }
+      return [{
+        exerciseId: ex.exerciseId,
+        name: ex.name,
+        muscleGroup: ex.muscleGroup,
+        sets: ex.sets.map(s => {
+          tallySet(s.status, s.actual.type, s.actual.reps || 0, s.actual.weight || 0);
+          return { type: s.config.type, planned: s.config, actual: s.actual, status: s.status } as LogSetData;
+        }),
+      }];
+    });
 
     const aiInsight = generateAiInsight(totalSets, completedSets, durationMinutes, totalVolumeKg, totalReps, session.exercises);
 
@@ -1217,9 +1547,16 @@ export default function LiveWorkoutScreen() {
       >
         {(() => {
           let done = 0, total = 0, vol = 0;
-          for (const ex of session.exercises) for (const st of ex.sets) {
-            total++;
-            if (st.status === 'done') { done++; if (st.actual?.type === 'reps') vol += (st.actual.reps || 0) * (st.actual.weight || 0); }
+          for (const ex of session.exercises) {
+            if (ex.combo) {
+              for (const r of ex.rounds || []) {
+                total++;
+                if (r.status === 'done') { done++; for (const e of r.entries) vol += (e.reps || 0) * (e.weight || 0); }
+              }
+            } else for (const st of ex.sets) {
+              total++;
+              if (st.status === 'done') { done++; if (st.actual?.type === 'reps') vol += (st.actual.reps || 0) * (st.actual.weight || 0); }
+            }
           }
           const pct = total ? done / total : 0;
           return (
@@ -1243,7 +1580,20 @@ export default function LiveWorkoutScreen() {
           </Animated.View>
         )}
 
-        {session.exercises.map((ex, exIdx) => (
+        {session.exercises.map((ex, exIdx) => ex.combo ? (
+          <Animated.View key={ex.exerciseId + '-' + exIdx} entering={FadeInDown.duration(350).delay(exIdx * 60)}>
+            <ComboCard
+              combo={ex}
+              onUpdateEntry={(ri, ci, patch) => updateRoundEntry(exIdx, ri, ci, patch)}
+              onRoundDone={(ri) => setRoundStatus(exIdx, ri, 'done')}
+              onRoundSkip={(ri) => setRoundStatus(exIdx, ri, 'skipped')}
+              onRoundReopen={(ri) => setRoundStatus(exIdx, ri, 'pending')}
+              onAddRound={() => addRound(exIdx)}
+              onDelete={() => deleteExercise(exIdx)}
+              theme={theme}
+            />
+          </Animated.View>
+        ) : (
           <Animated.View key={ex.exerciseId + '-' + exIdx} entering={FadeInDown.duration(350).delay(exIdx * 60)}>
             <View style={[styles.exCard, { backgroundColor: theme.card }]}>
               <View style={styles.exCardHeader}>
@@ -1291,13 +1641,16 @@ export default function LiveWorkoutScreen() {
           </Animated.View>
         ))}
 
-        <Pressable
-          onPress={() => setShowExercisePicker(true)}
-          style={styles.addExerciseBtn}
-        >
-          <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
-          <Text style={[styles.addExerciseText, { color: Colors.primary }]}>{t('workoutSession.addExercise')}</Text>
-        </Pressable>
+        <View style={styles.addRowBtns}>
+          <Pressable onPress={() => setShowExercisePicker(true)} style={[styles.addSplitBtn, { borderColor: Colors.primary + '40' }]}>
+            <Ionicons name="add-circle-outline" size={19} color={Colors.primary} />
+            <Text style={[styles.addExerciseText, { color: Colors.primary }]}>{t('workoutSession.addExercise')}</Text>
+          </Pressable>
+          <Pressable onPress={() => setShowComboBuilder(true)} style={[styles.addSplitBtn, { borderColor: Colors.accent + '40' }]}>
+            <Ionicons name="git-merge-outline" size={19} color={Colors.accent} />
+            <Text style={[styles.addExerciseText, { color: Colors.accent }]}>{t('workoutSession.addCombo')}</Text>
+          </Pressable>
+        </View>
       </ScrollView>
 
       {restTimer > 0 && (
@@ -1391,6 +1744,14 @@ export default function LiveWorkoutScreen() {
         visible={showExercisePicker}
         onClose={() => setShowExercisePicker(false)}
         onSelect={addExercise}
+        customExercises={customExercises}
+        theme={theme}
+      />
+
+      <ComboBuilderModal
+        visible={showComboBuilder}
+        onClose={() => setShowComboBuilder(false)}
+        onCreate={addCombo}
         customExercises={customExercises}
         theme={theme}
       />
@@ -1553,7 +1914,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, paddingVertical: 16,
   },
-  addExerciseText: { fontSize: 15, fontWeight: '600' as const },
+  addExerciseText: { fontSize: 14, fontWeight: '600' as const },
+  addRowBtns: { flexDirection: 'row', gap: 10, paddingVertical: 12 },
+  addSplitBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed',
+  },
+  // combo card
+  comboTitleRow: { flexDirection: 'row', gap: 6 },
+  comboChip: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7 },
+  comboChipText: { fontSize: 10, fontWeight: '800' as const, letterSpacing: 0.5, textTransform: 'uppercase' as const },
+  comboRound: { paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(140,140,160,0.18)' },
+  comboRoundHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  comboRoundLabel: { fontSize: 14, fontWeight: '600' as const },
+  comboRoundSummary: { fontSize: 12, flex: 1, textAlign: 'right' as const },
+  comboCompRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, paddingLeft: 32 },
+  comboCompName: { fontSize: 13, fontWeight: '500' as const, flex: 1 },
+  comboCompFields: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  comboCompUnit: { fontSize: 9, fontWeight: '700' as const, letterSpacing: 0.4, textTransform: 'uppercase' as const },
+  comboAddRound: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(140,140,160,0.18)' },
+  comboAddRoundText: { fontSize: 13, fontWeight: '700' as const },
+  // combo builder
+  comboSelWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+  comboSelChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+  comboSelChipText: { fontSize: 12, fontWeight: '600' as const },
+  comboCfgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginBottom: 12 },
+  comboCfgItem: { alignItems: 'center', gap: 6 },
+  comboCfgLabel: { fontSize: 10, fontWeight: '700' as const, letterSpacing: 0.4, textTransform: 'uppercase' as const },
+  comboStepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepBtn: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  stepVal: { fontSize: 16, fontWeight: '700' as const, minWidth: 20, textAlign: 'center' as const },
+  comboToggle: { width: 42, height: 24, borderRadius: 12, padding: 3, justifyContent: 'center' },
+  comboToggleDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#fff' },
+  comboCreateBtn: { paddingVertical: 15, borderRadius: 14, alignItems: 'center' },
+  comboCreateText: { color: '#fff', fontSize: 15, fontWeight: '700' as const },
   restBanner: { position: 'absolute', left: 16, right: 16, borderRadius: 20, overflow: 'hidden' },
   restBannerGrad: { paddingHorizontal: 20, paddingVertical: 16 },
   restBannerContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
