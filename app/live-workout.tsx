@@ -14,6 +14,7 @@ import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
+import ComboBuilderModal from '@/components/ComboBuilderModal';
 import * as Crypto from 'expo-crypto';
 import type { SetConfig, ActiveSession, LogExercise, LogSetData } from '@/lib/app-context';
 
@@ -939,136 +940,6 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
         <Text style={[styles.comboAddRoundText, { color: Colors.accent }]}>{t('workoutSession.addRound')}</Text>
       </Pressable>
     </View>
-  );
-}
-
-// ── Combo builder: pick 2+ movements + rounds/reps/weight/unbroken ────────────
-function ComboBuilderModal({ visible, onClose, onCreate, customExercises, theme }: {
-  visible: boolean;
-  onClose: () => void;
-  onCreate: (data: { components: { exerciseId: string; name: string; muscleGroup: string }[]; rounds: number; unbroken: boolean; restSeconds: number; plannedReps: number; plannedWeight: number }) => void;
-  customExercises: any[];
-  theme: typeof Colors.dark;
-}) {
-  const { t } = useTranslation();
-  const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<{ exerciseId: string; name: string; muscleGroup: string }[]>([]);
-  const [rounds, setRounds] = useState(1);
-  const [reps, setReps] = useState('8');
-  const [unbroken, setUnbroken] = useState(true);
-
-  const reset = () => { setSearch(''); setSelected([]); setRounds(1); setReps('8'); setUnbroken(true); };
-  const close = () => { reset(); onClose(); };
-
-  const allExercises = useMemo(() => {
-    const lib = exerciseLibrary.map(e => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup }));
-    const custom = customExercises.map(e => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup }));
-    return [...lib, ...custom];
-  }, [customExercises]);
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return allExercises;
-    const q = search.toLowerCase();
-    return allExercises.filter(e => e.name.toLowerCase().includes(q));
-  }, [allExercises, search]);
-
-  const toggle = (ex: { id: string; name: string; muscleGroup: string }) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelected(prev => prev.some(s => s.exerciseId === ex.id)
-      ? prev.filter(s => s.exerciseId !== ex.id)
-      : [...prev, { exerciseId: ex.id, name: ex.name, muscleGroup: ex.muscleGroup }]);
-  };
-
-  const create = () => {
-    if (selected.length < 2) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onCreate({ components: selected, rounds, unbroken, restSeconds: 90, plannedReps: parseInt(reps) || 0, plannedWeight: 0 });
-    close();
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end', flex: 1 }}>
-          <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
-            <View style={styles.modalHandle}><View style={[styles.handleBar, { backgroundColor: theme.border }]} /></View>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>{t('workoutSession.buildCombo')}</Text>
-              <Pressable onPress={close} hitSlop={8}><Ionicons name="close" size={24} color={theme.text} /></Pressable>
-            </View>
-
-            {/* selected order + config */}
-            {selected.length > 0 && (
-              <View style={styles.comboSelWrap}>
-                {selected.map((s, i) => (
-                  <View key={s.exerciseId} style={[styles.comboSelChip, { backgroundColor: Colors.accent + '18' }]}>
-                    <Text style={[styles.comboSelChipText, { color: Colors.accent }]}>{i + 1}. {s.name}</Text>
-                    <Pressable onPress={() => toggle({ id: s.exerciseId, name: s.name, muscleGroup: s.muscleGroup })} hitSlop={6}>
-                      <Ionicons name="close-circle" size={15} color={Colors.accent} />
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            <View style={styles.comboCfgRow}>
-              <View style={styles.comboCfgItem}>
-                <Text style={[styles.comboCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.rounds')}</Text>
-                <View style={styles.comboStepper}>
-                  <Pressable onPress={() => setRounds(r => Math.max(1, r - 1))} hitSlop={8} style={[styles.stepBtn, { borderColor: theme.border }]}><Ionicons name="remove" size={16} color={theme.text} /></Pressable>
-                  <Text style={[styles.stepVal, { color: theme.text }]}>{rounds}</Text>
-                  <Pressable onPress={() => setRounds(r => Math.min(20, r + 1))} hitSlop={8} style={[styles.stepBtn, { borderColor: theme.border }]}><Ionicons name="add" size={16} color={theme.text} /></Pressable>
-                </View>
-              </View>
-              <View style={styles.comboCfgItem}>
-                <Text style={[styles.comboCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.repsEach')}</Text>
-                <TextInput
-                  style={[styles.inlineInput, { width: 56, backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                  value={reps} onChangeText={setReps} keyboardType="numeric" placeholder="8" placeholderTextColor={theme.textMuted} selectTextOnFocus
-                />
-              </View>
-              <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setUnbroken(u => !u); }} style={styles.comboCfgItem}>
-                <Text style={[styles.comboCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.unbroken')}</Text>
-                <View style={[styles.comboToggle, { backgroundColor: unbroken ? Colors.primary : theme.border }]}>
-                  <View style={[styles.comboToggleDot, { alignSelf: unbroken ? 'flex-end' : 'flex-start' }]} />
-                </View>
-              </Pressable>
-            </View>
-
-            <View style={[styles.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <Ionicons name="search" size={18} color={theme.textMuted} />
-              <TextInput style={[styles.searchInput, { color: theme.text }]} value={search} onChangeText={setSearch} placeholder={t('workoutSession.searchExercises')} placeholderTextColor={theme.textMuted} />
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
-              {filtered.map((ex, i) => {
-                const on = selected.some(s => s.exerciseId === ex.id);
-                return (
-                  <Pressable key={ex.id + i} onPress={() => toggle(ex)} style={({ pressed }) => [styles.exPickerItem, { backgroundColor: on ? Colors.accent + '12' : pressed ? theme.card : 'transparent' }]}>
-                    <View style={[styles.exPickerIcon, { backgroundColor: (on ? Colors.accent : Colors.primary) + '15' }]}>
-                      <Ionicons name={on ? 'checkmark' : 'barbell-outline'} size={18} color={on ? Colors.accent : Colors.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.exPickerName, { color: theme.text }]}>{ex.name}</Text>
-                      <Text style={[styles.exPickerGroup, { color: theme.textMuted }]}>{ex.muscleGroup}</Text>
-                    </View>
-                    <Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={on ? Colors.accent : theme.textMuted} />
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            <Pressable onPress={create} disabled={selected.length < 2} style={{ opacity: selected.length < 2 ? 0.4 : 1, marginTop: 8, marginBottom: 24 }}>
-              <LinearGradient colors={[Colors.accent, '#E85A2A']} style={styles.comboCreateBtn}>
-                <Text style={styles.comboCreateText}>
-                  {selected.length < 2 ? t('workoutSession.pickTwoPlus') : t('workoutSession.createCombo', { count: selected.length })}
-                </Text>
-              </LinearGradient>
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
   );
 }
 

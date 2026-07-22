@@ -104,6 +104,12 @@ export interface TemplateExercise {
   restSeconds: number;
   sets: SetConfig[];
   isCustom?: boolean;
+  // combo plan (optional): a planned back-to-back combo set. `sets` stays empty.
+  combo?: boolean;
+  unbroken?: boolean;
+  components?: { exerciseId: string; name: string; muscleGroup: string }[];
+  comboRounds?: number;
+  comboReps?: number;
 }
 
 export const WORKOUT_TYPES = [

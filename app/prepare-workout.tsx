@@ -16,6 +16,7 @@ import { alertDialog, confirmDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
+import ComboBuilderModal, { type ComboBuildResult } from '@/components/ComboBuilderModal';
 import type { SetConfig, TemplateExercise, WorkoutType, WorkoutTemplate } from '@/lib/app-context';
 import { WORKOUT_TYPES, templateSig } from '@/lib/app-context';
 
@@ -251,6 +252,92 @@ function SetRow({ setIndex, config, onUpdate, onRemove, theme }: {
         </View>
       )}
       <SetTypeFields config={config} onChange={onUpdate} theme={theme} />
+    </View>
+  );
+}
+
+// Planning card for a combo set (rounds / reps-each / unbroken; components list).
+function ComboPrepCard({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown, canMoveUp, canMoveDown, theme }: {
+  exercise: PrepExercise;
+  onUpdate: (ex: PrepExercise) => void;
+  onRemove: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  theme: typeof Colors.dark;
+}) {
+  const { t } = useTranslation();
+  const rounds = exercise.comboRounds ?? 1;
+  const reps = exercise.comboReps ?? 0;
+  const components = exercise.components ?? [];
+
+  return (
+    <View style={[s.exCard, { backgroundColor: theme.card, borderColor: Colors.accent + '30', borderWidth: 1 }]}>
+      <View style={s.exCardHeader}>
+        <View style={s.reorderCol}>
+          <Pressable onPress={onMoveUp} disabled={!canMoveUp} hitSlop={6} style={s.reorderBtn}>
+            <Ionicons name="chevron-up" size={18} color={canMoveUp ? theme.textSecondary : theme.textMuted + '55'} />
+          </Pressable>
+          <Pressable onPress={onMoveDown} disabled={!canMoveDown} hitSlop={6} style={s.reorderBtn}>
+            <Ionicons name="chevron-down" size={18} color={canMoveDown ? theme.textSecondary : theme.textMuted + '55'} />
+          </Pressable>
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <View style={[s.cpChip, { backgroundColor: Colors.accent + '18' }]}>
+              <Ionicons name="git-merge-outline" size={11} color={Colors.accent} />
+              <Text style={[s.cpChipText, { color: Colors.accent }]}>{t('workoutSession.combo')}</Text>
+            </View>
+            {exercise.unbroken && (
+              <View style={[s.cpChip, { backgroundColor: Colors.primary + '18' }]}>
+                <Text style={[s.cpChipText, { color: Colors.primary }]}>{t('workoutSession.unbroken')}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[s.exCardName, { color: theme.text, marginTop: 4 }]} numberOfLines={2}>{exercise.name}</Text>
+        </View>
+        <Pressable onPress={onRemove} hitSlop={8} style={{ marginLeft: 8 }}>
+          <Ionicons name="trash-outline" size={18} color={theme.textMuted} />
+        </Pressable>
+      </View>
+
+      {/* components */}
+      <View style={s.cpComponents}>
+        {components.map((c, ci) => (
+          <View key={ci} style={s.cpCompRow}>
+            <Text style={[s.cpCompIdx, { color: Colors.accent }]}>{ci + 1}</Text>
+            <Text style={[s.cpCompName, { color: theme.textSecondary }]} numberOfLines={1}>{c.name}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* rounds + reps-each + unbroken */}
+      <View style={s.cpCfgRow}>
+        <View style={s.cpCfgItem}>
+          <Text style={[s.cpCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.rounds')}</Text>
+          <View style={s.cpStepper}>
+            <Pressable onPress={() => onUpdate({ ...exercise, comboRounds: Math.max(1, rounds - 1) })} hitSlop={8} style={[s.cpStepBtn, { borderColor: theme.border }]}><Ionicons name="remove" size={16} color={theme.text} /></Pressable>
+            <Text style={[s.cpStepVal, { color: theme.text }]}>{rounds}</Text>
+            <Pressable onPress={() => onUpdate({ ...exercise, comboRounds: Math.min(20, rounds + 1) })} hitSlop={8} style={[s.cpStepBtn, { borderColor: theme.border }]}><Ionicons name="add" size={16} color={theme.text} /></Pressable>
+          </View>
+        </View>
+        <View style={s.cpCfgItem}>
+          <Text style={[s.cpCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.repsEach')}</Text>
+          <TextInput
+            style={[s.cpRepsInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
+            value={reps ? String(reps) : ''}
+            onChangeText={(v) => onUpdate({ ...exercise, comboReps: parseInt(v) || 0 })}
+            keyboardType="numeric" placeholder="8" placeholderTextColor={theme.textMuted} selectTextOnFocus
+          />
+        </View>
+        <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onUpdate({ ...exercise, unbroken: !exercise.unbroken }); }} style={s.cpCfgItem}>
+          <Text style={[s.cpCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.unbroken')}</Text>
+          <View style={[s.cpToggle, { backgroundColor: exercise.unbroken ? Colors.primary : theme.border }]}>
+            <View style={[s.cpToggleDot, { alignSelf: exercise.unbroken ? 'flex-end' : 'flex-start' }]} />
+          </View>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -821,6 +908,7 @@ export default function PrepareWorkoutScreen() {
   const [workoutType, setWorkoutType] = useState<WorkoutType | null>(null);
   const [exercises, setExercises] = useState<PrepExercise[]>([]);
   const [showPicker, setShowPicker] = useState(false);
+  const [showComboBuilder, setShowComboBuilder] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [preWorkout, setPreWorkout] = useState(false);
@@ -858,6 +946,23 @@ export default function PrepareWorkoutScreen() {
       restSeconds: 90,
       sets: [getDefaultSetConfig(ex.defaultSetType as SetConfig['type'])],
       isCustom: ex.isCustom,
+    };
+    setExercises(prev => [...prev, newEx]);
+  }, []);
+
+  const handleAddCombo = useCallback((data: ComboBuildResult) => {
+    const newEx: PrepExercise = {
+      uid: Crypto.randomUUID(),
+      exerciseId: 'combo-' + Crypto.randomUUID(),
+      name: data.components.map(c => c.name).join(' + '),
+      muscleGroup: 'Combo',
+      restSeconds: data.restSeconds,
+      sets: [],
+      combo: true,
+      unbroken: data.unbroken,
+      components: data.components,
+      comboRounds: Math.max(1, data.rounds),
+      comboReps: data.plannedReps,
     };
     setExercises(prev => [...prev, newEx]);
   }, []);
@@ -943,6 +1048,7 @@ export default function PrepareWorkoutScreen() {
         restSeconds: e.restSeconds,
         sets: e.sets,
         isCustom: e.isCustom,
+        ...(e.combo ? { combo: true, unbroken: e.unbroken, components: e.components, comboRounds: e.comboRounds, comboReps: e.comboReps } : {}),
       })),
     });
     setShowSaveModal(false);
@@ -964,17 +1070,36 @@ export default function PrepareWorkoutScreen() {
       workoutType: workoutType || undefined,
       startTimestamp: Date.now(),
       preWorkout,
-      exercises: exercises.map(e => ({
-        exerciseId: e.exerciseId,
-        name: e.name,
-        muscleGroup: e.muscleGroup,
-        restSeconds: e.restSeconds,
-        sets: e.sets.map(setConfig => ({
-          config: { ...setConfig },
-          actual: { ...setConfig },
-          status: 'pending' as const,
-        })),
-      })),
+      exercises: exercises.map(e => {
+        if (e.combo && e.components) {
+          const reps = e.comboReps ?? 0;
+          return {
+            exerciseId: e.exerciseId,
+            name: e.name,
+            muscleGroup: e.muscleGroup,
+            restSeconds: e.restSeconds,
+            sets: [],
+            combo: true,
+            unbroken: e.unbroken,
+            components: e.components,
+            rounds: Array.from({ length: Math.max(1, e.comboRounds ?? 1) }, () => ({
+              status: 'pending' as const,
+              entries: e.components!.map(() => ({ reps, weight: 0 })),
+            })),
+          };
+        }
+        return {
+          exerciseId: e.exerciseId,
+          name: e.name,
+          muscleGroup: e.muscleGroup,
+          restSeconds: e.restSeconds,
+          sets: e.sets.map(setConfig => ({
+            config: { ...setConfig },
+            actual: { ...setConfig },
+            status: 'pending' as const,
+          })),
+        };
+      }),
     });
     // replace (not push) so Back from the live session never returns to this "new workout" page
     router.replace('/live-workout' as any);
@@ -1065,18 +1190,31 @@ export default function PrepareWorkoutScreen() {
 
           {exercises.map((item, i) => (
             <View key={item.uid} style={{ marginBottom: 14 }}>
-              <ExerciseCard
-                exercise={item}
-                index={i}
-                onUpdate={updated => updateExercise(i, updated)}
-                onRemove={() => removeExercise(i)}
-                onMoveUp={() => moveExercise(i, -1)}
-                onMoveDown={() => moveExercise(i, 1)}
-                canMoveUp={i > 0}
-                canMoveDown={i < exercises.length - 1}
-                lastPerf={lastPerf[item.name]}
-                theme={theme}
-              />
+              {item.combo ? (
+                <ComboPrepCard
+                  exercise={item}
+                  onUpdate={updated => updateExercise(i, updated)}
+                  onRemove={() => removeExercise(i)}
+                  onMoveUp={() => moveExercise(i, -1)}
+                  onMoveDown={() => moveExercise(i, 1)}
+                  canMoveUp={i > 0}
+                  canMoveDown={i < exercises.length - 1}
+                  theme={theme}
+                />
+              ) : (
+                <ExerciseCard
+                  exercise={item}
+                  index={i}
+                  onUpdate={updated => updateExercise(i, updated)}
+                  onRemove={() => removeExercise(i)}
+                  onMoveUp={() => moveExercise(i, -1)}
+                  onMoveDown={() => moveExercise(i, 1)}
+                  canMoveUp={i > 0}
+                  canMoveDown={i < exercises.length - 1}
+                  lastPerf={lastPerf[item.name]}
+                  theme={theme}
+                />
+              )}
             </View>
           ))}
       </ScrollView>
@@ -1086,17 +1224,30 @@ export default function PrepareWorkoutScreen() {
           colors={['transparent', 'rgba(10,10,15,0.95)', 'rgba(10,10,15,1)']}
           style={StyleSheet.absoluteFill}
         />
-        <Pressable
-          onPress={() => {
-            if (!resolvedName) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); alertDialog(t('workoutPrep.pickTypeFirst'), t('workoutPrep.pickTypeHint')); return; }
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setShowPicker(true);
-          }}
-          style={({ pressed }) => [s.addExBtn, { opacity: !resolvedName ? 0.4 : pressed ? 0.9 : 1, borderColor: Colors.primary }]}
-        >
-          <Ionicons name="add" size={20} color={Colors.primary} />
-          <Text style={[s.addExBtnText, { color: Colors.primary }]}>{t('workoutPrep.addExercise')}</Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+          <Pressable
+            onPress={() => {
+              if (!resolvedName) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); alertDialog(t('workoutPrep.pickTypeFirst'), t('workoutPrep.pickTypeHint')); return; }
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowPicker(true);
+            }}
+            style={({ pressed }) => [s.addExBtn, { flex: 1, marginBottom: 0, opacity: !resolvedName ? 0.4 : pressed ? 0.9 : 1, borderColor: Colors.primary }]}
+          >
+            <Ionicons name="add" size={19} color={Colors.primary} />
+            <Text style={[s.addExBtnText, { color: Colors.primary }]}>{t('workoutPrep.addExercise')}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              if (!resolvedName) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); alertDialog(t('workoutPrep.pickTypeFirst'), t('workoutPrep.pickTypeHint')); return; }
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowComboBuilder(true);
+            }}
+            style={({ pressed }) => [s.addExBtn, { flex: 1, marginBottom: 0, opacity: !resolvedName ? 0.4 : pressed ? 0.9 : 1, borderColor: Colors.accent }]}
+          >
+            <Ionicons name="git-merge-outline" size={19} color={Colors.accent} />
+            <Text style={[s.addExBtnText, { color: Colors.accent }]}>{t('workoutSession.addCombo')}</Text>
+          </Pressable>
+        </View>
 
         <Pressable
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPreWorkout(p => !p); }}
@@ -1195,6 +1346,14 @@ export default function PrepareWorkoutScreen() {
           setShowPicker(false);
           setTimeout(() => setShowCustomModal(true), 300);
         }}
+        theme={theme}
+      />
+
+      <ComboBuilderModal
+        visible={showComboBuilder}
+        onClose={() => setShowComboBuilder(false)}
+        onCreate={handleAddCombo}
+        customExercises={customExercises}
         theme={theme}
       />
 
@@ -1348,6 +1507,21 @@ const s = StyleSheet.create({
   lastPerfRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   lastPerfText: { fontSize: 11.5, fontWeight: '500' },
   reorderBtn: { paddingVertical: 1 },
+  cpChip: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7 },
+  cpChipText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
+  cpComponents: { paddingHorizontal: 16, paddingBottom: 4, gap: 6 },
+  cpCompRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cpCompIdx: { fontSize: 12, fontWeight: '800', width: 16, textAlign: 'center' },
+  cpCompName: { fontSize: 14, fontWeight: '500', flex: 1 },
+  cpCfgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 16, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 16 },
+  cpCfgItem: { alignItems: 'center', gap: 6 },
+  cpCfgLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
+  cpStepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cpStepBtn: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  cpStepVal: { fontSize: 16, fontWeight: '700', minWidth: 20, textAlign: 'center' },
+  cpRepsInput: { width: 56, height: 34, borderRadius: 8, borderWidth: 1, textAlign: 'center', fontSize: 15, fontWeight: '600', paddingVertical: 0 },
+  cpToggle: { width: 42, height: 24, borderRadius: 12, padding: 3, justifyContent: 'center' },
+  cpToggleDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#fff' },
   dragHandle: {
     marginRight: 4,
     justifyContent: 'center',

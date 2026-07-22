@@ -48,6 +48,12 @@ export const TemplateExerciseSchema = z
     muscleGroup: z.string().optional(),
     restSeconds: z.number().default(90),
     sets: z.array(SetConfigSchema),
+    // combo plan (optional)
+    combo: z.boolean().optional(),
+    unbroken: z.boolean().optional(),
+    components: z.array(z.object({ exerciseId: z.string(), name: z.string(), muscleGroup: z.string() })).optional(),
+    comboRounds: z.number().optional(),
+    comboReps: z.number().optional(),
   })
   .openapi("TemplateExercise");
 
