@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useApp, WorkoutLog, LogExercise } from '@/lib/app-context';
 import { confirmDialog, alertDialog } from '@/lib/dialog';
+import { groupByCombo } from '@/lib/combo-group';
 import Colors from '@/constants/colors';
 
 function formatDuration(minutes: number): string {
@@ -209,7 +210,8 @@ export default function WorkoutDetailScreen() {
 
         <Animated.View entering={FadeInDown.delay(350).duration(600)}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('workoutSession.exercises')}</Text>
-          {currentLog.exercises.map((exercise, exIdx) => (
+          {groupByCombo(currentLog.exercises).map((group, groupIdx) => {
+            const renderExercise = (exercise: LogExercise, exIdx: number) => (
             <View key={exIdx} style={[styles.exerciseCard, { backgroundColor: theme.card }]}>
               <View style={styles.exerciseHeader}>
                 <View style={styles.exerciseNameRow}>
@@ -267,7 +269,28 @@ export default function WorkoutDetailScreen() {
                 );
               })}
             </View>
-          ))}
+            );
+            if (group.combo) {
+              return (
+                <View key={'combo-' + groupIdx} style={[styles.comboWrap, { backgroundColor: theme.card, borderColor: Colors.accent + '40' }]}>
+                  <View style={styles.comboHead}>
+                    <View style={[styles.comboBadge, { backgroundColor: Colors.accent + '18' }]}>
+                      <Ionicons name="git-merge-outline" size={11} color={Colors.accent} />
+                      <Text style={[styles.comboBadgeText, { color: Colors.accent }]}>{t('workoutSession.combo')}</Text>
+                    </View>
+                    {group.unbroken && (
+                      <View style={[styles.comboBadge, { backgroundColor: Colors.primary + '18' }]}>
+                        <Text style={[styles.comboBadgeText, { color: Colors.primary }]}>{t('workoutSession.unbroken')}</Text>
+                      </View>
+                    )}
+                    <Text style={[styles.comboHeadLabel, { color: theme.textSecondary }]} numberOfLines={1}>{group.label}</Text>
+                  </View>
+                  {group.members.map((m, mi) => renderExercise(m, groupIdx * 1000 + mi))}
+                </View>
+              );
+            }
+            return renderExercise(group.ex, groupIdx);
+          })}
         </Animated.View>
 
         {currentLog.aiInsight ? (
@@ -485,6 +508,30 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12,
   },
+  comboWrap: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: 12,
+    gap: 2,
+  },
+  comboHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 4,
+    paddingBottom: 8,
+  },
+  comboBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 7,
+  },
+  comboBadgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
+  comboHeadLabel: { flex: 1, fontSize: 12, fontWeight: '600' },
   exerciseHeader: {
     flexDirection: 'row',
     alignItems: 'center',

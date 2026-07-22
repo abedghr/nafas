@@ -100,6 +100,9 @@ export default function WorkoutSummaryScreen() {
         today: todayBest ? `${todayBest.weight} kg x ${todayBest.reps}` : '-',
         lastTime: prevBest ? `${prevBest.weight} kg x ${prevBest.reps}` : '-',
         change: weightDiff !== null ? weightDiff : null,
+        comboId: ex.comboId,
+        comboLabel: ex.comboLabel,
+        comboUnbroken: ex.comboUnbroken,
       };
     });
   }, [currentLog, previousLog]);
@@ -297,9 +300,26 @@ export default function WorkoutSummaryScreen() {
                     <Text style={[styles.tableHeaderCell, styles.dataCol, { color: theme.textMuted }]}>{t('workoutSession.last')}</Text>
                     <Text style={[styles.tableHeaderCell, styles.changeCol, { color: theme.textMuted }]}>{t('workoutSession.change')}</Text>
                   </View>
-                  {exerciseComparison.map((row, i) => (
-                    <View key={i} style={[styles.tableRow, i % 2 === 0 && { backgroundColor: theme.background + '40' }]}>
-                      <Text style={[styles.tableCell, styles.exerciseCol, { color: theme.text }]} numberOfLines={1}>{row.name}</Text>
+                  {exerciseComparison.map((row, i) => {
+                    const comboStart = row.comboId && row.comboId !== exerciseComparison[i - 1]?.comboId;
+                    return (
+                    <React.Fragment key={i}>
+                    {comboStart && (
+                      <View style={styles.comboHeadRow}>
+                        <View style={[styles.comboBadge, { backgroundColor: Colors.accent + '18' }]}>
+                          <Ionicons name="git-merge-outline" size={10} color={Colors.accent} />
+                          <Text style={[styles.comboBadgeText, { color: Colors.accent }]}>{t('workoutSession.combo')}</Text>
+                        </View>
+                        {row.comboUnbroken && (
+                          <View style={[styles.comboBadge, { backgroundColor: Colors.primary + '18' }]}>
+                            <Text style={[styles.comboBadgeText, { color: Colors.primary }]}>{t('workoutSession.unbroken')}</Text>
+                          </View>
+                        )}
+                        <Text style={[styles.comboHeadLabel, { color: theme.textSecondary }]} numberOfLines={1}>{row.comboLabel}</Text>
+                      </View>
+                    )}
+                    <View style={[styles.tableRow, i % 2 === 0 && { backgroundColor: theme.background + '40' }]}>
+                      <Text style={[styles.tableCell, styles.exerciseCol, { color: theme.text }, row.comboId && { paddingLeft: 10 }]} numberOfLines={1}>{row.name}</Text>
                       <Text style={[styles.tableCell, styles.dataCol, { color: theme.textSecondary }]}>{row.today}</Text>
                       <Text style={[styles.tableCell, styles.dataCol, { color: theme.textMuted }]}>{row.lastTime}</Text>
                       <Text style={[styles.tableCell, styles.changeCol, {
@@ -308,7 +328,9 @@ export default function WorkoutSummaryScreen() {
                         {row.change === null ? '-' : row.change > 0 ? `+${row.change} kg` : `${row.change} kg`}
                       </Text>
                     </View>
-                  ))}
+                    </React.Fragment>
+                    );
+                  })}
                 </View>
               )}
             </>
@@ -603,6 +625,10 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 4,
   },
+  comboHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4, paddingTop: 10, paddingBottom: 4 },
+  comboBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
+  comboBadgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase' },
+  comboHeadLabel: { flex: 1, fontSize: 11, fontWeight: '600' },
   tableCell: {
     fontSize: 13,
   },
