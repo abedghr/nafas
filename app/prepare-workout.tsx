@@ -584,7 +584,30 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
             ))}
           </ScrollView>
 
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              onCreateCustom();
+            }}
+            style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1, marginBottom: 10 }]}
+          >
+            <LinearGradient
+              colors={[Colors.accent, Colors.accentLight]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={s.createCustomBtn}
+            >
+              <Ionicons name="create-outline" size={18} color="#fff" />
+              <Text style={s.createCustomText}>{t('workoutPrep.createCustomExercise')}</Text>
+            </LinearGradient>
+          </Pressable>
+
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+            {filtered.length === 0 && (
+              <Text style={{ color: theme.textMuted, textAlign: 'center', marginTop: 24, fontSize: 14 }}>
+                {t('workoutPrep.noExercisesFound', { defaultValue: 'No exercises found' })}
+              </Text>
+            )}
             {filtered.map((ex, i) => (
               <Pressable
                 key={ex.id + i}
@@ -615,24 +638,6 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
                 <Ionicons name="add-circle" size={22} color={Colors.primary} />
               </Pressable>
             ))}
-
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                onCreateCustom();
-              }}
-              style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1, marginTop: 12, marginHorizontal: 16 }]}
-            >
-              <LinearGradient
-                colors={[Colors.accent, Colors.accentLight]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={s.createCustomBtn}
-              >
-                <Ionicons name="create-outline" size={18} color="#fff" />
-                <Text style={s.createCustomText}>{t('workoutPrep.createCustomExercise')}</Text>
-              </LinearGradient>
-            </Pressable>
           </ScrollView>
         </View>
         </KeyboardAvoidingView>
