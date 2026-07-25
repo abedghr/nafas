@@ -14,7 +14,7 @@ import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
-import ComboBuilderModal from '@/components/ComboBuilderModal';
+import ComboBuilderModal, { type ComboBuildResult } from '@/components/ComboBuilderModal';
 import * as Crypto from 'expo-crypto';
 import type { SetConfig, ActiveSession, LogExercise, LogSetData } from '@/lib/app-context';
 
@@ -1195,17 +1195,9 @@ export default function LiveWorkoutScreen() {
   }, [updateSession]);
 
   // ── combo sets ────────────────────────────────────────────────────────────
-  const addCombo = useCallback((data: {
-    components: { exerciseId: string; name: string; muscleGroup: string }[];
-    rounds: number;
-    unbroken: boolean;
-    restSeconds: number;
-    plannedReps: number;
-    plannedWeight: number;
-  }) => {
+  const addCombo = useCallback((data: ComboBuildResult) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const label = data.components.map(c => c.name).join(' + ');
-    const entries = data.components.map(() => ({ reps: data.plannedReps, weight: data.plannedWeight }));
     updateSession(s => ({
       ...s,
       exercises: [...s.exercises, {
@@ -1216,10 +1208,10 @@ export default function LiveWorkoutScreen() {
         sets: [],
         combo: true,
         unbroken: data.unbroken,
-        components: data.components,
+        components: data.components.map(c => ({ exerciseId: c.exerciseId, name: c.name, muscleGroup: c.muscleGroup })),
         rounds: Array.from({ length: Math.max(1, data.rounds) }, () => ({
           status: 'pending' as const,
-          entries: entries.map(e => ({ ...e })),
+          entries: data.components.map(c => ({ reps: c.reps, weight: c.weight })),
         })),
       }],
     }));

@@ -834,4 +834,79 @@ export const EXERCISE_BODY_TARGETS: Record<string, BodyTargetEntry[]> = {
     { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_ABS, percentage: 25 },
     { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_DEEP, percentage: 15 },
   ],
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RUNNING / CARDIO EXERCISES (10)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  "Running (Outdoor)": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CARDIOVASCULAR, percentage: 55 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.QUADRICEPS, percentage: 15 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HAMSTRINGS, percentage: 12 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CALVES, percentage: 10 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.ENDURANCE, percentage: 8 },
+  ],
+  "Sprint": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CARDIOVASCULAR, percentage: 40 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.QUADRICEPS, percentage: 20 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HAMSTRINGS, percentage: 18 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.GLUTES, percentage: 12 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CALVES, percentage: 10 },
+  ],
+  "Jogging": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CARDIOVASCULAR, percentage: 55 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.ENDURANCE, percentage: 15 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.QUADRICEPS, percentage: 12 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HAMSTRINGS, percentage: 10 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CALVES, percentage: 8 },
+  ],
+  "Incline Treadmill Walk": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CARDIOVASCULAR, percentage: 45 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.GLUTES, percentage: 20 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CALVES, percentage: 15 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HAMSTRINGS, percentage: 10 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.ENDURANCE, percentage: 10 },
+  ],
+  "Elliptical": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CARDIOVASCULAR, percentage: 50 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.QUADRICEPS, percentage: 15 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.ENDURANCE, percentage: 13 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.GLUTES, percentage: 12 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HAMSTRINGS, percentage: 10 },
+  ],
+  "Ski Erg": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CARDIOVASCULAR, percentage: 40 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.LATS, percentage: 20 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_ABS, percentage: 15 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.ENDURANCE, percentage: 13 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRICEPS, percentage: 12 },
+  ],
+  "Swimming": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CARDIOVASCULAR, percentage: 45 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.LATS, percentage: 18 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.ENDURANCE, percentage: 15 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 12 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_DEEP, percentage: 10 },
+  ],
+  "Outdoor Cycling": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CARDIOVASCULAR, percentage: 50 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.QUADRICEPS, percentage: 22 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.ENDURANCE, percentage: 10 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HAMSTRINGS, percentage: 10 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CALVES, percentage: 8 },
+  ],
+  "High Knees": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CARDIOVASCULAR, percentage: 45 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.HIP_FLEXORS, percentage: 20 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.QUADRICEPS, percentage: 15 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CALVES, percentage: 10 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_ABS, percentage: 10 },
+  ],
+  "Shadow Boxing": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CARDIOVASCULAR, percentage: 45 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.ENDURANCE, percentage: 18 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 15 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_ABS, percentage: 12 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.OBLIQUES, percentage: 10 },
+  ],
 };

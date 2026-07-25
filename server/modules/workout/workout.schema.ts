@@ -51,7 +51,7 @@ export const TemplateExerciseSchema = z
     // combo plan (optional)
     combo: z.boolean().optional(),
     unbroken: z.boolean().optional(),
-    components: z.array(z.object({ exerciseId: z.string(), name: z.string(), muscleGroup: z.string() })).optional(),
+    components: z.array(z.object({ exerciseId: z.string(), name: z.string(), muscleGroup: z.string(), reps: z.number().optional(), weight: z.number().optional() })).optional(),
     comboRounds: z.number().optional(),
     comboReps: z.number().optional(),
   })

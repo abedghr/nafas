@@ -269,8 +269,17 @@ function ComboPrepCard({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown, can
 }) {
   const { t } = useTranslation();
   const rounds = exercise.comboRounds ?? 1;
-  const reps = exercise.comboReps ?? 0;
   const components = exercise.components ?? [];
+
+  const updateComponent = (ci: number, patch: { reps?: number; weight?: number }) => {
+    onUpdate({ ...exercise, components: components.map((c, i) => i === ci ? { ...c, ...patch } : c) });
+  };
+
+  const removeComponent = (ci: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const next = components.filter((_, i) => i !== ci);
+    onUpdate({ ...exercise, components: next, name: next.map(c => c.name).join(' + ') });
+  };
 
   return (
     <View style={[s.exCard, { backgroundColor: theme.card, borderColor: Colors.accent + '30', borderWidth: 1 }]}>
@@ -302,17 +311,34 @@ function ComboPrepCard({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown, can
         </Pressable>
       </View>
 
-      {/* components */}
+      {/* components: each with its own reps + weight */}
       <View style={s.cpComponents}>
         {components.map((c, ci) => (
           <View key={ci} style={s.cpCompRow}>
             <Text style={[s.cpCompIdx, { color: Colors.accent }]}>{ci + 1}</Text>
             <Text style={[s.cpCompName, { color: theme.textSecondary }]} numberOfLines={1}>{c.name}</Text>
+            <TextInput
+              style={[s.cpCompInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
+              value={c.reps ? String(c.reps) : ''}
+              onChangeText={(v) => updateComponent(ci, { reps: parseInt(v) || 0 })}
+              keyboardType="numeric" placeholder="8" placeholderTextColor={theme.textMuted} selectTextOnFocus
+            />
+            <Text style={[s.cpCompUnit, { color: theme.textMuted }]}>{t('workoutSession.reps')}</Text>
+            <TextInput
+              style={[s.cpCompInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
+              value={c.weight ? String(c.weight) : ''}
+              onChangeText={(v) => updateComponent(ci, { weight: parseFloat(v) || 0 })}
+              keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
+            />
+            <Text style={[s.cpCompUnit, { color: theme.textMuted }]}>{t('workoutSession.kg')}</Text>
+            <Pressable onPress={() => removeComponent(ci)} hitSlop={6}>
+              <Ionicons name="close-circle" size={17} color={Colors.accent} />
+            </Pressable>
           </View>
         ))}
       </View>
 
-      {/* rounds + reps-each + unbroken */}
+      {/* rounds + unbroken */}
       <View style={s.cpCfgRow}>
         <View style={s.cpCfgItem}>
           <Text style={[s.cpCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.rounds')}</Text>
@@ -321,15 +347,6 @@ function ComboPrepCard({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown, can
             <Text style={[s.cpStepVal, { color: theme.text }]}>{rounds}</Text>
             <Pressable onPress={() => onUpdate({ ...exercise, comboRounds: Math.min(20, rounds + 1) })} hitSlop={8} style={[s.cpStepBtn, { borderColor: theme.border }]}><Ionicons name="add" size={16} color={theme.text} /></Pressable>
           </View>
-        </View>
-        <View style={s.cpCfgItem}>
-          <Text style={[s.cpCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.repsEach')}</Text>
-          <TextInput
-            style={[s.cpRepsInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-            value={reps ? String(reps) : ''}
-            onChangeText={(v) => onUpdate({ ...exercise, comboReps: parseInt(v) || 0 })}
-            keyboardType="numeric" placeholder="8" placeholderTextColor={theme.textMuted} selectTextOnFocus
-          />
         </View>
         <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onUpdate({ ...exercise, unbroken: !exercise.unbroken }); }} style={s.cpCfgItem}>
           <Text style={[s.cpCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.unbroken')}</Text>
@@ -962,7 +979,6 @@ export default function PrepareWorkoutScreen() {
       unbroken: data.unbroken,
       components: data.components,
       comboRounds: Math.max(1, data.rounds),
-      comboReps: data.plannedReps,
     };
     setExercises(prev => [...prev, newEx]);
   }, []);
@@ -1048,7 +1064,7 @@ export default function PrepareWorkoutScreen() {
         restSeconds: e.restSeconds,
         sets: e.sets,
         isCustom: e.isCustom,
-        ...(e.combo ? { combo: true, unbroken: e.unbroken, components: e.components, comboRounds: e.comboRounds, comboReps: e.comboReps } : {}),
+        ...(e.combo ? { combo: true, unbroken: e.unbroken, components: e.components, comboRounds: e.comboRounds } : {}),
       })),
     });
     setShowSaveModal(false);
@@ -1072,7 +1088,6 @@ export default function PrepareWorkoutScreen() {
       preWorkout,
       exercises: exercises.map(e => {
         if (e.combo && e.components) {
-          const reps = e.comboReps ?? 0;
           return {
             exerciseId: e.exerciseId,
             name: e.name,
@@ -1081,10 +1096,10 @@ export default function PrepareWorkoutScreen() {
             sets: [],
             combo: true,
             unbroken: e.unbroken,
-            components: e.components,
+            components: e.components.map(c => ({ exerciseId: c.exerciseId, name: c.name, muscleGroup: c.muscleGroup })),
             rounds: Array.from({ length: Math.max(1, e.comboRounds ?? 1) }, () => ({
               status: 'pending' as const,
-              entries: e.components!.map(() => ({ reps, weight: 0 })),
+              entries: e.components!.map(c => ({ reps: c.reps ?? 0, weight: c.weight ?? 0 })),
             })),
           };
         }
@@ -1513,6 +1528,8 @@ const s = StyleSheet.create({
   cpCompRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   cpCompIdx: { fontSize: 12, fontWeight: '800', width: 16, textAlign: 'center' },
   cpCompName: { fontSize: 14, fontWeight: '500', flex: 1 },
+  cpCompInput: { width: 44, height: 32, borderRadius: 8, borderWidth: 1, textAlign: 'center', fontSize: 14, fontWeight: '600', paddingVertical: 0 },
+  cpCompUnit: { fontSize: 9, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
   cpCfgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 16, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 16 },
   cpCfgItem: { alignItems: 'center', gap: 6 },
   cpCfgLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },

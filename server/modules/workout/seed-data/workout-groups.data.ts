@@ -92,6 +92,11 @@ import {
 } from "./exercises-conditioning";
 
 import {
+  runningOutdoor, sprint, jogging, inclineTreadmillWalk, elliptical,
+  skiErg, swimming, outdoorCycling, highKnees, shadowBoxing,
+} from "./exercises-cardio";
+
+import {
   hip9090Stretch,
   thoracicRotation,
   worldsGreatestStretch,
@@ -418,6 +423,10 @@ export const workoutGroups: WorkoutGroupSeed[] = [
       assaultBikeSprint,
       jumpRope,
       battleRopes,
+      sprint,
+      highKnees,
+      shadowBoxing,
+      skiErg,
     ],
   },
 
@@ -440,6 +449,16 @@ export const workoutGroups: WorkoutGroupSeed[] = [
       stairClimber,
       battleRopes,
       assaultBikeSprint,
+      runningOutdoor,
+      sprint,
+      jogging,
+      inclineTreadmillWalk,
+      elliptical,
+      skiErg,
+      swimming,
+      outdoorCycling,
+      highKnees,
+      shadowBoxing,
     ],
   },
 

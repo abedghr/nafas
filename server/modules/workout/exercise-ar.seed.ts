@@ -65,6 +65,10 @@ const NAME_AR: Record<string, string> = {
   "Bicycle Crunch": "تمرين الدراجة للبطن", "Crunch": "تمرين البطن (كرنش)",
   "Lying Leg Raise": "رفع الساقين مستلقياً", "Hollow Body Hold": "ثبات الجسم المجوف",
   "Cable Woodchopper": "تمرين تقطيع الخشب بالكابل",
+  "Running (Outdoor)": "الجري في الخارج", "Sprint": "العدو السريع (سبرينت)", "Jogging": "الهرولة",
+  "Incline Treadmill Walk": "المشي المائل على المشاية", "Elliptical": "جهاز الإليبتيكال",
+  "Ski Erg": "جهاز التزلج (سكي إيرغ)", "Swimming": "السباحة", "Outdoor Cycling": "ركوب الدراجة في الخارج",
+  "High Knees": "رفع الركبتين العالي", "Shadow Boxing": "ملاكمة الظل",
 };
 
 export async function seedExerciseAr() {

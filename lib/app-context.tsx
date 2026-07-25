@@ -107,7 +107,7 @@ export interface TemplateExercise {
   // combo plan (optional): a planned back-to-back combo set. `sets` stays empty.
   combo?: boolean;
   unbroken?: boolean;
-  components?: { exerciseId: string; name: string; muscleGroup: string }[];
+  components?: { exerciseId: string; name: string; muscleGroup: string; reps?: number; weight?: number }[];
   comboRounds?: number;
   comboReps?: number;
 }

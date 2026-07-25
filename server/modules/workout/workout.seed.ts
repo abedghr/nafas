@@ -18,6 +18,8 @@ const TIME_HOLD = new Set([
 const DISTANCE_DURATION = new Set([
   "Treadmill Run", "Cycling (Stationary)", "Rowing Machine", "Stair Climber",
   "Assault Bike Sprint", "Jump Rope", "Battle Ropes", "Sled Push", "Farmer's Carry",
+  "Running (Outdoor)", "Sprint", "Jogging", "Incline Treadmill Walk", "Elliptical",
+  "Ski Erg", "Swimming", "Outdoor Cycling",
 ]);
 const measurementFor = (name: string): Measurement =>
   TIME_HOLD.has(name) ? "time_hold" : DISTANCE_DURATION.has(name) ? "distance_duration" : "reps";
