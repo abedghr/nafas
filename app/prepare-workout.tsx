@@ -1325,9 +1325,33 @@ export default function PrepareWorkoutScreen() {
               <Ionicons name="search" size={16} color={theme.textMuted} />
               <TextInput style={[s.typeSearchInput, { color: theme.text }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]} value={typeSearch} onChangeText={setTypeSearch} placeholder={t('common.search', { defaultValue: 'Search' })} placeholderTextColor={theme.textMuted} autoCapitalize="none" />
             </View>
+            {/* Custom pinned on top so it's reachable without scrolling */}
+            {(() => {
+              const q = typeSearch.toLowerCase();
+              const customLabel = t('workoutTypeNames.Custom', { defaultValue: 'Custom' });
+              if (q && !customLabel.toLowerCase().includes(q) && !'custom'.includes(q)) return null;
+              const active = workoutType === 'Custom';
+              return (
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setWorkoutType('Custom' as WorkoutType);
+                    setTypePickerOpen(false);
+                  }}
+                  style={[s.typeOption, { borderBottomColor: theme.border, backgroundColor: Colors.accent + '12', borderRadius: 12, marginBottom: 8, borderBottomWidth: 0, paddingHorizontal: 12 }]}
+                >
+                  <Ionicons name="create-outline" size={20} color={Colors.accent} />
+                  <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: Colors.accent }}>{customLabel}</Text>
+                  {active
+                    ? <Ionicons name="checkmark-circle" size={20} color={Colors.accent} />
+                    : <Text style={{ fontSize: 12, color: theme.textMuted }}>{t('workoutPrep.customTypeHint', { defaultValue: 'name your own' })}</Text>}
+                </Pressable>
+              );
+            })()}
             <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.42 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               {trainingTypes
                 .filter(wt => {
+                  if (wt.name === 'Custom') return false; // pinned above
                   const label = t(`workoutTypeNames.${wt.name}`, { defaultValue: wt.name });
                   const q = typeSearch.toLowerCase();
                   return !q || label.toLowerCase().includes(q) || wt.name.toLowerCase().includes(q);
