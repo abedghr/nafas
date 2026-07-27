@@ -20,6 +20,7 @@ export const workoutApi = {
 
   templates: () => apiFetch<{ data: any[] }>("/workout-templates", { auth: true }).then((r) => r.data),
   createTemplate: (body: unknown) => apiFetch("/workout-templates", { method: "POST", auth: true, body }),
+  updateTemplate: (id: string, body: unknown) => apiFetch(`/workout-templates/${id}`, { method: "PATCH", auth: true, body }),
   deleteTemplate: (id: string) => apiFetch(`/workout-templates/${id}`, { method: "DELETE", auth: true }),
 
   logs: () => apiFetch<{ data: any[] }>("/workout-logs", { auth: true }).then((r) => r.data),

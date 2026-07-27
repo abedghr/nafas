@@ -313,6 +313,7 @@ interface AppContextValue {
   addInBodyTest: (test: Omit<InBodyTest, 'id'>) => void;
   workoutTemplates: WorkoutTemplate[];
   addWorkoutTemplate: (t: Omit<WorkoutTemplate, 'id'>) => void;
+  updateWorkoutTemplate: (id: string, t: Omit<WorkoutTemplate, 'id'>) => void;
   deleteWorkoutTemplate: (id: string) => void;
   workoutLogs: WorkoutLog[];
   addWorkoutLog: (log: Omit<WorkoutLog, 'id'> & { id?: string }) => string;
@@ -608,6 +609,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, [workoutTemplates]);
 
+  const updateWorkoutTemplate = useCallback((id: string, t: Omit<WorkoutTemplate, 'id'>) => {
+    setWorkoutTemplates(prev => {
+      const updated = prev.map(p => p.id === id ? { ...p, ...t, id } : p);
+      AsyncStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(updated));
+      return updated;
+    });
+    workoutApi.updateTemplate(id, { name: t.name, exercises: (t as any).exercises ?? [] })
+      .then(() => workoutApi.templates())
+      .then(srv => setWorkoutTemplates(srv as any))
+      .catch(() => {});
+  }, []);
+
   const deleteWorkoutTemplate = useCallback((id: string) => {
     setWorkoutTemplates(prev => {
       const updated = prev.filter(t => t.id !== id);
@@ -738,13 +751,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     language, setLanguage, isDark, toggleTheme, weightUnit, setWeightUnit,
     likedPosts, toggleLike, streak, weeklyWorkouts,
     inBodyTests, addInBodyTest,
-    workoutTemplates, addWorkoutTemplate, deleteWorkoutTemplate,
+    workoutTemplates, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate,
     workoutLogs, addWorkoutLog, deleteWorkoutLog,
     customExercises, addCustomExercise,
     exerciseLibrary, workoutTypes: workoutTypesData, muscleGroups: WORKOUT_MUSCLE_GROUPS,
     activeSession, setActiveSession,
     logout, deleteAccount,
-  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, weightUnit, setWeightUnit, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, addWorkoutTemplate, deleteWorkoutTemplate, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
+  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, weightUnit, setWeightUnit, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
 
   if (!loaded) return null;
 

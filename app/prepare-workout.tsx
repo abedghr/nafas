@@ -954,10 +954,11 @@ const WORKOUT_TYPE_ICONS: Record<string, string> = {
   'Custom': 'create-outline',
 };
 
-function TemplatePickerModal({ visible, onClose, onSelect, onDelete, templates, theme }: {
+function TemplatePickerModal({ visible, onClose, onSelect, onEdit, onDelete, templates, theme }: {
   visible: boolean;
   onClose: () => void;
   onSelect: (template: WorkoutTemplate) => void;
+  onEdit: (template: WorkoutTemplate) => void;
   onDelete: (template: WorkoutTemplate) => void;
   templates: WorkoutTemplate[];
   theme: typeof Colors.dark;
@@ -1059,6 +1060,9 @@ function TemplatePickerModal({ visible, onClose, onSelect, onDelete, templates, 
                         )}
                       </View>
                     </Pressable>
+                    <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onEdit(tmpl); onClose(); }} hitSlop={10} style={s.templateDeleteBtn}>
+                      <Ionicons name="create-outline" size={18} color={Colors.primary} />
+                    </Pressable>
                     <Pressable onPress={() => confirmDelete(tmpl)} hitSlop={10} style={s.templateDeleteBtn}>
                       <Ionicons name="trash-outline" size={18} color="#F87171" />
                     </Pressable>
@@ -1079,10 +1083,11 @@ export default function PrepareWorkoutScreen() {
   const insets = useSafeAreaInsets();
   const { templateId } = useLocalSearchParams<{ templateId?: string }>();
   const {
-    workoutTemplates, addWorkoutTemplate, deleteWorkoutTemplate, setActiveSession,
+    workoutTemplates, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, setActiveSession,
     customExercises, addCustomExercise, user, workoutTypes,
   } = useApp();
   const theme = Colors.dark;
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [workoutName, setWorkoutName] = useState('');
   const [workoutType, setWorkoutType] = useState<WorkoutType | null>(null);
@@ -1113,16 +1118,28 @@ export default function PrepareWorkoutScreen() {
         setWorkoutName(tmpl.name);
         setWorkoutType(tmpl.workoutType || null);
         setExercises(tmpl.exercises.map(e => ({ ...e, uid: Crypto.randomUUID() })));
+        setEditingId(tmpl.id); // deep-linked = edit this template in place
       }
     }
   }, [templateId]);
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
+  // load a template to RUN/tweak (not bound to editing the saved copy)
   const handleLoadTemplate = useCallback((tmpl: WorkoutTemplate) => {
     setWorkoutName(tmpl.name);
     setWorkoutType(tmpl.workoutType || null);
     setExercises(tmpl.exercises.map(e => ({ ...e, uid: Crypto.randomUUID() })));
+    setEditingId(null);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, []);
+
+  // load a template to EDIT in place (Save updates the same template)
+  const handleEditTemplate = useCallback((tmpl: WorkoutTemplate) => {
+    setWorkoutName(tmpl.name);
+    setWorkoutType(tmpl.workoutType || null);
+    setExercises(tmpl.exercises.map(e => ({ ...e, uid: Crypto.randomUUID() })));
+    setEditingId(tmpl.id);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, []);
 
@@ -1221,10 +1238,10 @@ export default function PrepareWorkoutScreen() {
   };
 
   const confirmSaveTemplate = () => {
-    if (alreadySaved) { setShowSaveModal(false); return; } // never save the same template twice
+    if (alreadySaved && !editingId) { setShowSaveModal(false); return; } // never save the same template twice
     const name = templateName.trim() || resolvedName;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    addWorkoutTemplate({
+    const payload = {
       userId: user?.id || 'u1',
       name,
       workoutType: workoutType || undefined,
@@ -1238,7 +1255,14 @@ export default function PrepareWorkoutScreen() {
         isCustom: e.isCustom,
         ...(e.combo ? { combo: true, unbroken: e.unbroken, components: e.components, comboRounds: e.comboRounds } : {}),
       })),
-    });
+    };
+    if (editingId) {
+      updateWorkoutTemplate(editingId, payload);
+      setShowSaveModal(false);
+      alertDialog(t('workoutPrep.updatedTitle', { defaultValue: 'Workout updated' }), t('workoutPrep.updatedMsg', { name, defaultValue: '"{{name}}" has been updated.' }));
+      return;
+    }
+    addWorkoutTemplate(payload);
     setShowSaveModal(false);
     alertDialog(t('workoutPrep.savedTitle'), t('workoutPrep.savedToMyWorkouts', { name }));
   };
@@ -1478,11 +1502,11 @@ export default function PrepareWorkoutScreen() {
         <View style={s.bottomRow}>
           <Pressable
             onPress={handleSaveTemplate}
-            disabled={alreadySaved}
-            style={({ pressed }) => [s.templateBtn, { opacity: alreadySaved ? 0.6 : pressed ? 0.9 : 1, backgroundColor: theme.card, borderColor: alreadySaved ? Colors.primary : theme.border }]}
+            disabled={alreadySaved && !editingId}
+            style={({ pressed }) => [s.templateBtn, { opacity: (alreadySaved && !editingId) ? 0.6 : pressed ? 0.9 : 1, backgroundColor: theme.card, borderColor: (editingId || alreadySaved) ? Colors.primary : theme.border }]}
           >
-            <Ionicons name={alreadySaved ? 'checkmark-circle' : 'bookmark-outline'} size={16} color={Colors.primary} />
-            <Text style={[s.templateBtnText, { color: alreadySaved ? Colors.primary : theme.text }]}>{alreadySaved ? t('workoutPrep.saved') : t('workoutPrep.save')}</Text>
+            <Ionicons name={editingId ? 'save-outline' : alreadySaved ? 'checkmark-circle' : 'bookmark-outline'} size={16} color={Colors.primary} />
+            <Text style={[s.templateBtnText, { color: (editingId || alreadySaved) ? Colors.primary : theme.text }]}>{editingId ? t('workoutPrep.update', { defaultValue: 'Update' }) : alreadySaved ? t('workoutPrep.saved') : t('workoutPrep.save')}</Text>
           </Pressable>
 
           <Pressable
@@ -1605,6 +1629,7 @@ export default function PrepareWorkoutScreen() {
         visible={showTemplatePicker}
         onClose={() => setShowTemplatePicker(false)}
         onSelect={handleLoadTemplate}
+        onEdit={handleEditTemplate}
         onDelete={(tmpl) => { deleteWorkoutTemplate(tmpl.id); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }}
         templates={workoutTemplates}
         theme={theme}
