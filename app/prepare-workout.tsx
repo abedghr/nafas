@@ -55,6 +55,9 @@ function SetTypeFields({ config, onChange, theme }: {
   const { t } = useTranslation();
   const { weightUnit } = useApp();
   const [noteOpen, setNoteOpen] = useState(!!config.note);
+  // EMOM per-minute exercise picker: which minute index is choosing (null = closed)
+  const [emomPickerMinute, setEmomPickerMinute] = useState<number | null>(null);
+  const [emomExSearch, setEmomExSearch] = useState('');
   const inputStyle = [s.numInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }];
   const noteInputStyle = { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14 };
   const noteField = noteOpen ? (
@@ -139,6 +142,34 @@ function SetTypeFields({ config, onChange, theme }: {
       );
     case 'emom':
       const intervalSec = config.intervalSeconds || 60;
+      const nIv = config.totalIntervals || 0;
+      const baseReps = config.repsPerInterval || 0;
+      // custom mode = new emomMinutes present, or legacy reps-only minutes[]
+      const emomCustom = (config.emomMinutes?.length ?? 0) > 0 || (config.minutes?.length ?? 0) > 0;
+      // Normalized per-minute rows (length nIv): emomMinutes wins, legacy minutes[] is a reps-only fallback.
+      const emomRows: { exerciseName?: string; reps?: number }[] = Array.from({ length: nIv }, (_, i) => ({
+        exerciseName: config.emomMinutes?.[i]?.exerciseName,
+        reps: config.emomMinutes?.[i]?.reps ?? config.minutes?.[i] ?? baseReps,
+      }));
+      const commitEmom = (next: { exerciseName?: string; reps?: number }[]) =>
+        onChange({ ...config, emomMinutes: next, minutes: undefined });
+      const toggleEmomCustom = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        if (emomCustom) onChange({ ...config, emomMinutes: undefined, minutes: undefined });
+        else commitEmom(emomRows);
+      };
+      const pickMinuteExercise = (name?: string) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        if (emomPickerMinute !== null && emomPickerMinute < emomRows.length) {
+          const next = emomRows.map(r => ({ ...r }));
+          next[emomPickerMinute] = { ...next[emomPickerMinute], exerciseName: name };
+          commitEmom(next);
+        }
+        setEmomPickerMinute(null);
+      };
+      const emomExFiltered = emomPickerMinute !== null
+        ? exerciseLibrary.filter(e => matchExercise(emomExSearch, e)).slice(0, 60)
+        : [];
       return (
         <View style={{ gap: 8 }}>
           <View style={s.setFieldsRow}>
@@ -201,58 +232,111 @@ function SetTypeFields({ config, onChange, theme }: {
               ))}
             </View>
           </View>
-          {/* per-minute reps: customize each minute, or keep uniform */}
-          {(() => {
-            const nIv = config.totalIntervals || 0;
-            const custom = Array.isArray(config.minutes) && config.minutes.length > 0;
-            const base = config.repsPerInterval || 0;
-            const toggle = () => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onChange({ ...config, minutes: custom ? undefined : Array.from({ length: nIv }, () => base) });
-            };
-            return (
-              <View style={{ gap: 8 }}>
-                <Pressable onPress={toggle} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.perMinuteReps', { defaultValue: 'Customize each minute' })}</Text>
-                  <View style={[s.cpToggleSm, { backgroundColor: custom ? Colors.primary : theme.border }]}>
-                    <View style={[s.cpToggleSmDot, { alignSelf: custom ? 'flex-end' : 'flex-start' }]} />
-                  </View>
-                </Pressable>
-                {custom && (
-                  <>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      {Array.from({ length: nIv }, (_, i) => (
-                        <View key={i} style={{ alignItems: 'center', gap: 2 }}>
-                          <Text style={{ color: theme.textMuted, fontSize: 9, fontWeight: '700' }}>{i + 1}</Text>
-                          <TextInput
-                            style={[inputStyle, { width: 46, height: 38 }]}
-                            value={config.minutes?.[i] ? String(config.minutes[i]) : ''}
-                            onChangeText={v => {
-                              const next = [...(config.minutes ?? Array.from({ length: nIv }, () => base))];
-                              next[i] = parseInt(v) || 0;
-                              onChange({ ...config, minutes: next });
-                            }}
-                            keyboardType="numeric" placeholder={String(base)} placeholderTextColor={theme.textMuted}
-                          />
-                        </View>
-                      ))}
-                    </View>
+          {/* per-minute customization: exercise + reps per minute, or keep uniform */}
+          <View style={{ gap: 8 }}>
+            <Pressable onPress={toggleEmomCustom} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.perMinuteReps', { defaultValue: 'Customize each minute' })}</Text>
+              <View style={[s.cpToggleSm, { backgroundColor: emomCustom ? Colors.primary : theme.border }]}>
+                <View style={[s.cpToggleSmDot, { alignSelf: emomCustom ? 'flex-end' : 'flex-start' }]} />
+              </View>
+            </Pressable>
+            {emomCustom && (
+              <>
+                {emomRows.map((row, i) => (
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={{ color: theme.textMuted, fontSize: 11, fontWeight: '700', width: 20, textAlign: 'center' }}>{i + 1}</Text>
                     <Pressable
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        const first = config.minutes?.[0] || base;
-                        onChange({ ...config, minutes: Array.from({ length: nIv }, () => first) });
+                        setEmomExSearch('');
+                        setEmomPickerMinute(i);
                       }}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' }}
+                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, height: 38 }}
                     >
-                      <Ionicons name="copy-outline" size={13} color={Colors.primary} />
-                      <Text style={{ color: Colors.primary, fontSize: 12, fontWeight: '600' }}>{t('workoutPrep.applyMinute1ToAll', { defaultValue: 'Make all minutes the same' })}</Text>
+                      <Text numberOfLines={1} style={{ flex: 1, color: row.exerciseName ? theme.text : theme.textMuted, fontSize: 13, fontWeight: '500' }}>
+                        {row.exerciseName || t('workoutPrep.sameExercise', { defaultValue: 'Same exercise' })}
+                      </Text>
+                      <Ionicons name="chevron-down" size={13} color={theme.textMuted} />
                     </Pressable>
-                  </>
-                )}
-              </View>
-            );
-          })()}
+                    <TextInput
+                      style={[inputStyle, { width: 52, height: 38 }]}
+                      value={row.reps ? String(row.reps) : ''}
+                      onChangeText={v => {
+                        const next = emomRows.map(r => ({ ...r }));
+                        next[i] = { ...next[i], reps: parseInt(v) || 0 };
+                        commitEmom(next);
+                      }}
+                      keyboardType="numeric" placeholder={String(baseReps)} placeholderTextColor={theme.textMuted}
+                    />
+                  </View>
+                ))}
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    const first = { exerciseName: emomRows[0]?.exerciseName, reps: emomRows[0]?.reps ?? baseReps };
+                    commitEmom(Array.from({ length: nIv }, () => ({ ...first })));
+                  }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' }}
+                >
+                  <Ionicons name="copy-outline" size={13} color={Colors.primary} />
+                  <Text style={{ color: Colors.primary, fontSize: 12, fontWeight: '600' }}>{t('workoutPrep.applyMinute1ToAll', { defaultValue: 'Make all minutes the same' })}</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+          {/* per-minute exercise picker sheet */}
+          {emomPickerMinute !== null && (
+            <Modal visible transparent animationType="slide" onRequestClose={() => setEmomPickerMinute(null)}>
+              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.typeSheetBackdrop}>
+                <Pressable style={{ flex: 1 }} onPress={() => setEmomPickerMinute(null)} />
+                <View style={[s.typeSheet, { backgroundColor: theme.background, paddingBottom: 24 }]}>
+                  <View style={s.typeSheetHandle} />
+                  <View style={s.typeSheetHead}>
+                    <Text style={[s.typeSheetTitle, { color: theme.text }]}>{t('workoutPrep.perMinuteExercise', { defaultValue: 'Exercise per minute' })}</Text>
+                    <Pressable onPress={() => setEmomPickerMinute(null)} hitSlop={8}>
+                      <Ionicons name="close" size={22} color={theme.text} />
+                    </Pressable>
+                  </View>
+                  <View style={[s.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Ionicons name="search" size={18} color={theme.textMuted} />
+                    <TextInput
+                      style={[s.searchInput, { color: theme.text }]}
+                      value={emomExSearch}
+                      onChangeText={setEmomExSearch}
+                      placeholder={t('workoutPrep.searchExercises')}
+                      placeholderTextColor={theme.textMuted}
+                    />
+                    {emomExSearch.length > 0 && (
+                      <Pressable onPress={() => setEmomExSearch('')}>
+                        <Ionicons name="close-circle" size={18} color={theme.textMuted} />
+                      </Pressable>
+                    )}
+                  </View>
+                  <ScrollView style={{ maxHeight: 340 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                    <Pressable onPress={() => pickMinuteExercise(undefined)} style={[s.typeOption, { borderBottomColor: theme.border }]}>
+                      <Ionicons name="refresh-outline" size={16} color={Colors.primary} />
+                      <Text style={{ color: Colors.primary, fontSize: 14, fontWeight: '600' }}>{t('workoutPrep.sameExercise', { defaultValue: 'Same exercise' })}</Text>
+                    </Pressable>
+                    {emomExFiltered.length === 0 && emomExSearch.trim().length > 0 && (
+                      <Text style={{ color: theme.textMuted, textAlign: 'center', marginTop: 16, marginBottom: 8, fontSize: 13 }}>
+                        {t('workoutPrep.noExercisesFound', { defaultValue: 'No exercises found' })}
+                      </Text>
+                    )}
+                    {emomExFiltered.map((e, idx) => (
+                      <Pressable
+                        key={(e.id ?? e.name) + '-' + idx}
+                        onPress={() => pickMinuteExercise(e.name)}
+                        style={[s.typeOption, { borderBottomColor: theme.border }]}
+                      >
+                        <Text numberOfLines={1} style={{ flex: 1, color: theme.text, fontSize: 14 }}>{e.name}</Text>
+                        {e.muscleGroup ? <Text style={{ color: theme.textMuted, fontSize: 11 }}>{e.muscleGroup}</Text> : null}
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              </KeyboardAvoidingView>
+            </Modal>
+          )}
           <View style={{ backgroundColor: Colors.primary + '08', borderRadius: 8, padding: 8, marginTop: 2 }}>
             <Text style={{ color: Colors.primary, fontSize: 12, fontWeight: '500', textAlign: 'center' }}>
               {config.weight

@@ -97,6 +97,9 @@ export interface SetConfig {
   intervalSeconds?: number;
   totalIntervals?: number;
   minutes?: number[]; // EMOM per-minute reps override (length = totalIntervals); absent = uniform repsPerInterval
+  // EMOM per-minute exercise + reps override (length = totalIntervals). Takes
+  // precedence over `minutes` when present. exerciseName absent = parent movement.
+  emomMinutes?: { exerciseName?: string; reps?: number }[];
   note?: string;
 }
 

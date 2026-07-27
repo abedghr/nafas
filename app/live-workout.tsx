@@ -347,9 +347,10 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
   );
 }
 
-function EmomSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
+function EmomSetRow({ set, setIndex, exerciseName, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
   set: SessionSet;
   setIndex: number;
+  exerciseName?: string; // parent movement name (fallback for per-minute exercise)
   onMarkDone: () => void;
   onSkip: () => void;
   onUpdateActual: (actual: SetConfig) => void;
@@ -511,6 +512,13 @@ function EmomSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
   if (phase === 'active') {
     const progress = 1 - intervalRemaining / intervalSec;
     const overallProgress = (completedIntervals + progress) / totalIntervals;
+    // Per-minute overrides: emomMinutes (exercise + reps) wins over legacy minutes[] (reps only).
+    const emomMinutes = set.config.emomMinutes;
+    const curMinute = emomMinutes?.[currentInterval - 1];
+    const curReps = emomMinutes
+      ? (curMinute?.reps ?? repsPerInterval)
+      : (set.config.minutes?.[currentInterval - 1] ?? repsPerInterval);
+    const curExerciseName = emomMinutes ? (curMinute?.exerciseName || exerciseName) : undefined;
     return (
       <View style={[styles.emomActiveCard, { backgroundColor: theme.card, borderColor: Colors.primary + '30' }]}>
         <View style={styles.emomHeader}>
@@ -520,9 +528,14 @@ function EmomSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
             </Text>
           </View>
           <Text style={[styles.emomRepsGoal, { color: theme.textMuted }]}>
-            {t('workoutSession.repsValue', { n: set.config.minutes?.[currentInterval - 1] ?? repsPerInterval })}
+            {t('workoutSession.repsValue', { n: curReps })}
           </Text>
         </View>
+        {curExerciseName ? (
+          <Text style={{ color: theme.text, fontSize: 17, fontWeight: '700', textAlign: 'center', marginTop: 8 }} numberOfLines={1}>
+            {curExerciseName}
+          </Text>
+        ) : null}
 
         <View style={styles.emomTimerCenter}>
           <Text style={[styles.emomTimerBig, { color: theme.text }]}>{formatCountdown(intervalRemaining)}</Text>
@@ -626,10 +639,11 @@ function EmomSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
   );
 }
 
-function SetRowItem({ set, setIndex, exerciseIndex, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
+function SetRowItem({ set, setIndex, exerciseIndex, exerciseName, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
   set: SessionSet;
   setIndex: number;
   exerciseIndex: number;
+  exerciseName?: string;
   onMarkDone: () => void;
   onSkip: () => void;
   onUpdateActual: (actual: SetConfig) => void;
@@ -643,7 +657,7 @@ function SetRowItem({ set, setIndex, exerciseIndex, onMarkDone, onSkip, onUpdate
   const row =
     setType === 'reps' ? <RepsSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} onReopen={onReopen} theme={theme} />
     : setType === 'hold' ? <HoldSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} onReopen={onReopen} theme={theme} />
-    : setType === 'emom' ? <EmomSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} onReopen={onReopen} theme={theme} />
+    : setType === 'emom' ? <EmomSetRow set={set} setIndex={setIndex} exerciseName={exerciseName} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} onReopen={onReopen} theme={theme} />
     : null;
   return (
     <View>
@@ -1605,6 +1619,7 @@ export default function LiveWorkoutScreen() {
                       set={set}
                       setIndex={setIdx}
                       exerciseIndex={exIdx}
+                      exerciseName={ex.name}
                       onMarkDone={() => markSetDone(exIdx, setIdx)}
                       onSkip={() => skipSet(exIdx, setIdx)}
                       onUpdateActual={(actual) => updateSetActual(exIdx, setIdx, actual)}
