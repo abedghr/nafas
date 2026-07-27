@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import { exerciseIcon } from '@/lib/exercise-icon';
+import { matchExercise } from '@/lib/exercise-search';
 import type { SetConfig } from '@/lib/app-context';
 
 export type ComboSetType = 'reps' | 'hold' | 'emom';
@@ -70,15 +71,14 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
   const close = () => { reset(); onClose(); };
 
   const allExercises = useMemo(() => {
-    const lib = exerciseLibrary.map(e => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup }));
-    const custom = customExercises.map(e => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup }));
+    const lib = exerciseLibrary.map(e => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup, nameEn: e.nameEn, nameAr: e.nameAr }));
+    const custom = customExercises.map(e => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup, nameEn: e.name, nameAr: null }));
     return [...lib, ...custom];
   }, [customExercises]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return allExercises;
-    const q = search.toLowerCase();
-    return allExercises.filter(e => e.name.toLowerCase().includes(q));
+    return allExercises.filter(e => matchExercise(search, e));
   }, [allExercises, search]);
 
   const addComponent = (ex: { id: string; name: string; muscleGroup: string }) => {

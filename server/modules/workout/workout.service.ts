@@ -27,6 +27,12 @@ async function hydrateExercises(
       .where(and(eq(exerciseTranslations.locale, locale), inArray(exerciseTranslations.exerciseId, ids)));
     for (const t of trs) trByEx.set(t.exerciseId, { name: t.name, description: t.description });
   }
+  // Arabic name always available (for bilingual client-side search regardless of app locale)
+  const arNameByEx = new Map<string, string>();
+  const arTrs = await db.select({ exerciseId: exerciseTranslations.exerciseId, name: exerciseTranslations.name })
+    .from(exerciseTranslations)
+    .where(and(eq(exerciseTranslations.locale, "ar"), inArray(exerciseTranslations.exerciseId, ids)));
+  for (const t of arTrs) if (t.name) arNameByEx.set(t.exerciseId, t.name);
   // group by exerciseId once (O(n)) instead of filtering per row (O(n·m))
   const typesByEx = new Map<string, string[]>();
   for (const l of links) (typesByEx.get(l.exerciseId) ?? typesByEx.set(l.exerciseId, []).get(l.exerciseId)!).push(l.typeName);
@@ -37,6 +43,8 @@ async function hydrateExercises(
     return {
       ...r,
       name: tr?.name || r.name,
+      nameEn: r.name,                       // English base (for bilingual search)
+      nameAr: arNameByEx.get(r.id) ?? null, // Arabic (for bilingual search)
       description: tr?.description || r.description,
       workoutTypes: typesByEx.get(r.id) ?? [],
       bodyTargets: targetsByEx.get(r.id) ?? [],

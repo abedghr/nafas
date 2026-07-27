@@ -16,6 +16,7 @@ import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-c
 import { workoutApi } from '@/src/features/workout/api';
 import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult } from '@/components/ComboBuilderModal';
 import { exerciseIcon } from '@/lib/exercise-icon';
+import { matchExercise } from '@/lib/exercise-search';
 import * as Crypto from 'expo-crypto';
 import type { SetConfig, ActiveSession, LogExercise, LogSetData } from '@/lib/app-context';
 
@@ -764,10 +765,7 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, them
   const filtered = useMemo(() => {
     let list = allExercises;
     if (selectedGroup) list = list.filter(e => e.muscleGroup === selectedGroup);
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(e => e.name.toLowerCase().includes(q));
-    }
+    if (search.trim()) list = list.filter(e => matchExercise(search, e));
     return list;
   }, [allExercises, selectedGroup, search]);
 

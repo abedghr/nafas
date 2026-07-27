@@ -3,6 +3,8 @@ import { apiFetch } from "@/src/lib/api";
 export interface ApiExercise {
   id: string;
   name: string;
+  nameEn?: string;
+  nameAr?: string | null;
   description: string;
   measurementType: "reps" | "time_hold" | "distance_duration";
   isCustom: boolean;
