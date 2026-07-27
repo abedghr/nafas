@@ -95,6 +95,7 @@ export interface SetConfig {
   repsPerInterval?: number;
   intervalSeconds?: number;
   totalIntervals?: number;
+  minutes?: number[]; // EMOM per-minute reps override (length = totalIntervals); absent = uniform repsPerInterval
   note?: string;
 }
 

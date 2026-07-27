@@ -197,6 +197,58 @@ function SetTypeFields({ config, onChange, theme }: {
               ))}
             </View>
           </View>
+          {/* per-minute reps: customize each minute, or keep uniform */}
+          {(() => {
+            const nIv = config.totalIntervals || 0;
+            const custom = Array.isArray(config.minutes) && config.minutes.length > 0;
+            const base = config.repsPerInterval || 0;
+            const toggle = () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onChange({ ...config, minutes: custom ? undefined : Array.from({ length: nIv }, () => base) });
+            };
+            return (
+              <View style={{ gap: 8 }}>
+                <Pressable onPress={toggle} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.perMinuteReps', { defaultValue: 'Customize each minute' })}</Text>
+                  <View style={[s.cpToggleSm, { backgroundColor: custom ? Colors.primary : theme.border }]}>
+                    <View style={[s.cpToggleSmDot, { alignSelf: custom ? 'flex-end' : 'flex-start' }]} />
+                  </View>
+                </Pressable>
+                {custom && (
+                  <>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {Array.from({ length: nIv }, (_, i) => (
+                        <View key={i} style={{ alignItems: 'center', gap: 2 }}>
+                          <Text style={{ color: theme.textMuted, fontSize: 9, fontWeight: '700' }}>{i + 1}</Text>
+                          <TextInput
+                            style={[inputStyle, { width: 46, height: 38 }]}
+                            value={config.minutes?.[i] ? String(config.minutes[i]) : ''}
+                            onChangeText={v => {
+                              const next = [...(config.minutes ?? Array.from({ length: nIv }, () => base))];
+                              next[i] = parseInt(v) || 0;
+                              onChange({ ...config, minutes: next });
+                            }}
+                            keyboardType="numeric" placeholder={String(base)} placeholderTextColor={theme.textMuted}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                    <Pressable
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        const first = config.minutes?.[0] || base;
+                        onChange({ ...config, minutes: Array.from({ length: nIv }, () => first) });
+                      }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' }}
+                    >
+                      <Ionicons name="copy-outline" size={13} color={Colors.primary} />
+                      <Text style={{ color: Colors.primary, fontSize: 12, fontWeight: '600' }}>{t('workoutPrep.applyMinute1ToAll', { defaultValue: 'Make all minutes the same' })}</Text>
+                    </Pressable>
+                  </>
+                )}
+              </View>
+            );
+          })()}
           <View style={{ backgroundColor: Colors.primary + '08', borderRadius: 8, padding: 8, marginTop: 2 }}>
             <Text style={{ color: Colors.primary, fontSize: 12, fontWeight: '500', textAlign: 'center' }}>
               {config.weight
@@ -1577,6 +1629,8 @@ const s = StyleSheet.create({
   cpRepsInput: { width: 56, height: 34, borderRadius: 8, borderWidth: 1, textAlign: 'center', fontSize: 15, fontWeight: '600', paddingVertical: 0 },
   cpToggle: { width: 42, height: 24, borderRadius: 12, padding: 3, justifyContent: 'center' },
   cpToggleDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#fff' },
+  cpToggleSm: { width: 40, height: 23, borderRadius: 12, padding: 3, justifyContent: 'center' },
+  cpToggleSmDot: { width: 17, height: 17, borderRadius: 9, backgroundColor: '#fff' },
   dragHandle: {
     marginRight: 4,
     justifyContent: 'center',

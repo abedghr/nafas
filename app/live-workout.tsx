@@ -511,7 +511,7 @@ function EmomSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
             </Text>
           </View>
           <Text style={[styles.emomRepsGoal, { color: theme.textMuted }]}>
-            {t('workoutSession.repsValue', { n: repsPerInterval })}
+            {t('workoutSession.repsValue', { n: set.config.minutes?.[currentInterval - 1] ?? repsPerInterval })}
           </Text>
         </View>
 

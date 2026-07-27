@@ -9,6 +9,7 @@ export const SetConfigSchema = z
     repsPerInterval: z.number().optional(),
     intervalSeconds: z.number().optional(),
     totalIntervals: z.number().optional(),
+    minutes: z.array(z.number()).optional(), // EMOM per-minute reps override
     note: z.string().optional(), // optional per-set note
   })
   .openapi("SetConfig");
