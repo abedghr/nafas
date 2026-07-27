@@ -3,7 +3,7 @@ import {
   View, Text, Pressable, StyleSheet, ScrollView, Platform, Modal,
   TextInput, Alert, Dimensions, Switch, useWindowDimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -828,7 +828,7 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, them
                 style={({ pressed }) => [styles.exPickerItem, { backgroundColor: pressed ? theme.card : 'transparent' }]}
               >
                 <View style={[styles.exPickerIcon, { backgroundColor: Colors.primary + '15' }]}>
-                  <Text style={{ fontSize: 18 }}>{exerciseIcon(ex.name, ex.muscleGroup)}</Text>
+                  <MaterialCommunityIcons name={exerciseIcon(ex.name, ex.muscleGroup) as any} size={20} color={Colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.exPickerName, { color: theme.text }]}>{ex.name}</Text>

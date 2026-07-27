@@ -1,33 +1,37 @@
-// A recognizable emoji per exercise, chosen by name keywords first, then muscle
-// group. Emoji reads far better than Ionicons' handful of generic gym glyphs.
+// A recognizable MaterialCommunityIcons vector glyph per exercise, chosen by
+// name keywords first, then muscle group. Returns the MDI glyph NAME (string);
+// render with <MaterialCommunityIcons name={...} /> from '@expo/vector-icons'.
 // ponytail: keyword table, not ML; extend the lists as the library grows.
 const KEYWORD_ICON: [RegExp, string][] = [
-  [/\b(run|running|sprint|jog|treadmill|walk)\b/i, '🏃'],
-  [/\bcycl|bike\b/i, '🚴'],
-  [/\bswim/i, '🏊'],
-  [/\brow|ski erg\b/i, '🚣'],
-  [/\bjump rope|jumping jack|high knee|burpee|mountain climb|box jump|shadow box\b/i, '🤸'],
-  [/\bplank|hollow|copenhagen\b/i, '🧘'],
-  [/\b(hold|lever|planche|flag|hang|l-sit|support|frog stand|handstand)\b/i, '⏱️'],
-  [/\bmuscle-?up|pull-?up|chin-?up|lat|pulldown|row\b/i, '🧗'],
-  [/\bdip\b/i, '🤸'],
-  [/\bcurl\b/i, '💪'],
-  [/\b(bench|press|push-?up|fly|crossover|pec)\b/i, '🏋️'],
-  [/\bsquat|lunge|leg|calf|glute|hip|deadlift|hamstring|step-?up|nordic\b/i, '🦵'],
-  [/\bshrug|shoulder|lateral raise|front raise|upright\b/i, '🏋️'],
-  [/\bcrunch|sit-?up|twist|ab wheel|toes to bar|dragon|dead bug|raise\b/i, '🎯'],
-  [/\bstretch|cat-?cow|mobility|rotation\b/i, '🤍'],
-  [/\bclean|snatch|jerk|kettlebell|sled|tire|carry|get-?up\b/i, '🏋️'],
+  [/\bjog\b/i, 'run'],
+  [/\b(run|running|sprint|treadmill)\b/i, 'run-fast'],
+  [/\bwalk\b/i, 'walk'],
+  [/\bcycl|\bbike\b/i, 'bike'],
+  [/\bswim/i, 'swim'],
+  [/\browing\b|ski erg/i, 'rowing'],
+  [/\bjump rope\b/i, 'jump-rope'],
+  [/\bjumping jack|high knee|burpee|mountain climb|shadow box/i, 'human-handsup'],
+  [/\bplank|hollow|copenhagen|l-sit/i, 'yoga'],
+  [/\b(hold|lever|planche|flag|hang|support|frog stand|handstand)\b/i, 'timer-sand'],
+  [/\bmuscle-?up|pull-?up|chin-?up|\blat\b|pulldown|\brow\b/i, 'gymnastics'],
+  [/\bdip\b/i, 'gymnastics'],
+  [/\bcurl\b/i, 'arm-flex'],
+  [/\b(bench|press|push-?up|fly|crossover|pec|shoulder|lateral raise|front raise|upright|shrug)\b/i, 'dumbbell'],
+  [/\bsquat|lunge|\bleg\b|calf|glute|hip|deadlift|hamstring|step-?up|nordic/i, 'weight-lifter'],
+  [/\bcrunch|sit-?up|twist|ab wheel|toes to bar|dragon|dead bug|\braise\b/i, 'stomach'],
+  [/\bstretch|cat-?cow|mobility|rotation/i, 'meditation'],
+  [/\bclean|snatch|jerk|kettlebell|sled|tire|carry|get-?up/i, 'kettlebell'],
 ];
 
 const GROUP_ICON: Record<string, string> = {
-  Chest: '🏋️', Back: '🧗', Shoulders: '🏋️', Arms: '💪', Legs: '🦵',
-  Core: '🎯', Cardio: '🏃', Calisthenics: '🤸', Combo: '🔗', 'Full Body': '🔥',
+  Chest: 'dumbbell', Back: 'gymnastics', Shoulders: 'dumbbell', Arms: 'arm-flex',
+  Legs: 'weight-lifter', Core: 'stomach', Cardio: 'run-fast',
+  Calisthenics: 'gymnastics', Combo: 'dumbbell', 'Full Body': 'weight-lifter',
 };
 
 export function exerciseIcon(name?: string, muscleGroup?: string): string {
   const n = name || '';
   for (const [re, icon] of KEYWORD_ICON) if (re.test(n)) return icon;
   if (muscleGroup && GROUP_ICON[muscleGroup]) return GROUP_ICON[muscleGroup];
-  return '🏋️';
+  return 'dumbbell';
 }

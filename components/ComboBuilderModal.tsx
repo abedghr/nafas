@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, Modal } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
@@ -227,7 +227,7 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
               {filtered.map((ex, i) => (
                 <Pressable key={ex.id + i} onPress={() => addComponent(ex)} style={({ pressed }) => [s.exPickerItem, { backgroundColor: pressed ? theme.card : 'transparent' }]}>
                   <View style={[s.exPickerIcon, { backgroundColor: Colors.primary + '15' }]}>
-                    <Text style={{ fontSize: 18 }}>{exerciseIcon(ex.name, ex.muscleGroup)}</Text>
+                    <MaterialCommunityIcons name={exerciseIcon(ex.name, ex.muscleGroup) as any} size={20} color={Colors.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[s.exPickerName, { color: theme.text }]}>{ex.name}</Text>

@@ -8,7 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -218,7 +218,7 @@ export default function WorkoutDetailScreen() {
             <View key={exIdx} style={[styles.exerciseCard, { backgroundColor: theme.card }]}>
               <View style={styles.exerciseHeader}>
                 <View style={styles.exerciseNameRow}>
-                  <Text style={{ fontSize: 16 }}>{exerciseIcon(exercise.name, exercise.muscleGroup)}</Text>
+                  <MaterialCommunityIcons name={exerciseIcon(exercise.name, exercise.muscleGroup) as any} size={18} color={Colors.primary} />
                   <Text style={[styles.exerciseName, { color: theme.text }]}>{exercise.name}</Text>
                 </View>
                 <View style={[styles.muscleSmallTag, { backgroundColor: Colors.primary + '15' }]}>
