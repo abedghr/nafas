@@ -839,7 +839,7 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, them
 }
 
 // ── Combo set card (multiple movements per round, done back-to-back) ──────────
-function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReopen, onAddRound, onDelete, theme }: {
+function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReopen, onAddRound, onDelete, collapsed, onToggleCollapse, theme }: {
   combo: SessionExercise;
   onUpdateEntry: (roundIdx: number, compIdx: number, patch: Partial<SetConfig>) => void;
   onRoundDone: (roundIdx: number) => void;
@@ -847,6 +847,8 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
   onRoundReopen: (roundIdx: number) => void;
   onAddRound: () => void;
   onDelete: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
@@ -869,12 +871,22 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
             )}
           </View>
           <Text style={[styles.exCardName, { color: theme.text, marginTop: 4 }]}>{combo.name}</Text>
+          {collapsed && (
+            <Text style={[styles.collapsedSummary, { color: theme.textMuted }]}>
+              {t('workoutPrep.comboSummary', { r: rounds.length, m: components.length })}
+            </Text>
+          )}
         </View>
+        <Pressable onPress={onToggleCollapse} hitSlop={8} style={styles.menuBtn}>
+          <Ionicons name={collapsed ? 'chevron-forward' : 'chevron-down'} size={18} color={theme.textMuted} />
+        </Pressable>
         <Pressable onPress={onDelete} hitSlop={8} style={styles.menuBtn}>
           <Ionicons name="trash-outline" size={18} color={theme.textMuted} />
         </Pressable>
       </View>
 
+      {!collapsed && (
+      <>
       {rounds.map((round, ri) => {
         const isDone = round.status === 'done';
         const isSkipped = round.status === 'skipped';
@@ -983,6 +995,8 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
         <Ionicons name="add" size={16} color={Colors.accent} />
         <Text style={[styles.comboAddRoundText, { color: Colors.accent }]}>{t('workoutSession.addRound')}</Text>
       </Pressable>
+      </>
+      )}
     </View>
   );
 }
@@ -1039,6 +1053,15 @@ export default function LiveWorkoutScreen() {
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [showComboBuilder, setShowComboBuilder] = useState(false);
   const [menuExerciseIndex, setMenuExerciseIndex] = useState<number | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  const toggleCollapse = useCallback((key: string) => {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
   const restTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -1488,6 +1511,26 @@ export default function LiveWorkoutScreen() {
           </Animated.View>
         )}
 
+        {session.exercises.length > 1 && (() => {
+          const allKeys = session.exercises.map((ex, i) => ex.exerciseId + '-' + i);
+          const allCollapsed = allKeys.every(k => collapsed.has(k));
+          return (
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setCollapsed(allCollapsed ? new Set() : new Set(allKeys));
+              }}
+              hitSlop={6}
+              style={styles.collapseAllBtn}
+            >
+              <Ionicons name={allCollapsed ? 'chevron-expand-outline' : 'chevron-collapse-outline'} size={14} color={theme.textMuted} />
+              <Text style={[styles.collapseAllText, { color: theme.textMuted }]}>
+                {allCollapsed ? t('workoutPrep.expandAll') : t('workoutPrep.collapseAll')}
+              </Text>
+            </Pressable>
+          );
+        })()}
+
         {session.exercises.map((ex, exIdx) => ex.combo ? (
           <Animated.View key={ex.exerciseId + '-' + exIdx} entering={FadeInDown.duration(350).delay(exIdx * 60)}>
             <ComboCard
@@ -1498,6 +1541,8 @@ export default function LiveWorkoutScreen() {
               onRoundReopen={(ri) => setRoundStatus(exIdx, ri, 'pending')}
               onAddRound={() => addRound(exIdx)}
               onDelete={() => deleteExercise(exIdx)}
+              collapsed={collapsed.has(ex.exerciseId + '-' + exIdx)}
+              onToggleCollapse={() => toggleCollapse(ex.exerciseId + '-' + exIdx)}
               theme={theme}
             />
           </Animated.View>
@@ -1507,6 +1552,11 @@ export default function LiveWorkoutScreen() {
               <View style={styles.exCardHeader}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.exCardName, { color: theme.text }]}>{ex.name}</Text>
+                  {collapsed.has(ex.exerciseId + '-' + exIdx) && (
+                    <Text style={[styles.collapsedSummary, { color: theme.textMuted }]}>
+                      {t('workoutPrep.setsSummary', { n: ex.sets.length })}
+                    </Text>
+                  )}
                   {lastPerf[ex.name] && (
                     <View style={styles.lastPerfRow}>
                       <Ionicons name="time-outline" size={11} color={theme.textMuted} />
@@ -1524,6 +1574,13 @@ export default function LiveWorkoutScreen() {
                   <Text style={[styles.muscleTagText, { color: Colors.primary }]}>{ex.muscleGroup}</Text>
                 </View>
                 <Pressable
+                  onPress={() => toggleCollapse(ex.exerciseId + '-' + exIdx)}
+                  hitSlop={8}
+                  style={styles.menuBtn}
+                >
+                  <Ionicons name={collapsed.has(ex.exerciseId + '-' + exIdx) ? 'chevron-forward' : 'chevron-down'} size={18} color={theme.textMuted} />
+                </Pressable>
+                <Pressable
                   onPress={() => setMenuExerciseIndex(exIdx)}
                   hitSlop={8}
                   style={styles.menuBtn}
@@ -1532,19 +1589,23 @@ export default function LiveWorkoutScreen() {
                 </Pressable>
               </View>
 
-              {ex.sets.map((set, setIdx) => (
-                <SetRowItem
-                  key={setIdx}
-                  set={set}
-                  setIndex={setIdx}
-                  exerciseIndex={exIdx}
-                  onMarkDone={() => markSetDone(exIdx, setIdx)}
-                  onSkip={() => skipSet(exIdx, setIdx)}
-                  onUpdateActual={(actual) => updateSetActual(exIdx, setIdx, actual)}
-                  onReopen={() => reopenSet(exIdx, setIdx)}
-                  theme={theme}
-                />
-              ))}
+              {!collapsed.has(ex.exerciseId + '-' + exIdx) && (
+                <>
+                  {ex.sets.map((set, setIdx) => (
+                    <SetRowItem
+                      key={setIdx}
+                      set={set}
+                      setIndex={setIdx}
+                      exerciseIndex={exIdx}
+                      onMarkDone={() => markSetDone(exIdx, setIdx)}
+                      onSkip={() => skipSet(exIdx, setIdx)}
+                      onUpdateActual={(actual) => updateSetActual(exIdx, setIdx, actual)}
+                      onReopen={() => reopenSet(exIdx, setIdx)}
+                      theme={theme}
+                    />
+                  ))}
+                </>
+              )}
             </View>
           </Animated.View>
         ))}
@@ -1701,6 +1762,9 @@ const styles = StyleSheet.create({
   muscleTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   muscleTagText: { fontSize: 11, fontWeight: '600' as const },
   menuBtn: { width: 28, height: 28, justifyContent: 'center', alignItems: 'center' },
+  collapsedSummary: { fontSize: 12, fontWeight: '500' as const, marginTop: 3 },
+  collapseAllBtn: { alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 4 },
+  collapseAllText: { fontSize: 12, fontWeight: '600' as const },
   setRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 14, paddingVertical: 12, minHeight: 48, gap: 8,

@@ -123,6 +123,7 @@ export const extraEn = {
     min: "min", exercises: "exercises", sets: "sets", totalVolume: "Total Volume", kgValue: "{{value}} kg", done: "Done", chooseWorkoutType: "Choose your workout type",
     preWorkout: "Pre-Workout", addExercisesToStart: "Add exercises to start logging", rest: "Rest: {{time}}", finishWorkout: "Finish Workout",
     noExercisesFound: "No exercises found", category_all: "All", category_push: "Push", category_pull: "Pull", category_legs: "Legs", category_core: "Core", category_calisthenics: "Calisthenics",
+    collapseAll: "Collapse all", expandAll: "Expand all", setsSummary: "{{n}} sets", comboSummary: "{{r}} rounds · {{m}} moves",
   },
   workoutSession: {
     setOptions: "Set Options", skipSet: "Skip Set", skipSetConfirm: "Skip set {{n}}? It won't count toward your workout.", cancel: "Cancel", delete: "Delete", setN: "Set {{n}}", reps: "reps", kg: "kg",
@@ -279,6 +280,7 @@ export const extraAr = {
     min: "دقيقة", exercises: "تمارين", sets: "مجموعات", totalVolume: "الحجم الإجمالي", kgValue: "{{value}} كجم", done: "تم", chooseWorkoutType: "اختر نوع تمرينك",
     preWorkout: "منشّط ما قبل التمرين", addExercisesToStart: "أضف تمارين لبدء التسجيل", rest: "الراحة: {{time}}", finishWorkout: "إنهاء التمرين",
     noExercisesFound: "لم يتم العثور على تمارين", category_all: "الكل", category_push: "دفع", category_pull: "سحب", category_legs: "أرجل", category_core: "الجذع", category_calisthenics: "تمارين وزن الجسم",
+    collapseAll: "طيّ الكل", expandAll: "توسيع الكل", setsSummary: "{{n}} مجموعات", comboSummary: "{{r}} جولات · {{m}} حركات",
   },
   workoutSession: {
     setOptions: "خيارات المجموعة", skipSet: "تخطّي المجموعة", skipSetConfirm: "تخطّي المجموعة {{n}}؟ لن تُحتسب ضمن تمرينك.", cancel: "إلغاء", delete: "حذف", setN: "المجموعة {{n}}", reps: "تكرارات", kg: "كغ",

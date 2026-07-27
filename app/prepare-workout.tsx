@@ -320,7 +320,7 @@ function SetRow({ setIndex, config, onUpdate, onRemove, theme }: {
 }
 
 // Planning card for a combo set (rounds / reps-each / unbroken; components list).
-function ComboPrepCard({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown, canMoveUp, canMoveDown, theme }: {
+function ComboPrepCard({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown, canMoveUp, canMoveDown, collapsed, onToggleCollapse, theme }: {
   exercise: PrepExercise;
   onUpdate: (ex: PrepExercise) => void;
   onRemove: () => void;
@@ -328,6 +328,8 @@ function ComboPrepCard({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown, can
   onMoveDown?: () => void;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
@@ -379,12 +381,22 @@ function ComboPrepCard({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown, can
             )}
           </View>
           <Text style={[s.exCardName, { color: theme.text, marginTop: 4 }]} numberOfLines={2}>{exercise.name}</Text>
+          {collapsed && (
+            <Text style={[s.collapsedSummary, { color: theme.textMuted }]}>
+              {t('workoutPrep.comboSummary', { r: rounds, m: components.length })}
+            </Text>
+          )}
         </View>
+        <Pressable onPress={onToggleCollapse} hitSlop={8} style={{ marginLeft: 8 }}>
+          <Ionicons name={collapsed ? 'chevron-forward' : 'chevron-down'} size={18} color={theme.textMuted} />
+        </Pressable>
         <Pressable onPress={onRemove} hitSlop={8} style={{ marginLeft: 8 }}>
           <Ionicons name="trash-outline" size={18} color={theme.textMuted} />
         </Pressable>
       </View>
 
+      {!collapsed && (
+      <>
       {/* components: each with its own set type + type-specific fields */}
       <View style={s.cpComponents}>
         {components.map((c, ci) => {
@@ -481,11 +493,13 @@ function ComboPrepCard({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown, can
           </View>
         </Pressable>
       </View>
+      </>
+      )}
     </View>
   );
 }
 
-function ExerciseCard({ exercise, index, onUpdate, onRemove, onMoveUp, onMoveDown, canMoveUp, canMoveDown, lastPerf, theme }: {
+function ExerciseCard({ exercise, index, onUpdate, onRemove, onMoveUp, onMoveDown, canMoveUp, canMoveDown, lastPerf, collapsed, onToggleCollapse, theme }: {
   exercise: PrepExercise;
   index: number;
   onUpdate: (ex: PrepExercise) => void;
@@ -495,6 +509,8 @@ function ExerciseCard({ exercise, index, onUpdate, onRemove, onMoveUp, onMoveDow
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   lastPerf?: { date: string; weight: number; reps: number };
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
@@ -549,15 +565,25 @@ function ExerciseCard({ exercise, index, onUpdate, onRemove, onMoveUp, onMoveDow
                 <Ionicons name="stats-chart" size={11} color={Colors.primary} />
               </Pressable>
             )}
+            {collapsed && (
+              <Text style={[s.collapsedSummary, { color: theme.textMuted }]}>
+                {t('workoutPrep.setsSummary', { n: exercise.sets.length })}
+              </Text>
+            )}
           </View>
           <View style={[s.muscleTag, { backgroundColor: Colors.primary + '18' }]}>
             <Text style={[s.muscleTagText, { color: Colors.primary }]}>{exercise.muscleGroup}</Text>
           </View>
+          <Pressable onPress={onToggleCollapse} hitSlop={8} style={{ marginLeft: 8 }}>
+            <Ionicons name={collapsed ? 'chevron-forward' : 'chevron-down'} size={18} color={theme.textMuted} />
+          </Pressable>
           <Pressable onPress={onRemove} hitSlop={8} style={{ marginLeft: 8 }}>
             <Ionicons name="trash-outline" size={18} color={theme.textMuted} />
           </Pressable>
         </View>
 
+        {!collapsed && (
+        <>
         {exercise.sets.map((setConfig, si) => (
           <SetRow
             key={si}
@@ -621,6 +647,8 @@ function ExerciseCard({ exercise, index, onUpdate, onRemove, onMoveUp, onMoveDow
           <Ionicons name="trash-outline" size={16} color="#FF4458" />
           <Text style={s.deleteExText}>{t('workoutPrep.removeExercise')}</Text>
         </Pressable>
+        </>
+        )}
       </View>
   );
 }
@@ -1062,6 +1090,15 @@ export default function PrepareWorkoutScreen() {
   const [templateName, setTemplateName] = useState('');
   const [typePickerOpen, setTypePickerOpen] = useState(false);
   const [typeSearch, setTypeSearch] = useState('');
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  const toggleCollapse = useCallback((uid: string) => {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(uid)) next.delete(uid); else next.add(uid);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (templateId) {
@@ -1332,6 +1369,25 @@ export default function PrepareWorkoutScreen() {
             )}
           </View>
 
+          {exercises.length > 1 && (() => {
+            const allCollapsed = exercises.every(e => collapsed.has(e.uid));
+            return (
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setCollapsed(allCollapsed ? new Set() : new Set(exercises.map(e => e.uid)));
+                }}
+                hitSlop={6}
+                style={s.collapseAllBtn}
+              >
+                <Ionicons name={allCollapsed ? 'chevron-expand-outline' : 'chevron-collapse-outline'} size={14} color={theme.textMuted} />
+                <Text style={[s.collapseAllText, { color: theme.textMuted }]}>
+                  {allCollapsed ? t('workoutPrep.expandAll') : t('workoutPrep.collapseAll')}
+                </Text>
+              </Pressable>
+            );
+          })()}
+
           {exercises.map((item, i) => (
             <View key={item.uid} style={{ marginBottom: 14 }}>
               {item.combo ? (
@@ -1343,6 +1399,8 @@ export default function PrepareWorkoutScreen() {
                   onMoveDown={() => moveExercise(i, 1)}
                   canMoveUp={i > 0}
                   canMoveDown={i < exercises.length - 1}
+                  collapsed={collapsed.has(item.uid)}
+                  onToggleCollapse={() => toggleCollapse(item.uid)}
                   theme={theme}
                 />
               ) : (
@@ -1356,6 +1414,8 @@ export default function PrepareWorkoutScreen() {
                   canMoveUp={i > 0}
                   canMoveDown={i < exercises.length - 1}
                   lastPerf={lastPerf[item.name]}
+                  collapsed={collapsed.has(item.uid)}
+                  onToggleCollapse={() => toggleCollapse(item.uid)}
                   theme={theme}
                 />
               )}
@@ -1672,6 +1732,9 @@ const s = StyleSheet.create({
   typeSelectedChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: Colors.primary + '18' },
   typeChangeBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7 },
   reorderCol: { marginRight: 8, justifyContent: 'center', alignItems: 'center' },
+  collapsedSummary: { fontSize: 12, fontWeight: '500', marginTop: 3 },
+  collapseAllBtn: { alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 4, marginBottom: 8 },
+  collapseAllText: { fontSize: 12, fontWeight: '600' },
   lastPerfRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   lastPerfText: { fontSize: 11.5, fontWeight: '500' },
   reorderBtn: { paddingVertical: 1 },
