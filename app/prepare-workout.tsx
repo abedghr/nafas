@@ -536,9 +536,8 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
   }, [allExercises, selectedGroup, search]);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={s.modalOverlay}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end', flex: 1 }}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={[s.modalOverlay, { justifyContent: 'flex-end' }]}>
         <View style={[s.modalContent, { backgroundColor: theme.background }]}>
           <View style={s.modalHandle}>
             <View style={[s.handleBar, { backgroundColor: theme.border }]} />
@@ -602,7 +601,7 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
             </LinearGradient>
           </Pressable>
 
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 120 }}>
             {filtered.length === 0 && (
               <Text style={{ color: theme.textMuted, textAlign: 'center', marginTop: 24, fontSize: 14 }}>
                 {t('workoutPrep.noExercisesFound', { defaultValue: 'No exercises found' })}
@@ -640,7 +639,6 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
             ))}
           </ScrollView>
         </View>
-        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -1772,8 +1770,9 @@ const s = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
-    maxHeight: '85%',
-    minHeight: '50%',
+    // fixed tall height (not max/min): search stays pinned at top, list scrolls under
+    // the keyboard — sheet no longer resizes/jumps when the keyboard opens.
+    height: '90%',
   },
   modalHandle: {
     alignItems: 'center',

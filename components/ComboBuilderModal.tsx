@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
@@ -69,9 +69,8 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={s.modalOverlay}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end', flex: 1 }}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={close}>
+      <View style={[s.modalOverlay, { justifyContent: 'flex-end' }]}>
           <View style={[s.modalContent, { backgroundColor: theme.background }]}>
             <View style={s.modalHandle}><View style={[s.handleBar, { backgroundColor: theme.border }]} /></View>
             <View style={s.modalHeader}>
@@ -128,7 +127,7 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
               <TextInput style={[s.searchInput, { color: theme.text }]} value={search} onChangeText={setSearch} placeholder={t('workoutSession.searchExercises')} placeholderTextColor={theme.textMuted} />
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 120 }}>
               {filtered.map((ex, i) => (
                 <Pressable key={ex.id + i} onPress={() => addComponent(ex)} style={({ pressed }) => [s.exPickerItem, { backgroundColor: pressed ? theme.card : 'transparent' }]}>
                   <View style={[s.exPickerIcon, { backgroundColor: Colors.primary + '15' }]}>
@@ -151,7 +150,6 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
               </LinearGradient>
             </Pressable>
           </View>
-        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -159,7 +157,7 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
 
 const s = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '85%', paddingHorizontal: 16 },
+  modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '90%', paddingHorizontal: 16 },
   modalHandle: { alignItems: 'center', paddingVertical: 10 },
   handleBar: { width: 40, height: 4, borderRadius: 2 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12 },

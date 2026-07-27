@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ScrollView, Platform, Modal,
-  TextInput, Alert, Dimensions, Switch, KeyboardAvoidingView, useWindowDimensions,
+  TextInput, Alert, Dimensions, Switch, useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -767,9 +767,8 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, them
   }, [allExercises, selectedGroup, search]);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ justifyContent: 'flex-end', flex: 1 }}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={[styles.modalOverlay, { justifyContent: 'flex-end' }]}>
         <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
           <View style={styles.modalHandle}>
             <View style={[styles.handleBar, { backgroundColor: theme.border }]} />
@@ -807,7 +806,7 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, them
               </Pressable>
             ))}
           </ScrollView>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 120 }}>
             {filtered.map((ex, i) => (
               <Pressable
                 key={ex.id + i}
@@ -830,7 +829,6 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, them
             ))}
           </ScrollView>
         </View>
-        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -1828,7 +1826,7 @@ const styles = StyleSheet.create({
   restProgressTrack: { height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', marginTop: 12, overflow: 'hidden' },
   restProgressFill: { height: '100%', borderRadius: 2, backgroundColor: '#fff' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '85%', paddingHorizontal: 16 },
+  modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '90%', paddingHorizontal: 16 },
   modalHandle: { alignItems: 'center', paddingVertical: 10 },
   handleBar: { width: 40, height: 4, borderRadius: 2 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12 },
