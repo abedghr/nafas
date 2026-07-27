@@ -118,6 +118,17 @@ function SetTypeFields({ config, onChange, theme }: {
               placeholderTextColor={theme.textMuted}
             />
           </View>
+          <View style={s.fieldGroup}>
+            <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.weightKgOptional')}</Text>
+            <TextInput
+              style={inputStyle}
+              value={config.weight ? String(config.weight) : ''}
+              onChangeText={v => onChange({ ...config, weight: parseFloat(v) || 0 })}
+              keyboardType="numeric"
+              placeholder={t('workoutPrep.bodyweightPlaceholder')}
+              placeholderTextColor={theme.textMuted}
+            />
+          </View>
         </View>
         {noteField}
         </View>

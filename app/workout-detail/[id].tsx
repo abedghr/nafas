@@ -232,9 +232,10 @@ export default function WorkoutDetailScreen() {
 
               {exercise.sets.map((set, setIdx) => {
                 const getSetStr = (s: any) => {
+                  if (s?.durationSeconds) return `${s.durationSeconds}s${s?.weight ? ` · ${s.weight}kg` : ''}`;
                   if (s?.weight && s?.reps) return `${s.weight}kg x ${s.reps}`;
-                  if (s?.durationSeconds) return `${s.durationSeconds}s`;
-                  if (s?.repsPerInterval && s?.totalIntervals) return `${s.repsPerInterval}×${s.totalIntervals}`;
+                  if (s?.repsPerInterval && s?.totalIntervals) return `${s.repsPerInterval}×${s.totalIntervals}${s?.weight ? ` · ${s.weight}kg` : ''}`;
+                  if (s?.reps) return `${s.reps} reps`;
                   return '-';
                 };
                 const plannedStr = getSetStr(set.planned);

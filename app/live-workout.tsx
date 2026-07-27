@@ -272,7 +272,9 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
         <View style={styles.setRowLeft}>
           <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
           <Text style={[styles.setLabel, { color: theme.text }]}>{t('workoutSession.hold')}</Text>
-          <Text style={[styles.setValue, { color: theme.textSecondary }]}>{t('workoutSession.secondsValue', { n: set.actual.durationSeconds || 0 })}</Text>
+          <Text style={[styles.setValue, { color: theme.textSecondary }]}>
+            {t('workoutSession.secondsValue', { n: set.actual.durationSeconds || 0 })}{set.actual.weight ? ` · ${set.actual.weight} ${t('workoutSession.kg')}` : ''}
+          </Text>
         </View>
         <View style={styles.setRowRight}>
           <View style={[styles.doneBadge, { backgroundColor: Colors.primary + '20' }]}>
@@ -303,7 +305,9 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
           <Text style={[styles.setCircleText, { color: theme.textMuted }]}>{setIndex + 1}</Text>
         </View>
         <Text style={[styles.setLabel, { color: theme.text }]}>{t('workoutSession.hold')}</Text>
-        <Text style={[styles.setValue, { color: theme.textSecondary }]}>{t('workoutSession.secondsValue', { n: set.config.durationSeconds || 0 })}</Text>
+        <Text style={[styles.setValue, { color: theme.textSecondary }]}>
+          {t('workoutSession.secondsValue', { n: set.config.durationSeconds || 0 })}{set.config.weight ? ` · ${set.config.weight} ${t('workoutSession.kg')}` : ''}
+        </Text>
       </View>
       <View style={styles.setRowRight}>
         <Pressable
