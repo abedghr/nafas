@@ -5,6 +5,8 @@ export const ProgramDayInputSchema = z.object({
   dayIndex: z.number().int().min(0).max(6),
   restDay: z.boolean().default(false),
   templateId: z.string().uuid().nullish(),
+  name: z.string().default(""),
+  exercises: z.array(z.any()).default([]), // inline workout (same shape as template exercises)
   label: z.string().default(""),
   notes: z.string().default(""),
 });

@@ -130,6 +130,8 @@ export interface ProgramDay {
   dayIndex: number; // 0=Mon .. 6=Sun
   restDay: boolean;
   templateId?: string | null;
+  name?: string;                  // inline workout name (when not using a template)
+  exercises?: TemplateExercise[]; // inline workout exercises (either this or templateId)
   label: string;
   notes: string;
 }
@@ -669,7 +671,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     id: p.id, name: p.name, startDate: p.startDate ?? null, weeks: p.weeks, notes: p.notes ?? '',
     days: (p.days ?? []).map(d => ({
       weekIndex: d.weekIndex, dayIndex: d.dayIndex, restDay: !!d.restDay,
-      templateId: d.templateId ?? null, label: d.label ?? '', notes: d.notes ?? '',
+      templateId: d.templateId ?? null, name: d.name ?? '', exercises: d.exercises ?? [],
+      label: d.label ?? '', notes: d.notes ?? '',
     })),
   });
   const addProgram = useCallback((p: Omit<Program, 'id' | 'userId'>): string => {

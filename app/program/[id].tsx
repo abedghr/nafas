@@ -9,6 +9,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useApp, type Program, type ProgramDay } from '@/lib/app-context';
+import { confirmDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 
 const DAY_KEYS = ['weekdayMon', 'weekdayTue', 'weekdayWed', 'weekdayThu', 'weekdayFri', 'weekdaySat', 'weekdaySun'] as const;
@@ -85,6 +86,9 @@ export default function ProgramBuilderScreen() {
   const saveDay = () => {
     if (!editing) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // keep the day's inline workout unless it becomes a rest day or gets a template
+    const existing = findDay(editing.week, editing.day);
+    const keepInline = !dRest && !dTemplateId && !!existing?.exercises?.length;
     upsertDay({
       weekIndex: editing.week,
       dayIndex: editing.day,
@@ -92,6 +96,7 @@ export default function ProgramBuilderScreen() {
       templateId: dRest ? null : dTemplateId,
       label: dLabel.trim(),
       notes: dNotes.trim(),
+      ...(keepInline ? { name: existing!.name, exercises: existing!.exercises } : {}),
     });
     setEditing(null);
   };
@@ -103,18 +108,48 @@ export default function ProgramBuilderScreen() {
     setEditing(null);
   };
 
-  const setWeeks = (delta: number) => {
-    if (!program) return;
-    const next = Math.min(52, Math.max(1, program.weeks + delta));
-    if (next === program.weeks) return;
+  const addWeek = () => {
+    if (!program || program.weeks >= 52) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    commit({ weeks: next });
+    commit({ weeks: program.weeks + 1 });
+  };
+
+  const removeWeek = async (k: number) => {
+    if (!program || program.weeks <= 1) return;
+    const hasPlanned = (program.days ?? []).some(d => d.weekIndex === k);
+    if (hasPlanned) {
+      const ok = await confirmDialog({
+        title: t('programs.removeWeek'),
+        message: t('programs.removeWeekConfirm'),
+        destructive: true,
+        confirmText: t('programs.delete'),
+        cancelText: t('programs.cancel'),
+      });
+      if (!ok) return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const days = (program.days ?? [])
+      .filter(d => d.weekIndex !== k)
+      .map(d => (d.weekIndex > k ? { ...d, weekIndex: d.weekIndex - 1 } : d));
+    commit({ days, weeks: program.weeks - 1 });
   };
 
   const startDay = (day: ProgramDay) => {
-    if (!day.templateId) return;
+    if (!program) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push(('/prepare-workout?templateId=' + day.templateId + '&run=1') as any);
+    if (day.exercises?.length) {
+      // inline workout day → open the builder in program mode, ready to start
+      router.push(('/prepare-workout?programId=' + program.id + '&weekIndex=' + day.weekIndex + '&dayIndex=' + day.dayIndex + '&run=1') as any);
+    } else if (day.templateId) {
+      router.push(('/prepare-workout?templateId=' + day.templateId + '&run=1') as any);
+    }
+  };
+
+  const buildWorkout = (week: number, dayIdx: number) => {
+    if (!program) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setEditing(null);
+    router.push(('/prepare-workout?programId=' + program.id + '&weekIndex=' + week + '&dayIndex=' + dayIdx) as any);
   };
 
   const filteredTemplates = useMemo(() => {
@@ -167,25 +202,7 @@ export default function ProgramBuilderScreen() {
 
           <View style={s.weeksRow}>
             <Text style={[s.fieldLabel, { color: theme.textSecondary, marginBottom: 0 }]}>{t('programs.weeks')}</Text>
-            <View style={s.stepper}>
-              <Pressable
-                onPress={() => setWeeks(-1)}
-                disabled={program.weeks <= 1}
-                hitSlop={8}
-                style={[s.stepBtn, { borderColor: theme.border, opacity: program.weeks <= 1 ? 0.4 : 1 }]}
-              >
-                <Ionicons name="remove" size={18} color={theme.text} />
-              </Pressable>
-              <Text style={[s.stepVal, { color: theme.text }]}>{program.weeks}</Text>
-              <Pressable
-                onPress={() => setWeeks(1)}
-                disabled={program.weeks >= 52}
-                hitSlop={8}
-                style={[s.stepBtn, { borderColor: theme.border, opacity: program.weeks >= 52 ? 0.4 : 1 }]}
-              >
-                <Ionicons name="add" size={18} color={theme.text} />
-              </Pressable>
-            </View>
+            <Text style={[s.weeksVal, { color: theme.text }]}>{t('programs.weeksCount', { n: program.weeks })}</Text>
           </View>
 
           <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{t('programs.notesOptional')}</Text>
@@ -203,11 +220,24 @@ export default function ProgramBuilderScreen() {
         {/* weeks grid */}
         {Array.from({ length: program.weeks }, (_, w) => (
           <View key={w} style={[s.weekCard, { backgroundColor: theme.card }]}>
-            <Text style={[s.weekTitle, { color: Colors.primary }]}>{t('programs.weekN', { n: w + 1 })}</Text>
+            <View style={s.weekHeader}>
+              <Text style={[s.weekTitle, { color: Colors.primary }]}>{t('programs.weekN', { n: w + 1 })}</Text>
+              {program.weeks > 1 && (
+                <Pressable
+                  onPress={() => removeWeek(w)}
+                  hitSlop={8}
+                  accessibilityLabel={t('programs.removeWeek')}
+                  style={({ pressed }) => [s.weekTrashBtn, { opacity: pressed ? 0.6 : 1 }]}
+                >
+                  <Ionicons name="trash-outline" size={15} color={theme.textMuted} />
+                </Pressable>
+              )}
+            </View>
             {DAY_KEYS.map((dk, dIdx) => {
               const day = findDay(w, dIdx);
               const tmplName = templateName(day?.templateId);
-              const planned = !!day && !day.restDay && !!day.templateId;
+              const inlineCount = day?.exercises?.length ?? 0;
+              const planned = !!day && !day.restDay && (!!day.templateId || inlineCount > 0);
               let stateText: string;
               let stateColor = theme.textMuted;
               if (day?.restDay) {
@@ -215,6 +245,9 @@ export default function ProgramBuilderScreen() {
                 stateColor = theme.textSecondary;
               } else if (tmplName) {
                 stateText = tmplName;
+                stateColor = theme.text;
+              } else if (inlineCount > 0) {
+                stateText = `${day?.name || t('programs.buildWorkout')} · ${t('programs.exercisesN', { n: inlineCount })}`;
                 stateColor = theme.text;
               } else if (day?.label) {
                 stateText = day.label;
@@ -259,6 +292,19 @@ export default function ProgramBuilderScreen() {
             })}
           </View>
         ))}
+
+        {/* add week */}
+        <Pressable
+          onPress={addWeek}
+          disabled={program.weeks >= 52}
+          style={({ pressed }) => [
+            s.addWeekBtn,
+            { backgroundColor: theme.card, borderColor: Colors.primary + '40', opacity: program.weeks >= 52 ? 0.4 : pressed ? 0.85 : 1 },
+          ]}
+        >
+          <Ionicons name="add" size={18} color={Colors.primary} />
+          <Text style={[s.addWeekText, { color: Colors.primary }]}>{t('programs.addWeek')}</Text>
+        </Pressable>
       </ScrollView>
 
       {/* day editor bottom sheet */}
@@ -319,7 +365,25 @@ export default function ProgramBuilderScreen() {
                   </View>
                 </View>
 
-                <Text style={[s.miniLabel, { color: theme.textMuted, marginTop: 12 }]}>{t('programs.pickWorkout')}</Text>
+                {/* build a custom workout for this day (not a saved template) */}
+                {(() => {
+                  const curDay = editing ? findDay(editing.week, editing.day) : undefined;
+                  const inlineN = curDay?.exercises?.length ?? 0;
+                  return (
+                    <Pressable
+                      onPress={() => editing && buildWorkout(editing.week, editing.day)}
+                      style={({ pressed }) => [s.buildBtn, { borderColor: Colors.accent + '55', opacity: pressed ? 0.85 : 1 }]}
+                    >
+                      <Ionicons name="construct-outline" size={18} color={Colors.accent} />
+                      <Text style={[s.buildBtnText, { color: Colors.accent }]}>
+                        {inlineN > 0 ? `${t('programs.buildWorkout')} · ${t('programs.exercisesN', { n: inlineN })}` : t('programs.buildWorkout')}
+                      </Text>
+                      <Ionicons name="chevron-forward" size={16} color={Colors.accent} />
+                    </Pressable>
+                  );
+                })()}
+
+                <Text style={[s.miniLabel, { color: theme.textMuted, marginTop: 14 }]}>{t('programs.pickWorkout')}</Text>
                 <View style={[s.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
                   <Ionicons name="search" size={16} color={theme.textMuted} />
                   <TextInput
@@ -418,6 +482,19 @@ const s = StyleSheet.create({
   fieldLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6 },
   fieldInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
   weeksRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 14 },
+  weeksVal: { fontSize: 14, fontWeight: '700' },
+  weekHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  weekTrashBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  addWeekBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', marginTop: 4,
+  },
+  addWeekText: { fontSize: 14, fontWeight: '700' },
+  buildBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
+    paddingVertical: 13, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed',
+  },
+  buildBtnText: { flex: 1, fontSize: 14, fontWeight: '700' },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   stepBtn: { width: 32, height: 32, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   stepVal: { fontSize: 16, fontWeight: '700', minWidth: 28, textAlign: 'center' },

@@ -14,6 +14,7 @@ async function replaceDays(programId: string, days: ProgramCreate["days"]) {
     await db.insert(programDays).values(days.map((d) => ({
       programId, weekIndex: d.weekIndex, dayIndex: d.dayIndex,
       restDay: !!d.restDay, templateId: d.templateId ?? null,
+      name: d.name ?? "", exercises: d.exercises ?? [],
       label: d.label ?? "", notes: d.notes ?? "",
     })));
   }

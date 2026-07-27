@@ -142,6 +142,9 @@ export const extraEn = {
     notFound: "Program not found", goBack: "Go Back", searchWorkouts: "Search workouts...",
     noTemplates: "No saved workouts yet", noMatchingTemplates: "No matching workouts",
     tapToPlan: "Tap to plan", exercisesCount: "{{n}} exercises",
+    addWeek: "Add week", removeWeek: "Remove week", buildWorkout: "Build workout",
+    saveToProgram: "Save to Program", exercisesN: "{{n}} exercises",
+    removeWeekConfirm: "Remove this week and its planned days?",
   },
   workoutSession: {
     setOptions: "Set Options", skipSet: "Skip Set", skipSetConfirm: "Skip set {{n}}? It won't count toward your workout.", cancel: "Cancel", delete: "Delete", setN: "Set {{n}}", reps: "reps", kg: "kg",
@@ -319,6 +322,9 @@ export const extraAr = {
     notFound: "البرنامج غير موجود", goBack: "العودة", searchWorkouts: "ابحث في التمارين...",
     noTemplates: "لا توجد تمارين محفوظة بعد", noMatchingTemplates: "لا توجد تمارين مطابقة",
     tapToPlan: "اضغط للتخطيط", exercisesCount: "{{n}} تمارين",
+    addWeek: "إضافة أسبوع", removeWeek: "حذف الأسبوع", buildWorkout: "إنشاء تمرين",
+    saveToProgram: "حفظ في البرنامج", exercisesN: "{{n}} تمارين",
+    removeWeekConfirm: "حذف هذا الأسبوع وأيامه المخطّطة؟",
   },
   workoutSession: {
     setOptions: "خيارات المجموعة", skipSet: "تخطّي المجموعة", skipSetConfirm: "تخطّي المجموعة {{n}}؟ لن تُحتسب ضمن تمرينك.", cancel: "إلغاء", delete: "حذف", setN: "المجموعة {{n}}", reps: "تكرارات", kg: "كغ",

@@ -1121,10 +1121,11 @@ function TemplatePickerModal({ visible, onClose, onSelect, onEdit, onDelete, tem
 export default function PrepareWorkoutScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { templateId, run } = useLocalSearchParams<{ templateId?: string; run?: string }>();
+  const { templateId, run, programId, weekIndex, dayIndex } = useLocalSearchParams<{ templateId?: string; run?: string; programId?: string; weekIndex?: string; dayIndex?: string }>();
+  const inProgram = !!programId;
   const {
     workoutTemplates, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, setActiveSession,
-    customExercises, addCustomExercise, user, workoutTypes,
+    customExercises, addCustomExercise, user, workoutTypes, programs, updateProgram,
   } = useApp();
   const theme = Colors.dark;
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1162,6 +1163,23 @@ export default function PrepareWorkoutScreen() {
       }
     }
   }, [templateId, run]);
+
+  // program mode: load the day's inline workout (or its template) into the builder
+  useEffect(() => {
+    if (!programId) return;
+    const prog = programs.find(p => p.id === programId);
+    if (!prog) return;
+    const day = (prog.days ?? []).find(d => d.weekIndex === Number(weekIndex) && d.dayIndex === Number(dayIndex));
+    if (day?.exercises?.length) {
+      setWorkoutName(day.name || prog.name);
+      setExercises(day.exercises.map((e: any) => ({ ...e, uid: Crypto.randomUUID() })));
+    } else if (day?.templateId) {
+      const tmpl = workoutTemplates.find(t => t.id === day.templateId);
+      if (tmpl) { setWorkoutName(tmpl.name); setExercises(tmpl.exercises.map(e => ({ ...e, uid: Crypto.randomUUID() }))); }
+    }
+    // no editingId in program mode
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [programId]);
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
@@ -1360,6 +1378,26 @@ export default function PrepareWorkoutScreen() {
     router.replace('/live-workout' as any);
   };
 
+  // program mode: save the built exercises onto the program day (inline workout)
+  const handleSaveToProgram = () => {
+    if (!programId) return;
+    if (exercises.length === 0) { alertDialog(t('workoutPrep.noExercisesTitle'), t('workoutPrep.noExercisesSaveMsg')); return; }
+    const prog = programs.find(p => p.id === programId);
+    if (!prog) return;
+    const w = Number(weekIndex), d = Number(dayIndex);
+    const mapped = exercises.map(e => ({
+      exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, restSeconds: e.restSeconds, sets: e.sets, isCustom: e.isCustom,
+      ...(e.combo ? { combo: true, unbroken: e.unbroken, components: e.components, comboRounds: e.comboRounds, mode: e.mode, intervalSeconds: e.intervalSeconds } : {}),
+    }));
+    const existing = (prog.days ?? []).find(x => x.weekIndex === w && x.dayIndex === d);
+    const rest = (prog.days ?? []).filter(x => !(x.weekIndex === w && x.dayIndex === d));
+    const day = { weekIndex: w, dayIndex: d, restDay: false, templateId: null, name: resolvedName || (existing?.name ?? ''), exercises: mapped as any, label: existing?.label ?? '', notes: existing?.notes ?? '' };
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    updateProgram(programId, { name: prog.name, startDate: prog.startDate ?? null, weeks: prog.weeks, notes: prog.notes ?? '', days: [...rest, day] });
+    alertDialog(t('programs.saveToProgram', { defaultValue: 'Saved to program' }), '');
+    router.back();
+  };
+
   return (
     <View style={[s.container, { backgroundColor: theme.background }]}>
       <View style={[s.header, { paddingTop: topPad + 8 }]}>
@@ -1545,12 +1583,12 @@ export default function PrepareWorkoutScreen() {
 
         <View style={s.bottomRow}>
           <Pressable
-            onPress={handleSaveTemplate}
-            disabled={alreadySaved && !editingId}
-            style={({ pressed }) => [s.templateBtn, { opacity: (alreadySaved && !editingId) ? 0.6 : pressed ? 0.9 : 1, backgroundColor: theme.card, borderColor: (editingId || alreadySaved) ? Colors.primary : theme.border }]}
+            onPress={inProgram ? handleSaveToProgram : handleSaveTemplate}
+            disabled={!inProgram && alreadySaved && !editingId}
+            style={({ pressed }) => [s.templateBtn, { opacity: (!inProgram && alreadySaved && !editingId) ? 0.6 : pressed ? 0.9 : 1, backgroundColor: theme.card, borderColor: (inProgram || editingId || alreadySaved) ? Colors.primary : theme.border }]}
           >
-            <Ionicons name={editingId ? 'save-outline' : alreadySaved ? 'checkmark-circle' : 'bookmark-outline'} size={16} color={Colors.primary} />
-            <Text style={[s.templateBtnText, { color: (editingId || alreadySaved) ? Colors.primary : theme.text }]}>{editingId ? t('workoutPrep.update', { defaultValue: 'Update' }) : alreadySaved ? t('workoutPrep.saved') : t('workoutPrep.save')}</Text>
+            <Ionicons name={inProgram ? 'calendar-outline' : editingId ? 'save-outline' : alreadySaved ? 'checkmark-circle' : 'bookmark-outline'} size={16} color={Colors.primary} />
+            <Text style={[s.templateBtnText, { color: (inProgram || editingId || alreadySaved) ? Colors.primary : theme.text }]}>{inProgram ? t('programs.saveToProgram', { defaultValue: 'Save to Program' }) : editingId ? t('workoutPrep.update', { defaultValue: 'Update' }) : alreadySaved ? t('workoutPrep.saved') : t('workoutPrep.save')}</Text>
           </Pressable>
 
           <Pressable

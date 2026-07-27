@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, integer, boolean, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, text, integer, boolean, timestamp, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "../identity/identity.db";
 
 // A multi-week training program (e.g. an 8-week plan). Days live in program_days.
@@ -22,6 +22,10 @@ export const programDays = pgTable("program_days", {
   dayIndex: integer("day_index").notNull(),      // 0=Mon .. 6=Sun
   restDay: boolean("rest_day").notNull().default(false),
   templateId: uuid("template_id"),
+  // inline workout for this day (when not using a saved template): name + exercises
+  // (same shape as a template's exercises). Either templateId OR exercises may be set.
+  name: varchar("name", { length: 96 }).notNull().default(""),
+  exercises: jsonb("exercises").$type<unknown[]>().notNull().default([]),
   label: varchar("label", { length: 96 }).notNull().default(""),
   notes: text("notes").notNull().default(""),
 }, (t) => ({
