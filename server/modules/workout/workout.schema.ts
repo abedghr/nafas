@@ -9,9 +9,7 @@ export const SetConfigSchema = z
     repsPerInterval: z.number().optional(),
     intervalSeconds: z.number().optional(),
     totalIntervals: z.number().optional(),
-    minutes: z.array(z.number()).optional(), // EMOM per-minute reps override (legacy)
-    // EMOM per-minute exercise + reps override; takes precedence over `minutes`
-    emomMinutes: z.array(z.object({ exerciseName: z.string().optional(), reps: z.number().optional() })).optional(),
+    minutes: z.array(z.number()).optional(), // EMOM per-minute reps override
     note: z.string().optional(), // optional per-set note
   })
   .openapi("SetConfig");
@@ -63,6 +61,9 @@ export const TemplateExerciseSchema = z
     })).optional(),
     comboRounds: z.number().optional(),
     comboReps: z.number().optional(),
+    // combo execution mode: 'circuit' (default) or 'emom' (rounds = cycles)
+    mode: z.enum(['circuit', 'emom']).optional(),
+    intervalSeconds: z.number().optional(), // emom mode: seconds per minute-slot
   })
   .openapi("TemplateExercise");
 

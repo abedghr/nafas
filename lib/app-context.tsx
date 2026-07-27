@@ -97,9 +97,6 @@ export interface SetConfig {
   intervalSeconds?: number;
   totalIntervals?: number;
   minutes?: number[]; // EMOM per-minute reps override (length = totalIntervals); absent = uniform repsPerInterval
-  // EMOM per-minute exercise + reps override (length = totalIntervals). Takes
-  // precedence over `minutes` when present. exerciseName absent = parent movement.
-  emomMinutes?: { exerciseName?: string; reps?: number }[];
   note?: string;
 }
 
@@ -121,6 +118,10 @@ export interface TemplateExercise {
   }[];
   comboRounds?: number;
   comboReps?: number;
+  // combo execution mode: 'circuit' (default, back-to-back rounds) or 'emom'
+  // (each component = one minute in sequence; comboRounds = cycles).
+  mode?: 'circuit' | 'emom';
+  intervalSeconds?: number; // emom mode: seconds per minute-slot (default 60)
 }
 
 export interface ProgramDay {
@@ -243,6 +244,11 @@ export interface ActiveSession {
     // expanded into one LogExercise per component (so PRs/volume/history all work).
     combo?: boolean;
     unbroken?: boolean;
+    // combo execution mode: 'circuit' (default) or 'emom'. In emom mode the
+    // rounds structure is unchanged — rounds = cycles through the component
+    // sequence; minute m maps to rounds[floor(m/len)].entries[m % len].
+    mode?: 'circuit' | 'emom';
+    intervalSeconds?: number; // emom mode: seconds per minute-slot (default 60)
     components?: { exerciseId: string; name: string; muscleGroup: string }[];
     rounds?: {
       status: 'pending' | 'done' | 'skipped' | 'in_progress';

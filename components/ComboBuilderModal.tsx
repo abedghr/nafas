@@ -46,11 +46,15 @@ export function componentToSetConfig(c: {
   return { type: 'reps', reps: c.reps || 0, weight: c.weight || 0 };
 }
 
+export type ComboMode = 'circuit' | 'emom';
+
 export interface ComboBuildResult {
   components: ComboComponent[];
-  rounds: number;
+  rounds: number; // circuit: rounds; emom: cycles through the component sequence
   unbroken: boolean;
   restSeconds: number;
+  mode: ComboMode; // default 'circuit'
+  intervalSeconds: number; // emom mode: seconds per minute-slot (default 60)
 }
 
 // Build a combo set: pick 2+ movements done back-to-back (the same movement can
@@ -69,8 +73,10 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
   const [components, setComponents] = useState<ComboComponent[]>([]);
   const [rounds, setRounds] = useState(1);
   const [unbroken, setUnbroken] = useState(true);
+  const [mode, setMode] = useState<ComboMode>('circuit');
+  const [intervalSeconds, setIntervalSeconds] = useState(60);
 
-  const reset = () => { setSearch(''); setComponents([]); setRounds(1); setUnbroken(true); };
+  const reset = () => { setSearch(''); setComponents([]); setRounds(1); setUnbroken(true); setMode('circuit'); setIntervalSeconds(60); };
   const close = () => { reset(); onClose(); };
 
   const allExercises = useMemo(() => {
@@ -112,7 +118,7 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
   const create = () => {
     if (components.length < 2) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onCreate({ components, rounds, unbroken, restSeconds: 90 });
+    onCreate({ components, rounds, unbroken, restSeconds: 90, mode, intervalSeconds: Math.max(1, intervalSeconds || 60) });
     close();
   };
 
@@ -201,22 +207,56 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
               </View>
             )}
 
+            {/* circuit / emom mode toggle */}
+            <View style={s.modeRow}>
+              {(['circuit', 'emom'] as const).map(m => (
+                <Pressable
+                  key={m}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMode(m); }}
+                  style={[s.modeSeg, { borderColor: mode === m ? Colors.accent : theme.border, backgroundColor: mode === m ? Colors.accent + '18' : 'transparent' }]}
+                >
+                  <Text style={[s.modeSegText, { color: mode === m ? Colors.accent : theme.textMuted }]}>
+                    {m === 'circuit' ? t('workoutSession.circuit') : t('workoutSession.emom')}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
             <View style={s.comboCfgRow}>
               <View style={s.comboCfgItem}>
-                <Text style={[s.comboCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.rounds')}</Text>
+                <Text style={[s.comboCfgLabel, { color: theme.textMuted }]}>
+                  {mode === 'emom' ? t('workoutSession.cycles') : t('workoutSession.rounds')}
+                </Text>
                 <View style={s.comboStepper}>
                   <Pressable onPress={() => setRounds(r => Math.max(1, r - 1))} hitSlop={8} style={[s.stepBtn, { borderColor: theme.border }]}><Ionicons name="remove" size={16} color={theme.text} /></Pressable>
                   <Text style={[s.stepVal, { color: theme.text }]}>{rounds}</Text>
                   <Pressable onPress={() => setRounds(r => Math.min(20, r + 1))} hitSlop={8} style={[s.stepBtn, { borderColor: theme.border }]}><Ionicons name="add" size={16} color={theme.text} /></Pressable>
                 </View>
               </View>
-              <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setUnbroken(u => !u); }} style={s.comboCfgItem}>
-                <Text style={[s.comboCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.unbroken')}</Text>
-                <View style={[s.comboToggle, { backgroundColor: unbroken ? Colors.primary : theme.border }]}>
-                  <View style={[s.comboToggleDot, { alignSelf: unbroken ? 'flex-end' : 'flex-start' }]} />
+              {mode === 'emom' ? (
+                <View style={s.comboCfgItem}>
+                  <Text style={[s.comboCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.intervalSec')}</Text>
+                  <TextInput
+                    style={[s.inlineInput, { width: 56, backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                    value={intervalSeconds ? String(intervalSeconds) : ''}
+                    onChangeText={v => setIntervalSeconds(parseInt(v) || 0)}
+                    keyboardType="numeric" placeholder="60" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                  />
                 </View>
-              </Pressable>
+              ) : (
+                <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setUnbroken(u => !u); }} style={s.comboCfgItem}>
+                  <Text style={[s.comboCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.unbroken')}</Text>
+                  <View style={[s.comboToggle, { backgroundColor: unbroken ? Colors.primary : theme.border }]}>
+                    <View style={[s.comboToggleDot, { alignSelf: unbroken ? 'flex-end' : 'flex-start' }]} />
+                  </View>
+                </Pressable>
+              )}
             </View>
+            {mode === 'emom' && (
+              <Text style={[s.modeHint, { color: theme.textMuted }]}>
+                {t('workoutSession.everyMinute')}: 1 → {Math.max(components.length, 2)} · {Math.max(components.length, 2) * rounds} min
+              </Text>
+            )}
 
             <View style={[s.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <Ionicons name="search" size={18} color={theme.textMuted} />
@@ -275,6 +315,10 @@ const s = StyleSheet.create({
   fieldRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, flexShrink: 1 },
   comboCompName: { fontSize: 13, fontWeight: '600', flex: 1 },
   comboCompUnit: { fontSize: 9, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
+  modeRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
+  modeSeg: { flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
+  modeSegText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
+  modeHint: { fontSize: 11, fontWeight: '500', marginBottom: 10, marginTop: -4 },
   comboCfgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginBottom: 12 },
   comboCfgItem: { alignItems: 'center', gap: 6 },
   comboCfgLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },

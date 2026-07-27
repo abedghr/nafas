@@ -347,10 +347,9 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
   );
 }
 
-function EmomSetRow({ set, setIndex, exerciseName, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
+function EmomSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
   set: SessionSet;
   setIndex: number;
-  exerciseName?: string; // parent movement name (fallback for per-minute exercise)
   onMarkDone: () => void;
   onSkip: () => void;
   onUpdateActual: (actual: SetConfig) => void;
@@ -512,13 +511,8 @@ function EmomSetRow({ set, setIndex, exerciseName, onMarkDone, onSkip, onUpdateA
   if (phase === 'active') {
     const progress = 1 - intervalRemaining / intervalSec;
     const overallProgress = (completedIntervals + progress) / totalIntervals;
-    // Per-minute overrides: emomMinutes (exercise + reps) wins over legacy minutes[] (reps only).
-    const emomMinutes = set.config.emomMinutes;
-    const curMinute = emomMinutes?.[currentInterval - 1];
-    const curReps = emomMinutes
-      ? (curMinute?.reps ?? repsPerInterval)
-      : (set.config.minutes?.[currentInterval - 1] ?? repsPerInterval);
-    const curExerciseName = emomMinutes ? (curMinute?.exerciseName || exerciseName) : undefined;
+    // Per-minute reps override via minutes[] (same exercise every minute).
+    const curReps = set.config.minutes?.[currentInterval - 1] ?? repsPerInterval;
     return (
       <View style={[styles.emomActiveCard, { backgroundColor: theme.card, borderColor: Colors.primary + '30' }]}>
         <View style={styles.emomHeader}>
@@ -531,12 +525,6 @@ function EmomSetRow({ set, setIndex, exerciseName, onMarkDone, onSkip, onUpdateA
             {t('workoutSession.repsValue', { n: curReps })}
           </Text>
         </View>
-        {curExerciseName ? (
-          <Text style={{ color: theme.text, fontSize: 17, fontWeight: '700', textAlign: 'center', marginTop: 8 }} numberOfLines={1}>
-            {curExerciseName}
-          </Text>
-        ) : null}
-
         <View style={styles.emomTimerCenter}>
           <Text style={[styles.emomTimerBig, { color: theme.text }]}>{formatCountdown(intervalRemaining)}</Text>
         </View>
@@ -639,11 +627,10 @@ function EmomSetRow({ set, setIndex, exerciseName, onMarkDone, onSkip, onUpdateA
   );
 }
 
-function SetRowItem({ set, setIndex, exerciseIndex, exerciseName, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
+function SetRowItem({ set, setIndex, exerciseIndex, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
   set: SessionSet;
   setIndex: number;
   exerciseIndex: number;
-  exerciseName?: string;
   onMarkDone: () => void;
   onSkip: () => void;
   onUpdateActual: (actual: SetConfig) => void;
@@ -657,7 +644,7 @@ function SetRowItem({ set, setIndex, exerciseIndex, exerciseName, onMarkDone, on
   const row =
     setType === 'reps' ? <RepsSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} onReopen={onReopen} theme={theme} />
     : setType === 'hold' ? <HoldSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} onReopen={onReopen} theme={theme} />
-    : setType === 'emom' ? <EmomSetRow set={set} setIndex={setIndex} exerciseName={exerciseName} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} onReopen={onReopen} theme={theme} />
+    : setType === 'emom' ? <EmomSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} onReopen={onReopen} theme={theme} />
     : null;
   return (
     <View>
@@ -858,14 +845,229 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, them
   );
 }
 
+// ── EMOM combo body: one interval timer cycling through the components ────────
+// Minute m (0-based) → component m % len, cycle floor(m / len) → target from
+// rounds[cycle].entries[m % len]. The rounds structure itself is untouched here;
+// on finish the parent marks cycles done/skipped so finish-expansion logs them.
+function ComboEmomBody({ combo, onFinishEmom, theme }: {
+  combo: SessionExercise;
+  onFinishEmom: (completedMinutes: number) => void;
+  theme: typeof Colors.dark;
+}) {
+  const { t } = useTranslation();
+  const { weightUnit } = useApp();
+  const components = combo.components || [];
+  const rounds = combo.rounds || [];
+  const compLen = Math.max(1, components.length);
+  const totalMinutes = compLen * rounds.length;
+  const intervalSec = combo.intervalSeconds || 60;
+
+  // resume from the first not-yet-finished cycle (e.g. after a reopen)
+  const firstPending = rounds.findIndex(r => r.status === 'pending' || r.status === 'in_progress');
+  const startMinute = firstPending > 0 ? firstPending * compLen : 0;
+
+  const [phase, setPhase] = useState<'idle' | 'prep' | 'active'>('idle');
+  const [paused, setPaused] = useState(false);
+  const [minute, setMinute] = useState(startMinute); // 0-based current minute
+  const [remaining, setRemaining] = useState(intervalSec);
+  const [prepRemaining, setPrepRemaining] = useState(PREP_SECONDS);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const minuteRef = useRef(startMinute);
+  const remainingRef = useRef(intervalSec);
+
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+
+  const stopTimer = () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+
+  // name + target for minute m, read straight from the combo-native rounds data
+  const minuteInfo = (m: number) => {
+    const cycle = Math.floor(m / compLen);
+    const ci = m % compLen;
+    const entry = rounds[cycle]?.entries[ci];
+    const name = components[ci]?.name || '';
+    const ty = entry?.type ?? 'reps';
+    let target = ty === 'hold'
+      ? `${t('workoutSession.hold')} ${t('workoutSession.secondsValue', { n: entry?.durationSeconds || 0 })}`
+      : t('workoutSession.repsValue', { n: (ty === 'emom' ? entry?.repsPerInterval : entry?.reps) || 0 });
+    if (entry?.weight) target += ` · ${toDisplayWeight(entry.weight, weightUnit)} ${unitLabel(weightUnit)}`;
+    return { name, target };
+  };
+
+  const finish = (completedMinutes: number) => {
+    stopTimer();
+    setPhase('idle');
+    onFinishEmom(completedMinutes);
+  };
+
+  const advanceMinute = () => {
+    const next = minuteRef.current + 1;
+    if (next >= totalMinutes) { finish(next); return; }
+    minuteRef.current = next;
+    setMinute(next);
+    remainingRef.current = intervalSec;
+    setRemaining(intervalSec);
+  };
+
+  const tick = () => {
+    remainingRef.current -= 1;
+    const rem = remainingRef.current;
+    setRemaining(rem);
+    if (rem <= 3 && rem > 0) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (rem <= 0) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      advanceMinute();
+    }
+  };
+
+  const startActive = () => {
+    setPhase('active');
+    setPaused(false);
+    remainingRef.current = intervalSec;
+    setRemaining(intervalSec);
+    stopTimer();
+    timerRef.current = setInterval(tick, 1000);
+  };
+
+  const startPrep = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setPhase('prep');
+    setPrepRemaining(PREP_SECONDS);
+    minuteRef.current = startMinute;
+    setMinute(startMinute);
+    let count = PREP_SECONDS;
+    stopTimer();
+    timerRef.current = setInterval(() => {
+      count--;
+      setPrepRemaining(count);
+      if (count <= 3 && count > 0) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (count <= 0) {
+        stopTimer();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        startActive();
+      }
+    }, 1000);
+  };
+
+  const cancelPrep = () => { stopTimer(); setPhase('idle'); };
+
+  const togglePause = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (paused) { timerRef.current = setInterval(tick, 1000); setPaused(false); }
+    else { stopTimer(); setPaused(true); }
+  };
+
+  // manual "done minute" → jump to the next minute immediately
+  const doneMinute = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    advanceMinute();
+  };
+
+  // finish early: minutes fully completed count as done, the rest get skipped
+  const finishEarly = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    finish(minuteRef.current);
+  };
+
+  if (phase === 'prep') {
+    const first = minuteInfo(startMinute);
+    return (
+      <View style={[styles.timerFullCard, { backgroundColor: Colors.accent + '08', borderColor: Colors.accent + '30' }]}>
+        <Text style={[styles.timerPhaseLabel, { color: Colors.accent }]}>{t('workoutSession.getReady')}</Text>
+        <Text style={[styles.timerBigNumber, { color: Colors.accent }]}>{prepRemaining}</Text>
+        <Text style={[styles.timerSubLabel, { color: theme.textMuted }]}>
+          {t('workoutSession.everyMinute')} · {first.name} — {first.target}
+        </Text>
+        <Pressable onPress={cancelPrep} style={[styles.timerSecondaryBtn, { borderColor: theme.border }]}>
+          <Text style={[styles.timerSecondaryBtnText, { color: theme.textSecondary }]}>{t('workoutSession.cancel')}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (phase === 'active') {
+    const cur = minuteInfo(minute);
+    const nxt = minute + 1 < totalMinutes ? minuteInfo(minute + 1) : null;
+    const progress = 1 - remaining / intervalSec;
+    const overallProgress = (minute + progress) / Math.max(1, totalMinutes);
+    return (
+      <View style={[styles.emomActiveCard, { backgroundColor: theme.card, borderColor: Colors.primary + '30' }]}>
+        <View style={styles.emomHeader}>
+          <View style={[styles.emomIntervalBadge, { backgroundColor: Colors.primary + '20' }]}>
+            <Text style={[styles.emomIntervalText, { color: Colors.primary }]}>
+              {t('workoutSession.minuteX', { n: minute + 1 })} / {totalMinutes}
+            </Text>
+          </View>
+          <Text style={[styles.emomRepsGoal, { color: theme.textMuted }]}>{cur.target}</Text>
+        </View>
+        <Text style={{ color: theme.text, fontSize: 17, fontWeight: '700', textAlign: 'center', marginTop: 8 }} numberOfLines={1}>
+          {cur.name}
+        </Text>
+
+        <View style={styles.emomTimerCenter}>
+          <Text style={[styles.emomTimerBig, { color: theme.text }]}>{formatCountdown(remaining)}</Text>
+        </View>
+        {nxt && (
+          <Text style={{ color: theme.textMuted, fontSize: 13, fontWeight: '500', textAlign: 'center' }} numberOfLines={1}>
+            {t('workoutSession.nextUp', { name: nxt.name })}
+          </Text>
+        )}
+
+        <View style={styles.emomProgressSection}>
+          <View style={[styles.progressBarContainer, { backgroundColor: theme.surface }]}>
+            <View style={[styles.progressBar, { width: `${progress * 100}%`, backgroundColor: Colors.primary }]} />
+          </View>
+          <View style={[styles.emomOverallBar, { backgroundColor: theme.surface, marginTop: 6 }]}>
+            <View style={[styles.progressBar, { width: `${overallProgress * 100}%`, backgroundColor: Colors.accent }]} />
+          </View>
+          <Text style={[styles.emomOverallLabel, { color: theme.textMuted }]}>
+            {t('workoutSession.intervalsCompleted', { completed: minute, total: totalMinutes })}
+          </Text>
+        </View>
+
+        <View style={styles.emomBtnRow}>
+          <Pressable onPress={togglePause} style={[styles.emomActionBtn, { backgroundColor: theme.surface }]}>
+            <Ionicons name={paused ? 'play' : 'pause'} size={16} color={theme.text} />
+            {paused && <Text style={[styles.emomActionBtnText, { color: theme.text }]}>{t('workoutSession.start')}</Text>}
+          </Pressable>
+          <Pressable onPress={doneMinute} style={[styles.emomActionBtn, { backgroundColor: Colors.accent + '15' }]}>
+            <Ionicons name="play-skip-forward" size={16} color={Colors.accent} />
+            <Text style={[styles.emomActionBtnText, { color: Colors.accent }]}>{t('workoutSession.skip')}</Text>
+          </Pressable>
+          <Pressable onPress={finishEarly} style={[styles.emomActionBtn, { backgroundColor: Colors.primary + '15' }]}>
+            <Ionicons name="checkmark" size={16} color={Colors.primary} />
+            <Text style={[styles.emomActionBtnText, { color: Colors.primary }]}>{t('workoutSession.finish')}</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  // idle: summary + start
+  return (
+    <View style={[styles.setRow, { justifyContent: 'space-between' }]}>
+      <View style={styles.setRowLeft}>
+        <Text style={[styles.setLabel, { color: theme.text }]}>{t('workoutSession.emom')}</Text>
+        <Text style={[styles.setValue, { color: theme.textSecondary }]}>
+          {totalMinutes} × {intervalSec}{t('workoutSession.sec')}
+        </Text>
+      </View>
+      <Pressable onPress={startPrep} style={[styles.holdStartBtn, { backgroundColor: Colors.accent + '18' }]}>
+        <Ionicons name="play" size={14} color={Colors.accent} />
+        <Text style={[styles.holdStartText, { color: Colors.accent }]}>{t('workoutSession.start')}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 // ── Combo set card (multiple movements per round, done back-to-back) ──────────
-function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReopen, onAddRound, onDelete, collapsed, onToggleCollapse, theme }: {
+function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReopen, onAddRound, onFinishEmom, onDelete, collapsed, onToggleCollapse, theme }: {
   combo: SessionExercise;
   onUpdateEntry: (roundIdx: number, compIdx: number, patch: Partial<SetConfig>) => void;
   onRoundDone: (roundIdx: number) => void;
   onRoundSkip: (roundIdx: number) => void;
   onRoundReopen: (roundIdx: number) => void;
   onAddRound: () => void;
+  onFinishEmom: (completedMinutes: number) => void;
   onDelete: () => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -875,6 +1077,8 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
   const { weightUnit } = useApp();
   const components = combo.components || [];
   const rounds = combo.rounds || [];
+  const isEmom = (combo.mode ?? 'circuit') === 'emom'; // no mode = circuit (backward compat)
+  const hasPending = rounds.some(r => r.status === 'pending' || r.status === 'in_progress');
 
   return (
     <View style={[styles.exCard, { backgroundColor: theme.card, borderWidth: 1, borderColor: Colors.accent + '30' }]}>
@@ -885,7 +1089,14 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
               <Ionicons name="git-merge-outline" size={11} color={Colors.accent} />
               <Text style={[styles.comboChipText, { color: Colors.accent }]}>{t('workoutSession.combo')}</Text>
             </View>
-            {combo.unbroken && (
+            {isEmom && (
+              <View style={[styles.comboChip, { backgroundColor: Colors.primary + '18' }]}>
+                <Text style={[styles.comboChipText, { color: Colors.primary }]}>
+                  {t('workoutSession.emom')} · {combo.intervalSeconds || 60}{t('workoutSession.sec')}
+                </Text>
+              </View>
+            )}
+            {!isEmom && combo.unbroken && (
               <View style={[styles.comboChip, { backgroundColor: Colors.primary + '18' }]}>
                 <Text style={[styles.comboChipText, { color: Colors.primary }]}>{t('workoutSession.unbroken')}</Text>
               </View>
@@ -936,6 +1147,8 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
             </Pressable>
           );
         }
+        // emom mode: pending cycles are driven by the interval timer below
+        if (isEmom) return null;
         // pending → editable component rows
         return (
           <View key={ri} style={[styles.comboRound, { backgroundColor: 'transparent' }]}>
@@ -1012,10 +1225,14 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
         );
       })}
 
-      <Pressable onPress={onAddRound} style={styles.comboAddRound}>
-        <Ionicons name="add" size={16} color={Colors.accent} />
-        <Text style={[styles.comboAddRoundText, { color: Colors.accent }]}>{t('workoutSession.addRound')}</Text>
-      </Pressable>
+      {isEmom ? (
+        hasPending && <ComboEmomBody combo={combo} onFinishEmom={onFinishEmom} theme={theme} />
+      ) : (
+        <Pressable onPress={onAddRound} style={styles.comboAddRound}>
+          <Ionicons name="add" size={16} color={Colors.accent} />
+          <Text style={[styles.comboAddRoundText, { color: Colors.accent }]}>{t('workoutSession.addRound')}</Text>
+        </Pressable>
+      )}
       </>
       )}
     </View>
@@ -1296,6 +1513,8 @@ export default function LiveWorkoutScreen() {
         sets: [],
         combo: true,
         unbroken: data.unbroken,
+        mode: data.mode ?? 'circuit',
+        intervalSeconds: data.intervalSeconds ?? 60,
         components: data.components.map(c => ({ exerciseId: c.exerciseId, name: c.name, muscleGroup: c.muscleGroup })),
         rounds: Array.from({ length: Math.max(1, data.rounds) }, () => ({
           status: 'pending' as const,
@@ -1303,6 +1522,24 @@ export default function LiveWorkoutScreen() {
         })),
       }],
     }));
+  }, [updateSession]);
+
+  // EMOM combo finished (fully or early): mark cycles that were started as done,
+  // the untouched rest as skipped — finish-expansion then logs them per component.
+  const finishComboEmom = useCallback((exIdx: number, completedMinutes: number) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    updateSession(s => {
+      const exercises = [...s.exercises];
+      const ex = { ...exercises[exIdx] };
+      const compLen = Math.max(1, (ex.components || []).length);
+      ex.rounds = (ex.rounds || []).map((r, ri) => {
+        if (r.status === 'done' || r.status === 'skipped') return r;
+        // cycle ri covers minutes [ri*compLen, (ri+1)*compLen)
+        return { ...r, status: (completedMinutes > ri * compLen ? 'done' : 'skipped') as 'done' | 'skipped' };
+      });
+      exercises[exIdx] = ex;
+      return { ...s, exercises };
+    });
   }, [updateSession]);
 
   const updateRoundEntry = useCallback((exIdx: number, roundIdx: number, compIdx: number, patch: Partial<SetConfig>) => {
@@ -1561,6 +1798,7 @@ export default function LiveWorkoutScreen() {
               onRoundSkip={(ri) => setRoundStatus(exIdx, ri, 'skipped')}
               onRoundReopen={(ri) => setRoundStatus(exIdx, ri, 'pending')}
               onAddRound={() => addRound(exIdx)}
+              onFinishEmom={(completedMinutes) => finishComboEmom(exIdx, completedMinutes)}
               onDelete={() => deleteExercise(exIdx)}
               collapsed={collapsed.has(ex.exerciseId + '-' + exIdx)}
               onToggleCollapse={() => toggleCollapse(ex.exerciseId + '-' + exIdx)}
@@ -1619,7 +1857,6 @@ export default function LiveWorkoutScreen() {
                       set={set}
                       setIndex={setIdx}
                       exerciseIndex={exIdx}
-                      exerciseName={ex.name}
                       onMarkDone={() => markSetDone(exIdx, setIdx)}
                       onSkip={() => skipSet(exIdx, setIdx)}
                       onUpdateActual={(actual) => updateSetActual(exIdx, setIdx, actual)}

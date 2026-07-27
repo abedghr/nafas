@@ -128,7 +128,6 @@ export const extraEn = {
     noExercisesFound: "No exercises found", category_all: "All", category_push: "Push", category_pull: "Pull", category_legs: "Legs", category_core: "Core", category_calisthenics: "Calisthenics",
     collapseAll: "Collapse all", expandAll: "Expand all", setsSummary: "{{n}} sets", comboSummary: "{{r}} rounds · {{m}} moves",
     perMinuteReps: "Customize each minute", applyMinute1ToAll: "Make all minutes the same",
-    perMinuteExercise: "Exercise per minute", sameExercise: "Same exercise",
   },
   programs: {
     title: "My Programs", newProgram: "New Program", weeksCount: "{{n}} weeks", restDay: "Rest", startDay: "Start",
@@ -154,6 +153,8 @@ export const extraEn = {
     emomConfig: "{{reps}} × {{intervals}} @ {{sec}}s", addNoteOptional: "Add a note (optional)", note: "Note", addSet: "Add Set", skipAllSets: "Skip All Sets", moveUp: "Move Up", moveDown: "Move Down",
     deleteExercise: "Delete Exercise", addExercise: "Add Exercise", searchExercises: "Search exercises...", all: "All",
     addCombo: "Add Combo", combo: "Combo", unbroken: "Unbroken", roundN: "Round {{n}}", addRound: "Add Round",
+    circuit: "Circuit", everyMinute: "Every minute", cycles: "Cycles", intervalSec: "Interval (sec)",
+    minuteX: "Minute {{n}}", nextUp: "Next: {{name}}",
     buildCombo: "Build a Combo Set", rounds: "Rounds", repsEach: "Reps each", pickTwoPlus: "Pick 2+ movements", createCombo: "Create combo ({{count}} movements)",
     removeExerciseConfirm: "Remove this exercise from the workout?", preWorkoutTaken: "Pre-workout taken", restWithName: "Rest - {{name}}",
     finishWorkoutQuestion: "Finish workout?", setsPending_one: "{{count}} set still pending", setsPending_other: "{{count}} sets still pending",
@@ -304,7 +305,6 @@ export const extraAr = {
     noExercisesFound: "لم يتم العثور على تمارين", category_all: "الكل", category_push: "دفع", category_pull: "سحب", category_legs: "أرجل", category_core: "الجذع", category_calisthenics: "تمارين وزن الجسم",
     collapseAll: "طيّ الكل", expandAll: "توسيع الكل", setsSummary: "{{n}} مجموعات", comboSummary: "{{r}} جولات · {{m}} حركات",
     perMinuteReps: "تخصيص كل دقيقة", applyMinute1ToAll: "اجعل كل الدقائق متطابقة",
-    perMinuteExercise: "تمرين لكل دقيقة", sameExercise: "نفس التمرين",
   },
   programs: {
     title: "برامجي", newProgram: "برنامج جديد", weeksCount: "{{n}} أسابيع", restDay: "راحة", startDay: "ابدأ",
@@ -330,6 +330,8 @@ export const extraAr = {
     emomConfig: "{{reps}} × {{intervals}} عند {{sec}} ث", addNoteOptional: "أضف ملاحظة (اختياري)", note: "ملاحظة", addSet: "إضافة مجموعة", skipAllSets: "تخطّي كل المجموعات", moveUp: "نقل لأعلى", moveDown: "نقل لأسفل",
     deleteExercise: "حذف التمرين", addExercise: "إضافة تمرين", searchExercises: "ابحث عن التمارين...", all: "الكل",
     addCombo: "إضافة كومبو", combo: "كومبو", unbroken: "بدون توقّف", roundN: "الجولة {{n}}", addRound: "إضافة جولة",
+    circuit: "سلسلة", everyMinute: "كل دقيقة", cycles: "جولات", intervalSec: "الفاصل (ث)",
+    minuteX: "الدقيقة {{n}}", nextUp: "التالي: {{name}}",
     buildCombo: "إنشاء مجموعة كومبو", rounds: "الجولات", repsEach: "تكرارات لكل حركة", pickTwoPlus: "اختر حركتين أو أكثر", createCombo: "إنشاء كومبو ({{count}} حركات)",
     removeExerciseConfirm: "هل تريد إزالة هذا التمرين من الجلسة؟", preWorkoutTaken: "تم تناول مكمّل ما قبل التمرين", restWithName: "راحة - {{name}}",
     finishWorkoutQuestion: "هل تريد إنهاء التمرين؟", setsPending_one: "مجموعة واحدة لا تزال متبقية", setsPending_other: "{{count}} مجموعة لا تزال متبقية",
