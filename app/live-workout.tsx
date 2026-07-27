@@ -1042,7 +1042,25 @@ function ComboEmomBody({ combo, onFinishEmom, theme }: {
     );
   }
 
-  // idle: summary + start
+  // idle: if every cycle is finished → done summary (tap to redo); else summary + start
+  const allDone = rounds.length > 0 && rounds.every(r => r.status === 'done' || r.status === 'skipped');
+  if (allDone) {
+    return (
+      <Pressable onPress={startPrep} style={[styles.setRow, { justifyContent: 'space-between', backgroundColor: Colors.primary + '10' }]}>
+        <View style={styles.setRowLeft}>
+          <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+          <Text style={[styles.setLabel, { color: theme.text }]}>{t('workoutSession.emom')}</Text>
+          <Text style={[styles.setValue, { color: theme.textSecondary }]}>{totalMinutes} × {intervalSec}{t('workoutSession.sec')}</Text>
+        </View>
+        <View style={styles.setRowRight}>
+          <View style={[styles.doneBadge, { backgroundColor: Colors.primary + '20' }]}>
+            <Text style={[styles.doneBadgeText, { color: Colors.primary }]}>{t('workoutSession.done')}</Text>
+          </View>
+          <Ionicons name="refresh" size={14} color={theme.textMuted} style={{ marginLeft: 2 }} />
+        </View>
+      </Pressable>
+    );
+  }
   return (
     <View style={[styles.setRow, { justifyContent: 'space-between' }]}>
       <View style={styles.setRowLeft}>
