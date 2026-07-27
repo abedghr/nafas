@@ -40,6 +40,7 @@ const TYPE_ICON: Record<string, string> = {
 // Map the app's local WorkoutLog → API LogCreate body.
 function logToApi(log: any) {
   return {
+    id: log.id, // let server honor the client id so delete/PR stay consistent (no id remap)
     name: log.name,
     date: log.date,
     durationMinutes: log.durationMinutes ?? 0,
@@ -428,7 +429,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
               // numeric columns come back as strings from pg — coerce so the
               // client's volume sums don't string-concatenate.
-              if (logs?.length) setWorkoutLogs(logs.map((l: any) => ({
+              // server is source of truth — set unconditionally (including []), so a
+              // cleared history actually clears locally instead of keeping stale logs.
+              if (Array.isArray(logs)) setWorkoutLogs(logs.map((l: any) => ({
                 ...l,
                 totalVolumeKg: Number(l.totalVolumeKg) || 0,
                 totalSets: Number(l.totalSets) || 0,

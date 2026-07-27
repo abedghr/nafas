@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ScrollView, Platform, Modal,
   Dimensions,
@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Crypto from 'expo-crypto';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
@@ -335,8 +335,11 @@ export default function CoachScreen() {
   const recentLogs = useMemo(() => workoutLogs.slice(0, 5), [workoutLogs]);
 
   // Personal records — server-derived from full history; refresh when logs change
+  // AND on focus (deletes are async; returning to this screen re-reads the server).
   const [prs, setPrs] = useState<{ name: string; weight: number; reps: number; date: string }[]>([]);
-  useEffect(() => { workoutApi.prs(5).then(setPrs).catch(() => {}); }, [workoutLogs.length]);
+  const refreshPrs = useCallback(() => { workoutApi.prs(5).then(setPrs).catch(() => {}); }, []);
+  useEffect(refreshPrs, [workoutLogs.length, refreshPrs]);
+  useFocusEffect(refreshPrs);
 
   const sessionElapsed = useMemo(() => {
     if (!activeSession) return '';

@@ -84,6 +84,7 @@ const LogExerciseSchema = z.object({
 
 export const LogCreateSchema = z
   .object({
+    id: z.string().uuid().optional(), // client-provided id; server honors it so delete/PR stay consistent
     templateId: z.string().uuid().optional(),
     name: z.string().min(1),
     workoutTypeId: z.string().uuid().optional(),

@@ -139,6 +139,7 @@ export const workoutService = {
   },
   async createLog(userId: string, data: LogCreate) {
     const [row] = await db.insert(workoutLogs).values({
+      ...(data.id ? { id: data.id } : {}),
       userId, templateId: data.templateId, name: data.name, workoutTypeId: data.workoutTypeId,
       date: new Date(data.date), durationMinutes: data.durationMinutes, preWorkout: data.preWorkout,
       totalVolumeKg: String(data.totalVolumeKg), totalSets: data.totalSets, completedSets: data.completedSets,
