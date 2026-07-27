@@ -15,6 +15,7 @@ import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
 import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult } from '@/components/ComboBuilderModal';
+import { exerciseIcon } from '@/lib/exercise-icon';
 import * as Crypto from 'expo-crypto';
 import type { SetConfig, ActiveSession, LogExercise, LogSetData } from '@/lib/app-context';
 
@@ -822,7 +823,7 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, them
                 style={({ pressed }) => [styles.exPickerItem, { backgroundColor: pressed ? theme.card : 'transparent' }]}
               >
                 <View style={[styles.exPickerIcon, { backgroundColor: Colors.primary + '15' }]}>
-                  <Ionicons name="barbell-outline" size={18} color={Colors.primary} />
+                  <Text style={{ fontSize: 18 }}>{exerciseIcon(ex.name, ex.muscleGroup)}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.exPickerName, { color: theme.text }]}>{ex.name}</Text>

@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { exerciseLibrary } from '@/src/features/workout/library-cache';
+import { exerciseIcon } from '@/lib/exercise-icon';
 import type { SetConfig } from '@/lib/app-context';
 
 export type ComboSetType = 'reps' | 'hold' | 'emom';
@@ -223,7 +224,7 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
               {filtered.map((ex, i) => (
                 <Pressable key={ex.id + i} onPress={() => addComponent(ex)} style={({ pressed }) => [s.exPickerItem, { backgroundColor: pressed ? theme.card : 'transparent' }]}>
                   <View style={[s.exPickerIcon, { backgroundColor: Colors.primary + '15' }]}>
-                    <Ionicons name="barbell-outline" size={18} color={Colors.primary} />
+                    <Text style={{ fontSize: 18 }}>{exerciseIcon(ex.name, ex.muscleGroup)}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[s.exPickerName, { color: theme.text }]}>{ex.name}</Text>

@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { useApp, WorkoutLog, LogExercise } from '@/lib/app-context';
 import { confirmDialog, alertDialog } from '@/lib/dialog';
 import { groupByCombo } from '@/lib/combo-group';
+import { exerciseIcon } from '@/lib/exercise-icon';
 import Colors from '@/constants/colors';
 
 function formatDuration(minutes: number): string {
@@ -215,7 +216,7 @@ export default function WorkoutDetailScreen() {
             <View key={exIdx} style={[styles.exerciseCard, { backgroundColor: theme.card }]}>
               <View style={styles.exerciseHeader}>
                 <View style={styles.exerciseNameRow}>
-                  <Ionicons name="barbell-outline" size={18} color={Colors.primary} />
+                  <Text style={{ fontSize: 16 }}>{exerciseIcon(exercise.name, exercise.muscleGroup)}</Text>
                   <Text style={[styles.exerciseName, { color: theme.text }]}>{exercise.name}</Text>
                 </View>
                 <View style={[styles.muscleSmallTag, { backgroundColor: Colors.primary + '15' }]}>

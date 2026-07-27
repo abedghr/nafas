@@ -17,6 +17,7 @@ import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
 import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult, type ComboSetType } from '@/components/ComboBuilderModal';
+import { exerciseIcon } from '@/lib/exercise-icon';
 import type { SetConfig, TemplateExercise, WorkoutType, WorkoutTemplate } from '@/lib/app-context';
 import { WORKOUT_TYPES, templateSig } from '@/lib/app-context';
 
@@ -775,7 +776,7 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
                 ]}
               >
                 <View style={[s.exPickerIcon, { backgroundColor: Colors.primary + '15' }]}>
-                  <Ionicons name="barbell-outline" size={18} color={Colors.primary} />
+                  <Text style={{ fontSize: 18 }}>{exerciseIcon(ex.name, ex.muscleGroup)}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
