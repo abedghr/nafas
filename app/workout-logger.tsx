@@ -135,7 +135,8 @@ function ExerciseCard({ exercise, onAddSet, onRemove, onUpdateSet, onToggleSet, 
             <Text style={[styles.tableHeaderText, { color: theme.textMuted }]}>{t('workoutPrep.reps')}</Text>
           </View>
           <View style={styles.inputCell}>
-            <Text style={[styles.tableHeaderText, { color: theme.textMuted }]}>{t('workoutPrep.weightKg')}</Text>
+            {/* legacy logger stores raw kg — label stays kg until this screen adopts unit conversion */}
+            <Text style={[styles.tableHeaderText, { color: theme.textMuted }]}>{t('workoutPrep.weightKg', { unit: 'kg' })}</Text>
           </View>
           <View style={styles.checkCell}>
             <Ionicons name="checkmark" size={14} color={theme.textMuted} />

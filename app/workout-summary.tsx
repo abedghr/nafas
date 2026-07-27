@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useApp, WorkoutLog, LogExercise, templateSig } from '@/lib/app-context';
+import { toDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
 import Colors from '@/constants/colors';
 
 function formatDuration(minutes: number): string {
@@ -34,9 +35,10 @@ function formatTime(timeStr: string): string {
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
-function formatVolume(kg: number): string {
-  if (kg >= 1000) return kg.toLocaleString('en-US') + ' kg';
-  return kg + ' kg';
+function formatVolume(kg: number, unit: WeightUnit): string {
+  const v = toDisplayWeight(kg, unit);
+  if (v >= 1000) return v.toLocaleString('en-US') + ' ' + unitLabel(unit);
+  return v + ' ' + unitLabel(unit);
 }
 
 function getExerciseBestSet(exercise: LogExercise): { weight: number; reps: number } | null {
@@ -54,7 +56,7 @@ function getExerciseBestSet(exercise: LogExercise): { weight: number; reps: numb
 export default function WorkoutSummaryScreen() {
   const { t } = useTranslation();
   const { logId, newPrs: newPrsParam } = useLocalSearchParams<{ logId: string; newPrs?: string }>();
-  const { workoutLogs, workoutTemplates, addWorkoutTemplate, user, isDark } = useApp();
+  const { workoutLogs, workoutTemplates, addWorkoutTemplate, user, isDark, weightUnit } = useApp();
 
   // new PRs detected at finish time (passed by live-workout)
   const newPrs = useMemo<{ name: string; weight: number; reps: number; prev: number }[]>(() => {
@@ -97,15 +99,15 @@ export default function WorkoutSummaryScreen() {
       const weightDiff = todayBest && prevBest ? todayBest.weight - prevBest.weight : null;
       return {
         name: ex.name,
-        today: todayBest ? `${todayBest.weight} kg x ${todayBest.reps}` : '-',
-        lastTime: prevBest ? `${prevBest.weight} kg x ${prevBest.reps}` : '-',
+        today: todayBest ? `${toDisplayWeight(todayBest.weight, weightUnit)} ${unitLabel(weightUnit)} x ${todayBest.reps}` : '-',
+        lastTime: prevBest ? `${toDisplayWeight(prevBest.weight, weightUnit)} ${unitLabel(weightUnit)} x ${prevBest.reps}` : '-',
         change: weightDiff !== null ? weightDiff : null,
         comboId: ex.comboId,
         comboLabel: ex.comboLabel,
         comboUnbroken: ex.comboUnbroken,
       };
     });
-  }, [currentLog, previousLog]);
+  }, [currentLog, previousLog, weightUnit]);
 
   // the exercise shape a template would store from this log
   const templateExercises = useMemo(
@@ -172,7 +174,7 @@ export default function WorkoutSummaryScreen() {
     { label: t('workoutSession.totalSets'), value: String(currentLog.totalSets), icon: 'layers-outline' as const },
     { label: t('workoutSession.completed'), value: `${currentLog.completedSets}${currentLog.skippedSets > 0 ? ` (${t('workoutSession.nSkipped', { n: currentLog.skippedSets })})` : ''}`, icon: 'checkmark-circle-outline' as const },
     { label: t('workoutSession.totalReps'), value: String(currentLog.totalReps), icon: 'repeat-outline' as const },
-    { label: t('workoutSession.volume'), value: formatVolume(currentLog.totalVolumeKg), icon: 'trending-up-outline' as const },
+    { label: t('workoutSession.volume'), value: formatVolume(currentLog.totalVolumeKg, weightUnit), icon: 'trending-up-outline' as const },
   ];
 
   return (
@@ -222,9 +224,9 @@ export default function WorkoutSummaryScreen() {
                 <View key={pr.name} style={styles.prCelebRow}>
                   <Ionicons name="trophy" size={14} color="#FFD700" />
                   <Text style={[styles.prCelebName, { color: theme.text }]} numberOfLines={1}>{pr.name}</Text>
-                  <Text style={[styles.prCelebWeight, { color: '#FFD700' }]}>{pr.weight} {t('workoutSession.kg')}</Text>
+                  <Text style={[styles.prCelebWeight, { color: '#FFD700' }]}>{toDisplayWeight(pr.weight, weightUnit)} {unitLabel(weightUnit)}</Text>
                   {pr.prev > 0 && (
-                    <Text style={[styles.prCelebPrev, { color: theme.textMuted }]}>{t('workoutSession.prevBest', { weight: pr.prev })}</Text>
+                    <Text style={[styles.prCelebPrev, { color: theme.textMuted }]}>{t('workoutSession.prevBest', { weight: toDisplayWeight(pr.prev, weightUnit), unit: unitLabel(weightUnit) })}</Text>
                   )}
                 </View>
               ))}
@@ -267,9 +269,9 @@ export default function WorkoutSummaryScreen() {
                 <View style={styles.comparisonRows}>
                   <ComparisonRow
                     label={t('workoutSession.volume')}
-                    current={formatVolume(currentLog.totalVolumeKg)}
-                    diff={comparison!.volumeDiff}
-                    suffix=" kg"
+                    current={formatVolume(currentLog.totalVolumeKg, weightUnit)}
+                    diff={toDisplayWeight(comparison!.volumeDiff, weightUnit)}
+                    suffix={` ${unitLabel(weightUnit)}`}
                     pct={comparison!.volumePct}
                     theme={theme}
                   />
@@ -325,7 +327,7 @@ export default function WorkoutSummaryScreen() {
                       <Text style={[styles.tableCell, styles.changeCol, {
                         color: row.change === null ? theme.textMuted : row.change > 0 ? '#4ADE80' : row.change < 0 ? '#F87171' : theme.textMuted
                       }]}>
-                        {row.change === null ? '-' : row.change > 0 ? `+${row.change} kg` : `${row.change} kg`}
+                        {row.change === null ? '-' : row.change > 0 ? `+${toDisplayWeight(row.change, weightUnit)} ${unitLabel(weightUnit)}` : `${toDisplayWeight(row.change, weightUnit)} ${unitLabel(weightUnit)}`}
                       </Text>
                     </View>
                     </React.Fragment>

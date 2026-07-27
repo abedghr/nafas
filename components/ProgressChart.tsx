@@ -6,9 +6,11 @@ import Colors from '@/constants/colors';
 // Minimal dependency-free line chart (react-native-svg) — weight over sessions.
 // ponytail: fixed-height, first/last x-labels only; upgrade to a charting lib if
 // interactivity (scrub/zoom) is ever needed.
-export default function ProgressChart({ points, theme }: {
+export default function ProgressChart({ points, theme, toDisplay }: {
   points: { date: string; weight: number }[];
   theme: typeof Colors.dark;
+  // optional kg → display-unit converter for the numeric labels; point math stays in kg
+  toDisplay?: (kg: number) => number;
 }) {
   const { width: winW } = useWindowDimensions();
   const W = Math.min(winW, 500) - 40 - 32; // screen padding + card padding
@@ -38,7 +40,7 @@ export default function ProgressChart({ points, theme }: {
         {gridWs.map((w, i) => (
           <React.Fragment key={i}>
             <Line x1={PAD.left} y1={y(w)} x2={W - PAD.right} y2={y(w)} stroke={theme.border} strokeWidth={1} strokeDasharray="3 5" />
-            <SvgText x={PAD.left - 6} y={y(w) + 3.5} fill={theme.textMuted} fontSize={10} textAnchor="end">{Math.round(w)}</SvgText>
+            <SvgText x={PAD.left - 6} y={y(w) + 3.5} fill={theme.textMuted} fontSize={10} textAnchor="end">{Math.round(toDisplay ? toDisplay(w) : w)}</SvgText>
           </React.Fragment>
         ))}
         {points.length > 1 && <Polygon points={fill} fill={Colors.primary} opacity={0.08} />}

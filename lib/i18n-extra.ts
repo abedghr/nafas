@@ -1,6 +1,9 @@
 // Translation namespaces for screens localized in a batch (auth, workout tab,
 // workout prep, workout session/history). Spread into i18n.ts resources.
 export const extraEn = {
+  profilex: {
+    weightUnit: "Weight Unit",
+  },
   mealTypeTag: {
     breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack",
     drink: "Drink", dessert: "Dessert", pre_workout: "Pre-Workout", post_workout: "Post-Workout",
@@ -49,7 +52,7 @@ export const extraEn = {
     noProgressYet: "No sessions with weight for this exercise yet",
     prLabel: "PR", progressLabel: "Progress", sessionsLabel: "Sessions",
     weightOverTime: "Best set weight over time", sessionHistory: "Session History",
-    today: "Today", yesterday: "Yesterday", exercisesCount: "{{n}} exercises", minutesShort: "{{n}} min", volumeK: "{{n}}K kg",
+    today: "Today", yesterday: "Yesterday", exercisesCount: "{{n}} exercises", minutesShort: "{{n}} min", volumeK: "{{n}}K {{unit}}",
     smartInsights: "Smart Insights", aiAnalyzedFrom: "AI-analyzed from your {{n}} workouts", performanceSummary: "Performance Summary",
     perfTotalWorkouts: "Total Workouts", perfTotalVolume: "Total Volume", perfBestStreak: "Best Streak", perfAvgDuration: "Avg Duration",
     daysValue: "{{n}} days", thisWeekActivity: "This Week Activity", weekdayMon: "Mon", weekdayTue: "Tue", weekdayWed: "Wed", weekdayThu: "Thu",
@@ -104,9 +107,9 @@ export const extraEn = {
     workoutNameRequired: "Workout Name *", workoutNamePlaceholder: "e.g. Morning Push, Heavy Legs", noExercisesYet: "No exercises yet",
     addExercisesHint: "Add exercises below or load from a saved workout", addExercise: "Add Exercise", preWorkoutTaken: "Pre-workout taken?", pickTypeFirst: "Pick a training type", pickTypeHint: "Choose what you're training above, then add exercises",
     save: "Save Template", saved: "Saved", startWorkout: "Start Workout", addSet: "Add Set", removeExercise: "Remove Exercise", restBetweenSets: "Rest between sets:",
-    setN: "Set {{n}}", reps: "Reps", weightKg: "Weight (kg)", durationSec: "Duration (sec)", repsPerInterval: "Reps / Interval", totalIntervals: "Total Intervals",
-    weightKgOptional: "Weight (kg) — optional", bodyweightPlaceholder: "0 (bodyweight)", intervalDuration: "Interval Duration",
-    emomSummary: "{{reps}} reps every {{s}}s for {{n}} intervals", emomSummaryWithWeight: "{{reps}} reps every {{s}}s for {{n}} intervals @ {{w}}kg",
+    setN: "Set {{n}}", reps: "Reps", weightKg: "Weight ({{unit}})", durationSec: "Duration (sec)", repsPerInterval: "Reps / Interval", totalIntervals: "Total Intervals",
+    weightKgOptional: "Weight ({{unit}}) — optional", bodyweightPlaceholder: "0 (bodyweight)", intervalDuration: "Interval Duration",
+    emomSummary: "{{reps}} reps every {{s}}s for {{n}} intervals", emomSummaryWithWeight: "{{reps}} reps every {{s}}s for {{n}} intervals @ {{w}}{{unit}}",
     noteOptional: "Note (optional)", notePlaceholder: "e.g. tempo, RPE, form cue", searchExercises: "Search exercises...", all: "All", customBadge: "Custom",
     createCustomExercise: "Create Custom Exercise", requiredTitle: "Required", enterExerciseName: "Please enter an exercise name.",
     exerciseNameRequired: "Exercise Name *", exerciseNamePlaceholder: "e.g. Bulgarian Split Squat", muscleGroup: "Muscle Group", defaultSetType: "Default Set Type",
@@ -127,8 +130,8 @@ export const extraEn = {
   },
   workoutSession: {
     setOptions: "Set Options", skipSet: "Skip Set", skipSetConfirm: "Skip set {{n}}? It won't count toward your workout.", cancel: "Cancel", delete: "Delete", setN: "Set {{n}}", reps: "reps", kg: "kg",
-    lastTimeHint: "Last: {{weight}} kg × {{reps}} · {{date}}",
-    newPr: "New Personal Record!", newPrs: "{{count}} New Personal Records!", prevBest: "prev {{weight}} kg",
+    lastTimeHint: "Last: {{weight}} {{unit}} × {{reps}} · {{date}}",
+    newPr: "New Personal Record!", newPrs: "{{count}} New Personal Records!", prevBest: "prev {{weight}} {{unit}}",
     repsValue: "{{n}} reps", kgValue: "{{n}} kg", secondsValue: "{{n}}s", done: "DONE", getReady: "GET READY", holdStartsIn: "Hold starts in {{n}}s",
     hold: "Hold", doneEarly: "Done Early", start: "Start", emom: "EMOM", sec: "sec", emomPrepSubtitle: "{{reps}} reps every {{sec}}s × {{intervals}}",
     intervalProgress: "Interval {{current}}/{{total}}", intervalsCompleted: "{{completed}}/{{total}} completed", skip: "Skip", finish: "Finish",
@@ -158,6 +161,9 @@ export const extraEn = {
 };
 
 export const extraAr = {
+  profilex: {
+    weightUnit: "وحدة الوزن",
+  },
   mealTypeTag: {
     breakfast: "فطور", lunch: "غداء", dinner: "عشاء", snack: "وجبة خفيفة",
     drink: "مشروب", dessert: "حلويات", pre_workout: "قبل التمرين", post_workout: "بعد التمرين",
@@ -206,7 +212,7 @@ export const extraAr = {
     noProgressYet: "لا توجد جلسات بأوزان لهذا التمرين بعد",
     prLabel: "الرقم القياسي", progressLabel: "التقدم", sessionsLabel: "الجلسات",
     weightOverTime: "وزن أفضل مجموعة عبر الزمن", sessionHistory: "سجل الجلسات",
-    today: "اليوم", yesterday: "الأمس", exercisesCount: "{{n}} تمارين", minutesShort: "{{n}} دقيقة", volumeK: "{{n}} ألف كغ",
+    today: "اليوم", yesterday: "الأمس", exercisesCount: "{{n}} تمارين", minutesShort: "{{n}} دقيقة", volumeK: "{{n}} ألف {{unit}}",
     smartInsights: "تحليلات ذكية", aiAnalyzedFrom: "تحليل بالذكاء الاصطناعي من {{n}} من تمارينك", performanceSummary: "ملخص الأداء",
     perfTotalWorkouts: "إجمالي التمارين", perfTotalVolume: "إجمالي الحجم", perfBestStreak: "أفضل سلسلة", perfAvgDuration: "متوسط المدة",
     daysValue: "{{n}} أيام", thisWeekActivity: "نشاط هذا الأسبوع", weekdayMon: "الإثنين", weekdayTue: "الثلاثاء", weekdayWed: "الأربعاء", weekdayThu: "الخميس",
@@ -261,9 +267,9 @@ export const extraAr = {
     workoutNameRequired: "اسم التمرين *", workoutNamePlaceholder: "مثال: دفع الصباح، أرجل ثقيلة", noExercisesYet: "لا توجد تمارين بعد",
     addExercisesHint: "أضف تمارين بالأسفل أو حمّل من تمرين محفوظ", addExercise: "إضافة تمرين", preWorkoutTaken: "هل تناولت المنشّط قبل التمرين؟", pickTypeFirst: "اختر نوع التمرين", pickTypeHint: "اختر ما تتدرّب عليه بالأعلى ثم أضف التمارين",
     save: "حفظ القالب", saved: "تم الحفظ", startWorkout: "ابدأ التمرين", addSet: "إضافة مجموعة", removeExercise: "إزالة التمرين", restBetweenSets: "الراحة بين المجموعات:",
-    setN: "المجموعة {{n}}", reps: "التكرارات", weightKg: "الوزن (كجم)", durationSec: "المدة (ثانية)", repsPerInterval: "تكرارات / فترة", totalIntervals: "إجمالي الفترات",
-    weightKgOptional: "الوزن (كجم) — اختياري", bodyweightPlaceholder: "0 (وزن الجسم)", intervalDuration: "مدة الفترة",
-    emomSummary: "{{reps}} تكرار كل {{s}} ثانية لمدة {{n}} فترات", emomSummaryWithWeight: "{{reps}} تكرار كل {{s}} ثانية لمدة {{n}} فترات بوزن {{w}} كجم",
+    setN: "المجموعة {{n}}", reps: "التكرارات", weightKg: "الوزن ({{unit}})", durationSec: "المدة (ثانية)", repsPerInterval: "تكرارات / فترة", totalIntervals: "إجمالي الفترات",
+    weightKgOptional: "الوزن ({{unit}}) — اختياري", bodyweightPlaceholder: "0 (وزن الجسم)", intervalDuration: "مدة الفترة",
+    emomSummary: "{{reps}} تكرار كل {{s}} ثانية لمدة {{n}} فترات", emomSummaryWithWeight: "{{reps}} تكرار كل {{s}} ثانية لمدة {{n}} فترات بوزن {{w}} {{unit}}",
     noteOptional: "ملاحظة (اختياري)", notePlaceholder: "مثال: الإيقاع، معدّل الجهد المُدرَك، تنبيه على الأداء", searchExercises: "ابحث عن التمارين...", all: "الكل", customBadge: "مخصّص",
     createCustomExercise: "إنشاء تمرين مخصّص", requiredTitle: "مطلوب", enterExerciseName: "يرجى إدخال اسم التمرين.",
     exerciseNameRequired: "اسم التمرين *", exerciseNamePlaceholder: "مثال: سكوات بلغاري بقدم واحدة", muscleGroup: "المجموعة العضلية", defaultSetType: "نوع المجموعة الافتراضي",
@@ -284,8 +290,8 @@ export const extraAr = {
   },
   workoutSession: {
     setOptions: "خيارات المجموعة", skipSet: "تخطّي المجموعة", skipSetConfirm: "تخطّي المجموعة {{n}}؟ لن تُحتسب ضمن تمرينك.", cancel: "إلغاء", delete: "حذف", setN: "المجموعة {{n}}", reps: "تكرارات", kg: "كغ",
-    lastTimeHint: "آخر مرة: {{weight}} كغ × {{reps}} · {{date}}",
-    newPr: "رقم قياسي جديد!", newPrs: "{{count}} أرقام قياسية جديدة!", prevBest: "السابق {{weight}} كغ",
+    lastTimeHint: "آخر مرة: {{weight}} {{unit}} × {{reps}} · {{date}}",
+    newPr: "رقم قياسي جديد!", newPrs: "{{count}} أرقام قياسية جديدة!", prevBest: "السابق {{weight}} {{unit}}",
     repsValue: "{{n}} تكرار", kgValue: "{{n}} كغ", secondsValue: "{{n}} ث", done: "تم", getReady: "استعد", holdStartsIn: "يبدأ الثبات خلال {{n}} ث",
     hold: "ثبات", doneEarly: "إنهاء مبكر", start: "ابدأ", emom: "EMOM", sec: "ث", emomPrepSubtitle: "{{reps}} تكرار كل {{sec}} ث × {{intervals}}",
     intervalProgress: "الفترة {{current}}/{{total}}", intervalsCompleted: "{{completed}}/{{total}} مكتملة", skip: "تخطّي", finish: "إنهاء",

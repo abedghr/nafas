@@ -12,6 +12,7 @@ import { tokens } from '@/src/lib/auth-tokens';
 import { workoutApi, mapExercise, MUSCLE_GROUPS as WORKOUT_MUSCLE_GROUPS } from '@/src/features/workout/api';
 import { setWorkoutLibrary } from '@/src/features/workout/library-cache';
 import { nutritionApi, todayLocal } from '@/src/features/nutrition/api';
+import type { WeightUnit } from './units';
 
 // App-wide layout direction for the language (web uses document.dir; native uses I18nManager).
 function applyDirection(lang: string) {
@@ -302,6 +303,8 @@ interface AppContextValue {
   setLanguage: (lang: string) => void;
   isDark: boolean;
   toggleTheme: () => void;
+  weightUnit: WeightUnit;
+  setWeightUnit: (u: WeightUnit) => void;
   likedPosts: Set<string>;
   toggleLike: (postId: string) => void;
   streak: number;
@@ -340,6 +343,7 @@ const STORAGE_KEYS = {
   LOGS: 'nafas_logs',
   CUSTOM_EX: 'nafas_custom_exercises',
   ACTIVE_SESSION: 'nafas_active_session',
+  WEIGHT_UNIT: 'nafas_weight_unit',
 };
 
 function getDefaultTargets(weight: number, goal: string) {
@@ -369,6 +373,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
   const [language, setLangState] = useState('en');
   const [isDark, setIsDark] = useState(true);
+  const [weightUnit, setWeightUnitState] = useState<WeightUnit>('kg');
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set(['p2', 'p5']));
   const [inBodyTests, setInBodyTests] = useState<InBodyTest[]>([]);
   const [workoutTemplates, setWorkoutTemplates] = useState<WorkoutTemplate[]>([]);
@@ -405,6 +410,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           AsyncStorage.getItem(STORAGE_KEYS.CUSTOM_EX),
           AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION),
         ]);
+        AsyncStorage.getItem(STORAGE_KEYS.WEIGHT_UNIT).then(u => { if (u === 'lb' || u === 'kg') setWeightUnitState(u); });
         if (savedUser) setUserState(JSON.parse(savedUser));
         if (savedOnboarding === 'true') setOnboardingState(true);
         if (savedWorkouts) setWorkouts(JSON.parse(savedWorkouts));
@@ -553,6 +559,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       AsyncStorage.setItem(STORAGE_KEYS.THEME, next ? 'dark' : 'light');
       return next;
     });
+  }, []);
+
+  const setWeightUnit = useCallback((u: WeightUnit) => {
+    setWeightUnitState(u);
+    AsyncStorage.setItem(STORAGE_KEYS.WEIGHT_UNIT, u);
   }, []);
 
   const toggleLike = useCallback((postId: string) => {
@@ -724,7 +735,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({
     user, setUser, onboardingComplete, setOnboardingComplete,
     workouts, addWorkout, todayNutrition, foodNames, addMealItem, removeMealItem, setNutritionTargets,
-    language, setLanguage, isDark, toggleTheme,
+    language, setLanguage, isDark, toggleTheme, weightUnit, setWeightUnit,
     likedPosts, toggleLike, streak, weeklyWorkouts,
     inBodyTests, addInBodyTest,
     workoutTemplates, addWorkoutTemplate, deleteWorkoutTemplate,
@@ -733,7 +744,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     exerciseLibrary, workoutTypes: workoutTypesData, muscleGroups: WORKOUT_MUSCLE_GROUPS,
     activeSession, setActiveSession,
     logout, deleteAccount,
-  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, addWorkoutTemplate, deleteWorkoutTemplate, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
+  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, weightUnit, setWeightUnit, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, addWorkoutTemplate, deleteWorkoutTemplate, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
 
   if (!loaded) return null;
 

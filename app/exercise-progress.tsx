@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
+import { toDisplayWeight, unitLabel } from '@/lib/units';
 import Colors from '@/constants/colors';
 import ProgressChart from '@/components/ProgressChart';
 import { workoutApi } from '@/src/features/workout/api';
@@ -14,7 +15,7 @@ type Point = { date: string; weight: number; reps: number; volume: number };
 export default function ExerciseProgressScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { isDark } = useApp();
+  const { isDark, weightUnit } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const { name } = useLocalSearchParams<{ name: string }>();
   const [points, setPoints] = useState<Point[]>([]);
@@ -56,12 +57,12 @@ export default function ExerciseProgressScreen() {
           <View style={s.statsRow}>
             <View style={[s.statCard, { backgroundColor: theme.card }]}>
               <Ionicons name="trophy" size={16} color="#FFD700" />
-              <Text style={[s.statVal, { color: theme.text }]}>{pr} {t('workoutSession.kg')}</Text>
+              <Text style={[s.statVal, { color: theme.text }]}>{toDisplayWeight(pr, weightUnit)} {unitLabel(weightUnit)}</Text>
               <Text style={[s.statLbl, { color: theme.textMuted }]}>{t('workoutTab.prLabel')}</Text>
             </View>
             <View style={[s.statCard, { backgroundColor: theme.card }]}>
               <Ionicons name="trending-up" size={16} color={gain >= 0 ? Colors.primary : Colors.accent} />
-              <Text style={[s.statVal, { color: gain >= 0 ? Colors.primary : Colors.accent }]}>{gain >= 0 ? '+' : ''}{gain} {t('workoutSession.kg')}</Text>
+              <Text style={[s.statVal, { color: gain >= 0 ? Colors.primary : Colors.accent }]}>{gain >= 0 ? '+' : ''}{toDisplayWeight(gain, weightUnit)} {unitLabel(weightUnit)}</Text>
               <Text style={[s.statLbl, { color: theme.textMuted }]}>{t('workoutTab.progressLabel')}</Text>
             </View>
             <View style={[s.statCard, { backgroundColor: theme.card }]}>
@@ -74,7 +75,7 @@ export default function ExerciseProgressScreen() {
           {/* chart */}
           <View style={[s.chartCard, { backgroundColor: theme.card }]}>
             <Text style={[s.chartTitle, { color: theme.textSecondary }]}>{t('workoutTab.weightOverTime')}</Text>
-            <ProgressChart points={points} theme={theme} />
+            <ProgressChart points={points} theme={theme} toDisplay={(kg) => toDisplayWeight(kg, weightUnit)} />
           </View>
 
           {/* history */}
@@ -84,10 +85,10 @@ export default function ExerciseProgressScreen() {
               <View key={i} style={[s.histRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={[s.histDate, { color: theme.text }]}>{fmt(p.date)}</Text>
-                  <Text style={[s.histVol, { color: theme.textMuted }]}>{t('workoutSession.volume')}: {Math.round(p.volume)} {t('workoutSession.kg')}</Text>
+                  <Text style={[s.histVol, { color: theme.textMuted }]}>{t('workoutSession.volume')}: {Math.round(toDisplayWeight(p.volume, weightUnit))} {unitLabel(weightUnit)}</Text>
                 </View>
                 <Text style={[s.histBest, { color: p.weight === pr ? '#FFD700' : theme.textSecondary }]}>
-                  {p.weight} {t('workoutSession.kg')} × {p.reps}{p.weight === pr ? ' 🏆' : ''}
+                  {toDisplayWeight(p.weight, weightUnit)} {unitLabel(weightUnit)} × {p.reps}{p.weight === pr ? ' 🏆' : ''}
                 </Text>
               </View>
             ))}

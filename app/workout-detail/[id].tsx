@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useApp, WorkoutLog, LogExercise } from '@/lib/app-context';
+import { toDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
 import { confirmDialog, alertDialog } from '@/lib/dialog';
 import { groupByCombo } from '@/lib/combo-group';
 import { exerciseIcon } from '@/lib/exercise-icon';
@@ -37,9 +38,10 @@ function formatTime(timeStr: string): string {
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
-function formatVolume(kg: number): string {
-  if (kg >= 1000) return kg.toLocaleString('en-US') + ' kg';
-  return kg + ' kg';
+function formatVolume(kg: number, unit: WeightUnit): string {
+  const v = toDisplayWeight(kg, unit);
+  if (v >= 1000) return v.toLocaleString('en-US') + ' ' + unitLabel(unit);
+  return v + ' ' + unitLabel(unit);
 }
 
 function getExerciseBestSet(exercise: LogExercise): { weight: number; reps: number } | null {
@@ -57,7 +59,7 @@ function getExerciseBestSet(exercise: LogExercise): { weight: number; reps: numb
 export default function WorkoutDetailScreen() {
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { workoutLogs, deleteWorkoutLog, addWorkoutTemplate, user, isDark } = useApp();
+  const { workoutLogs, deleteWorkoutLog, addWorkoutTemplate, user, isDark, weightUnit } = useApp();
   const insets = useSafeAreaInsets();
   const theme = isDark ? Colors.dark : Colors.light;
   const topPadding = Platform.OS === 'web' ? 67 : insets.top;
@@ -95,12 +97,12 @@ export default function WorkoutDetailScreen() {
       const weightDiff = todayBest && prevBest ? todayBest.weight - prevBest.weight : null;
       return {
         name: ex.name,
-        today: todayBest ? `${todayBest.weight}kg x ${todayBest.reps}` : '-',
-        lastTime: prevBest ? `${prevBest.weight}kg x ${prevBest.reps}` : '-',
+        today: todayBest ? `${toDisplayWeight(todayBest.weight, weightUnit)}${unitLabel(weightUnit)} x ${todayBest.reps}` : '-',
+        lastTime: prevBest ? `${toDisplayWeight(prevBest.weight, weightUnit)}${unitLabel(weightUnit)} x ${prevBest.reps}` : '-',
         change: weightDiff,
       };
     });
-  }, [currentLog, previousLog]);
+  }, [currentLog, previousLog, weightUnit]);
 
   const handleUseAsTemplate = useCallback(() => {
     if (!currentLog || !user) return;
@@ -152,7 +154,7 @@ export default function WorkoutDetailScreen() {
 
   const stats = [
     { label: t('workoutSession.duration'), value: formatDuration(currentLog.durationMinutes), icon: 'time-outline' as const },
-    { label: t('workoutSession.volume'), value: formatVolume(currentLog.totalVolumeKg), icon: 'trending-up-outline' as const },
+    { label: t('workoutSession.volume'), value: formatVolume(currentLog.totalVolumeKg, weightUnit), icon: 'trending-up-outline' as const },
     { label: t('workoutSession.sets'), value: `${currentLog.completedSets}/${currentLog.totalSets}`, icon: 'layers-outline' as const },
     { label: t('workoutSession.reps'), value: String(currentLog.totalReps), icon: 'repeat-outline' as const },
   ];
@@ -233,9 +235,10 @@ export default function WorkoutDetailScreen() {
 
               {exercise.sets.map((set, setIdx) => {
                 const getSetStr = (s: any) => {
-                  if (s?.durationSeconds) return `${s.durationSeconds}s${s?.weight ? ` · ${s.weight}kg` : ''}`;
-                  if (s?.weight && s?.reps) return `${s.weight}kg x ${s.reps}`;
-                  if (s?.repsPerInterval && s?.totalIntervals) return `${s.repsPerInterval}×${s.totalIntervals}${s?.weight ? ` · ${s.weight}kg` : ''}`;
+                  const wStr = s?.weight ? `${toDisplayWeight(s.weight, weightUnit)}${unitLabel(weightUnit)}` : '';
+                  if (s?.durationSeconds) return `${s.durationSeconds}s${wStr ? ` · ${wStr}` : ''}`;
+                  if (s?.weight && s?.reps) return `${wStr} x ${s.reps}`;
+                  if (s?.repsPerInterval && s?.totalIntervals) return `${s.repsPerInterval}×${s.totalIntervals}${wStr ? ` · ${wStr}` : ''}`;
                   if (s?.reps) return `${s.reps} reps`;
                   return '-';
                 };
@@ -328,7 +331,7 @@ export default function WorkoutDetailScreen() {
                 {t('workoutSession.vsDate', { date: formatDate(previousLog.date) })}
               </Text>
               <View style={styles.compRows}>
-                <CompRow label={t('workoutSession.volume')} diff={comparison.volumeDiff} suffix=" kg" pct={comparison.volumePct} theme={theme} />
+                <CompRow label={t('workoutSession.volume')} diff={toDisplayWeight(comparison.volumeDiff, weightUnit)} suffix={` ${unitLabel(weightUnit)}`} pct={comparison.volumePct} theme={theme} />
                 <CompRow label={t('workoutSession.duration')} diff={comparison.durationDiff} suffix=" min" invertColor theme={theme} />
                 <CompRow label={t('workoutSession.sets')} diff={comparison.setsDiff} suffix="" theme={theme} />
                 <CompRow label={t('workoutSession.reps')} diff={comparison.repsDiff} suffix="" theme={theme} />
@@ -352,7 +355,7 @@ export default function WorkoutDetailScreen() {
                     <Text style={[styles.compTableCell, styles.chgCol, {
                       color: row.change === null ? theme.textMuted : row.change > 0 ? '#4ADE80' : row.change < 0 ? '#F87171' : theme.textMuted,
                     }]}>
-                      {row.change === null ? '-' : row.change > 0 ? `+${row.change}` : `${row.change}`}
+                      {row.change === null ? '-' : row.change > 0 ? `+${toDisplayWeight(row.change, weightUnit)}` : `${toDisplayWeight(row.change, weightUnit)}`}
                     </Text>
                   </View>
                 ))}

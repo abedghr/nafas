@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useApp } from '@/lib/app-context';
+import { toDisplayWeight, fromDisplayWeight, unitLabel } from '@/lib/units';
 import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
@@ -53,9 +54,13 @@ function RepsSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
 }) {
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
+  const { weightUnit } = useApp();
   const narrow = width < 380;
   const [editReps, setEditReps] = useState(String(set.actual.reps || set.config.reps || ''));
-  const [editWeight, setEditWeight] = useState(String(set.actual.weight ?? set.config.weight ?? ''));
+  const [editWeight, setEditWeight] = useState(() => {
+    const kg = set.actual.weight ?? set.config.weight;
+    return kg == null ? '' : String(toDisplayWeight(kg, weightUnit));
+  });
 
   const isDone = set.status === 'done';
   const isSkipped = set.status === 'skipped';
@@ -65,10 +70,11 @@ function RepsSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
 
   const complete = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const parsedWeight = parseFloat(editWeight);
     onUpdateActual({
       ...set.actual,
       reps: parseInt(editReps) || set.config.reps || 0,
-      weight: parseFloat(editWeight) || set.config.weight || 0,
+      weight: parsedWeight ? fromDisplayWeight(parsedWeight, weightUnit) : set.config.weight || 0,
     });
     onMarkDone();
   };
@@ -99,7 +105,7 @@ function RepsSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
         <View style={styles.setRowRight}>
           {!isSkipped && (
             <Text style={[styles.setValue, { color: theme.textSecondary }]}>
-              {set.actual.reps} × {set.actual.weight || 0} {t('workoutSession.kg')}
+              {set.actual.reps} × {toDisplayWeight(set.actual.weight || 0, weightUnit)} {unitLabel(weightUnit)}
             </Text>
           )}
           <View style={[styles.doneBadge, { backgroundColor: isDone ? Colors.primary + '20' : theme.surface }]}>
@@ -123,7 +129,7 @@ function RepsSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
       </View>
       <Text style={[styles.editX, { color: theme.textMuted }]}>×</Text>
       <View style={styles.inlineField}>
-        <Text style={[styles.inlineUnit, { color: theme.textMuted }]}>{t('workoutSession.kg')}</Text>
+        <Text style={[styles.inlineUnit, { color: theme.textMuted }]}>{unitLabel(weightUnit)}</Text>
         <TextInput
           style={[styles.inlineInput, narrow && styles.inlineInputWide, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
           value={editWeight} onChangeText={setEditWeight} keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
@@ -175,6 +181,7 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
+  const { weightUnit } = useApp();
   const [phase, setPhase] = useState<'idle' | 'prep' | 'active'>('idle');
   const [prepRemaining, setPrepRemaining] = useState(PREP_SECONDS);
   const [holdRemaining, setHoldRemaining] = useState(set.config.durationSeconds || 30);
@@ -275,7 +282,7 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
           <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
           <Text style={[styles.setLabel, { color: theme.text }]}>{t('workoutSession.hold')}</Text>
           <Text style={[styles.setValue, { color: theme.textSecondary }]}>
-            {t('workoutSession.secondsValue', { n: set.actual.durationSeconds || 0 })}{set.actual.weight ? ` · ${set.actual.weight} ${t('workoutSession.kg')}` : ''}
+            {t('workoutSession.secondsValue', { n: set.actual.durationSeconds || 0 })}{set.actual.weight ? ` · ${toDisplayWeight(set.actual.weight, weightUnit)} ${unitLabel(weightUnit)}` : ''}
           </Text>
         </View>
         <View style={styles.setRowRight}>
@@ -308,7 +315,7 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
         </View>
         <Text style={[styles.setLabel, { color: theme.text }]}>{t('workoutSession.hold')}</Text>
         <Text style={[styles.setValue, { color: theme.textSecondary }]}>
-          {t('workoutSession.secondsValue', { n: set.config.durationSeconds || 0 })}{set.config.weight ? ` · ${set.config.weight} ${t('workoutSession.kg')}` : ''}
+          {t('workoutSession.secondsValue', { n: set.config.durationSeconds || 0 })}{set.config.weight ? ` · ${toDisplayWeight(set.config.weight, weightUnit)} ${unitLabel(weightUnit)}` : ''}
         </Text>
       </View>
       <View style={styles.setRowRight}>
@@ -851,6 +858,7 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
+  const { weightUnit } = useApp();
   const components = combo.components || [];
   const rounds = combo.rounds || [];
 
@@ -905,7 +913,7 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
                       const ty = e?.type ?? 'reps';
                       if (ty === 'hold') return `${e?.durationSeconds || 0}s`;
                       if (ty === 'emom') return `${e?.repsPerInterval || 0}×${e?.totalIntervals || 0}`;
-                      return `${e?.reps || 0}${e?.weight ? '×' + e.weight : ''}`;
+                      return `${e?.reps || 0}${e?.weight ? '×' + toDisplayWeight(e.weight, weightUnit) : ''}`;
                     }).join(' · ')}
                   </Text>
                 )}
@@ -977,11 +985,11 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
                     )}
                     <TextInput
                       style={inputStyle}
-                      value={String(entry?.weight ?? '')}
-                      onChangeText={(v) => onUpdateEntry(ri, ci, { weight: parseFloat(v) || 0 })}
+                      value={String(toDisplayWeight(entry?.weight || 0, weightUnit) || '')}
+                      onChangeText={(v) => onUpdateEntry(ri, ci, { weight: fromDisplayWeight(parseFloat(v) || 0, weightUnit) })}
                       keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
                     />
-                    <Text style={[styles.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.kg')}</Text>
+                    <Text style={[styles.comboCompUnit, { color: theme.textMuted }]}>{unitLabel(weightUnit)}</Text>
                   </View>
                 </View>
               );
@@ -1042,7 +1050,7 @@ export default function LiveWorkoutScreen() {
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
   const theme = Colors.dark;
 
-  const { activeSession, setActiveSession, addWorkoutLog, customExercises, user } = useApp();
+  const { activeSession, setActiveSession, addWorkoutLog, customExercises, user, weightUnit } = useApp();
   const [session, setSession] = useState<ActiveSession | null>(activeSession);
   const [elapsed, setElapsed] = useState('00:00');
   const [restTimer, setRestTimer] = useState(0);
@@ -1493,7 +1501,7 @@ export default function LiveWorkoutScreen() {
             <View style={[styles.progressCard, { backgroundColor: theme.card }]}>
               <View style={styles.progRow}>
                 <View style={styles.progStat}><Text style={[styles.progVal, { color: theme.text }]}>{done}/{total}</Text><Text style={[styles.progLbl, { color: theme.textMuted }]}>{t('workoutSession.sets')}</Text></View>
-                <View style={styles.progStat}><Text style={[styles.progVal, { color: theme.text }]}>{Math.round(vol).toLocaleString()}</Text><Text style={[styles.progLbl, { color: theme.textMuted }]}>{t('workoutSession.volume')} (kg)</Text></View>
+                <View style={styles.progStat}><Text style={[styles.progVal, { color: theme.text }]}>{Math.round(toDisplayWeight(vol, weightUnit)).toLocaleString()}</Text><Text style={[styles.progLbl, { color: theme.textMuted }]}>{t('workoutSession.volume')} ({unitLabel(weightUnit)})</Text></View>
                 <View style={styles.progStat}><Text style={[styles.progVal, { color: Colors.primary }]}>{Math.round(pct * 100)}%</Text><Text style={[styles.progLbl, { color: theme.textMuted }]}>{t('workoutSession.done')}</Text></View>
               </View>
               <View style={styles.progTrack}><View style={[styles.progFill, { width: `${Math.round(pct * 100)}%` }]} /></View>
@@ -1561,7 +1569,8 @@ export default function LiveWorkoutScreen() {
                       <Ionicons name="time-outline" size={11} color={theme.textMuted} />
                       <Text style={[styles.lastPerfText, { color: theme.textMuted }]}>
                         {t('workoutSession.lastTimeHint', {
-                          weight: lastPerf[ex.name].weight,
+                          weight: toDisplayWeight(lastPerf[ex.name].weight, weightUnit),
+                          unit: unitLabel(weightUnit),
                           reps: lastPerf[ex.name].reps,
                           date: new Date(lastPerf[ex.name].date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
                         })}

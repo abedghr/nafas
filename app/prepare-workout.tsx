@@ -12,6 +12,7 @@ import * as Crypto from 'expo-crypto';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
+import { toDisplayWeight, fromDisplayWeight, unitLabel } from '@/lib/units';
 import { alertDialog, confirmDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
@@ -52,6 +53,7 @@ function SetTypeFields({ config, onChange, theme }: {
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
+  const { weightUnit } = useApp();
   const [noteOpen, setNoteOpen] = useState(!!config.note);
   const inputStyle = [s.numInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }];
   const noteInputStyle = { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14 };
@@ -91,11 +93,11 @@ function SetTypeFields({ config, onChange, theme }: {
             />
           </View>
           <View style={s.fieldGroup}>
-            <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.weightKg')}</Text>
+            <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.weightKg', { unit: unitLabel(weightUnit) })}</Text>
             <TextInput
               style={inputStyle}
-              value={config.weight ? String(config.weight) : ''}
-              onChangeText={v => onChange({ ...config, weight: parseFloat(v) || 0 })}
+              value={config.weight ? String(toDisplayWeight(config.weight, weightUnit)) : ''}
+              onChangeText={v => onChange({ ...config, weight: fromDisplayWeight(parseFloat(v) || 0, weightUnit) })}
               keyboardType="numeric"
               placeholder="0"
               placeholderTextColor={theme.textMuted}
@@ -121,11 +123,11 @@ function SetTypeFields({ config, onChange, theme }: {
             />
           </View>
           <View style={s.fieldGroup}>
-            <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.weightKgOptional')}</Text>
+            <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.weightKgOptional', { unit: unitLabel(weightUnit) })}</Text>
             <TextInput
               style={inputStyle}
-              value={config.weight ? String(config.weight) : ''}
-              onChangeText={v => onChange({ ...config, weight: parseFloat(v) || 0 })}
+              value={config.weight ? String(toDisplayWeight(config.weight, weightUnit)) : ''}
+              onChangeText={v => onChange({ ...config, weight: fromDisplayWeight(parseFloat(v) || 0, weightUnit) })}
               keyboardType="numeric"
               placeholder={t('workoutPrep.bodyweightPlaceholder')}
               placeholderTextColor={theme.textMuted}
@@ -164,11 +166,11 @@ function SetTypeFields({ config, onChange, theme }: {
             </View>
           </View>
           <View style={s.fieldGroup}>
-            <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.weightKgOptional')}</Text>
+            <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.weightKgOptional', { unit: unitLabel(weightUnit) })}</Text>
             <TextInput
               style={inputStyle}
-              value={config.weight ? String(config.weight) : ''}
-              onChangeText={v => onChange({ ...config, weight: parseFloat(v) || 0 })}
+              value={config.weight ? String(toDisplayWeight(config.weight, weightUnit)) : ''}
+              onChangeText={v => onChange({ ...config, weight: fromDisplayWeight(parseFloat(v) || 0, weightUnit) })}
               keyboardType="numeric"
               placeholder={t('workoutPrep.bodyweightPlaceholder')}
               placeholderTextColor={theme.textMuted}
@@ -254,7 +256,7 @@ function SetTypeFields({ config, onChange, theme }: {
           <View style={{ backgroundColor: Colors.primary + '08', borderRadius: 8, padding: 8, marginTop: 2 }}>
             <Text style={{ color: Colors.primary, fontSize: 12, fontWeight: '500', textAlign: 'center' }}>
               {config.weight
-                ? t('workoutPrep.emomSummaryWithWeight', { reps: config.repsPerInterval || 0, s: intervalSec, n: config.totalIntervals || 0, w: config.weight })
+                ? t('workoutPrep.emomSummaryWithWeight', { reps: config.repsPerInterval || 0, s: intervalSec, n: config.totalIntervals || 0, w: toDisplayWeight(config.weight, weightUnit), unit: unitLabel(weightUnit) })
                 : t('workoutPrep.emomSummary', { reps: config.repsPerInterval || 0, s: intervalSec, n: config.totalIntervals || 0 })}
             </Text>
           </View>
@@ -335,6 +337,7 @@ function ComboPrepCard({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown, can
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
+  const { weightUnit } = useApp();
   const rounds = exercise.comboRounds ?? 1;
   const components = exercise.components ?? [];
   type PrepComboComp = (typeof components)[number];
@@ -466,11 +469,11 @@ function ComboPrepCard({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown, can
                   )}
                   <TextInput
                     style={inputStyle}
-                    value={c.weight ? String(c.weight) : ''}
-                    onChangeText={(v) => updateComponent(ci, { weight: parseFloat(v) || 0 })}
+                    value={c.weight ? String(toDisplayWeight(c.weight, weightUnit)) : ''}
+                    onChangeText={(v) => updateComponent(ci, { weight: fromDisplayWeight(parseFloat(v) || 0, weightUnit) })}
                     keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
                   />
-                  <Text style={[s.cpCompUnit, { color: theme.textMuted }]}>{t('workoutSession.kg')}</Text>
+                  <Text style={[s.cpCompUnit, { color: theme.textMuted }]}>{unitLabel(weightUnit)}</Text>
                 </View>
               </View>
             </View>
@@ -516,6 +519,7 @@ function ExerciseCard({ exercise, index, onUpdate, onRemove, onMoveUp, onMoveDow
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
+  const { weightUnit } = useApp();
   const [showRestPicker, setShowRestPicker] = useState(false);
 
   const updateSet = (setIdx: number, config: SetConfig) => {
@@ -559,7 +563,8 @@ function ExerciseCard({ exercise, index, onUpdate, onRemove, onMoveUp, onMoveDow
                 <Ionicons name="time-outline" size={11} color={theme.textMuted} />
                 <Text style={[s.lastPerfText, { color: theme.textMuted }]}>
                   {t('workoutSession.lastTimeHint', {
-                    weight: lastPerf.weight,
+                    weight: toDisplayWeight(lastPerf.weight, weightUnit),
+                    unit: unitLabel(weightUnit),
                     reps: lastPerf.reps,
                     date: new Date(lastPerf.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
                   })}

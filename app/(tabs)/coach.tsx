@@ -12,6 +12,7 @@ import * as Crypto from 'expo-crypto';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
+import { toDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
 import Colors from '@/constants/colors';
 import { aiTips } from '@/lib/mock-data';
 import { workoutApi } from '@/src/features/workout/api';
@@ -144,7 +145,7 @@ function InsightCard({ insight, index }: { insight: ReturnType<typeof generateIn
 
 function WorkoutHistoryItem({ workout, index }: { workout: any; index: number }) {
   const { t } = useTranslation();
-  const { isDark } = useApp();
+  const { isDark, weightUnit } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const typeIcons: Record<string, string> = {
     'Push Day': 'arrow-up-circle-outline', 'Pull Day': 'arrow-down-circle-outline',
@@ -160,7 +161,7 @@ function WorkoutHistoryItem({ workout, index }: { workout: any; index: number })
         <View style={{ flex: 1 }}>
           <Text style={[s.historyTitle, { color: theme.text }]}>{workout.type}</Text>
           <Text style={[s.historyMeta, { color: theme.textMuted }]}>
-            {t('workoutTab.exercisesCount', { n: workout.exercises?.length || 0 })}  ·  {t('workoutTab.minutesShort', { n: workout.duration })}  ·  {workout.totalVolume > 0 ? t('workoutTab.volumeK', { n: (workout.totalVolume / 1000).toFixed(1) }) : ''}
+            {t('workoutTab.exercisesCount', { n: workout.exercises?.length || 0 })}  ·  {t('workoutTab.minutesShort', { n: workout.duration })}  ·  {workout.totalVolume > 0 ? t('workoutTab.volumeK', { n: (toDisplayWeight(workout.totalVolume, weightUnit) / 1000).toFixed(1), unit: unitLabel(weightUnit) }) : ''}
           </Text>
         </View>
         <Text style={[s.historyDate, { color: theme.textMuted }]}>{workout.date}</Text>
@@ -225,14 +226,14 @@ function formatDuration(minutes: number) {
   return m > 0 ? `${h}h ${m}min` : `${h}h`;
 }
 
-function formatVolume(kg: number) {
-  if (kg <= 0) return '0 kg';
-  return `${kg.toLocaleString('en-US', { maximumFractionDigits: 0 })} kg`;
+function formatVolume(kg: number, unit: WeightUnit) {
+  if (kg <= 0) return `0 ${unitLabel(unit)}`;
+  return `${toDisplayWeight(kg, unit).toLocaleString('en-US', { maximumFractionDigits: 0 })} ${unitLabel(unit)}`;
 }
 
 function RecentWorkoutCard({ log, index }: { log: any; index: number }) {
   const { t } = useTranslation();
-  const { isDark } = useApp();
+  const { isDark, weightUnit } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
 
   const muscleGroups = useMemo(() => {
@@ -280,7 +281,7 @@ function RecentWorkoutCard({ log, index }: { log: any; index: number }) {
             </View>
             <View style={s.recentCardStat}>
               <Ionicons name="barbell-outline" size={14} color={theme.textMuted} />
-              <Text style={[s.recentCardStatText, { color: theme.textSecondary }]}>{formatVolume(log.totalVolumeKg)}</Text>
+              <Text style={[s.recentCardStatText, { color: theme.textSecondary }]}>{formatVolume(log.totalVolumeKg, weightUnit)}</Text>
             </View>
           </View>
           {muscleGroups.length > 0 && (
@@ -301,7 +302,7 @@ function RecentWorkoutCard({ log, index }: { log: any; index: number }) {
 export default function CoachScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { isDark, workouts, weeklyWorkouts, streak, user, workoutLogs, activeSession } = useApp();
+  const { isDark, workouts, weeklyWorkouts, streak, user, workoutLogs, activeSession, weightUnit } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const [activeTab, setActiveTab] = useState<'dashboard' | 'insights'>('dashboard');
   const [showPlanModal, setShowPlanModal] = useState(false);
@@ -484,7 +485,7 @@ export default function CoachScreen() {
               <View style={s.quickStatsRow}>
                 {[
                   { icon: 'flame-outline' as const, label: t('workoutTab.statThisWeek'), value: weeklyWorkouts.toString(), color: Colors.accent },
-                  { icon: 'barbell-outline' as const, label: t('workoutTab.statVolume'), value: weeklyVolumeFromLogs > 0 ? formatVolume(weeklyVolumeFromLogs) : '0 kg', color: Colors.primary },
+                  { icon: 'barbell-outline' as const, label: t('workoutTab.statVolume'), value: formatVolume(weeklyVolumeFromLogs, weightUnit), color: Colors.primary },
                   { icon: 'flash-outline' as const, label: t('workoutTab.statStreak'), value: `${streak}d`, color: '#FFD93D' },
                 ].map((stat, i) => (
                   <Animated.View key={stat.label} entering={FadeInDown.duration(400).delay(100 + i * 80)} style={s.quickStatWrap}>
@@ -520,7 +521,7 @@ export default function CoachScreen() {
                             {new Date(pr.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
                           </Text>
                         </View>
-                        <Text style={[s.prWeight, { color: Colors.primary }]}>{pr.weight} {t('workoutSession.kg')}</Text>
+                        <Text style={[s.prWeight, { color: Colors.primary }]}>{toDisplayWeight(pr.weight, weightUnit)} {unitLabel(weightUnit)}</Text>
                         <Text style={[s.prReps, { color: theme.textMuted }]}> × {pr.reps}</Text>
                         <Ionicons name="chevron-forward" size={15} color={theme.textMuted} />
                       </Pressable>
@@ -561,7 +562,7 @@ export default function CoachScreen() {
               <View style={[s.perfCard, { backgroundColor: theme.card }]}>
                 {[
                   { label: t('workoutTab.perfTotalWorkouts'), value: totalWorkoutCount.toString(), icon: 'fitness-outline', color: Colors.primary },
-                  { label: t('workoutTab.perfTotalVolume'), value: totalVolume > 0 ? t('workoutTab.volumeK', { n: (totalVolume / 1000).toFixed(1) }) : '0 kg', icon: 'barbell-outline', color: Colors.accent },
+                  { label: t('workoutTab.perfTotalVolume'), value: totalVolume > 0 ? t('workoutTab.volumeK', { n: (toDisplayWeight(totalVolume, weightUnit) / 1000).toFixed(1), unit: unitLabel(weightUnit) }) : formatVolume(0, weightUnit), icon: 'barbell-outline', color: Colors.accent },
                   { label: t('workoutTab.perfBestStreak'), value: t('workoutTab.daysValue', { n: streak }), icon: 'flame-outline', color: '#FFD93D' },
                   { label: t('workoutTab.perfAvgDuration'), value: t('workoutTab.minutesShort', { n: avgDuration }), icon: 'time-outline', color: '#48CAE4' },
                 ].map((item, i) => (

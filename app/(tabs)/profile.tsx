@@ -14,6 +14,7 @@ import { useApp } from '@/lib/app-context';
 import { confirmDialog, alertDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 import { ranks, sportInterests } from '@/lib/mock-data';
+import { toDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
 import { gymsApi } from '@/src/features/gyms/api';
 import { eventsApi } from '@/src/features/events/api';
 import { CompleteProfileBanner } from '@/components/CompleteProfileBanner';
@@ -60,7 +61,7 @@ function SettingsItem({ icon, label, right, onPress, isDark }: any) {
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { user, isDark, toggleTheme, language, setLanguage, workouts, streak, logout, deleteAccount } = useApp();
+  const { user, isDark, toggleTheme, language, setLanguage, weightUnit, setWeightUnit, workouts, streak, logout, deleteAccount } = useApp();
   const [ownsGyms, setOwnsGyms] = useState(false);
   const [managesGyms, setManagesGyms] = useState(false);
   const [organizesEvents, setOrganizesEvents] = useState(false);
@@ -161,7 +162,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.physRow}>
               <PhysStat label={t('onboarding.height')} value={user?.height ? `${user.height} cm` : '—'} theme={theme} />
-              <PhysStat label={t('onboarding.weight')} value={user?.weight ? `${user.weight} kg` : '—'} theme={theme} />
+              <PhysStat label={t('onboarding.weight')} value={user?.weight ? `${toDisplayWeight(user.weight, weightUnit)} ${unitLabel(weightUnit)}` : '—'} theme={theme} />
               <PhysStat label={t('onboarding.age')} value={user?.age ? String(user.age) : '—'} theme={theme} />
               <PhysStat label={t('onboarding.goals')} value={user?.goal ? t(`onboarding.${user.goal}`) : '—'} theme={theme} />
             </View>
@@ -237,6 +238,33 @@ export default function ProfileScreen() {
                   <Text style={[styles.langText, { color: Colors.primary }]}>
                     {language === 'en' ? 'EN' : 'AR'}
                   </Text>
+                </View>
+              }
+            />
+            <SettingsItem
+              icon="barbell-outline"
+              label={t('profilex.weightUnit')}
+              isDark={isDark}
+              onPress={() => setWeightUnit(weightUnit === 'kg' ? 'lb' : 'kg')}
+              right={
+                <View style={styles.unitChipRow}>
+                  {(['kg', 'lb'] as WeightUnit[]).map(u => (
+                    <Pressable
+                      key={u}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setWeightUnit(u);
+                      }}
+                      style={[
+                        styles.unitChip,
+                        { backgroundColor: weightUnit === u ? Colors.primary : theme.surface },
+                      ]}
+                    >
+                      <Text style={[styles.unitChipText, { color: weightUnit === u ? '#fff' : theme.textSecondary }]}>
+                        {u.toUpperCase()}
+                      </Text>
+                    </Pressable>
+                  ))}
                 </View>
               }
             />
@@ -317,6 +345,9 @@ const styles = StyleSheet.create({
   settingsLabel: { fontSize: 15, fontFamily: 'Rubik_500Medium' },
   langBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   langText: { fontSize: 13, fontFamily: 'Rubik_700Bold' },
+  unitChipRow: { flexDirection: 'row', gap: 6 },
+  unitChip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8 },
+  unitChipText: { fontSize: 13, fontFamily: 'Rubik_700Bold' },
   logoutButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     marginHorizontal: 20, marginTop: 24, padding: 16, borderRadius: 14,

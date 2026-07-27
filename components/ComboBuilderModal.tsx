@@ -8,6 +8,8 @@ import Colors from '@/constants/colors';
 import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import { exerciseIcon } from '@/lib/exercise-icon';
 import { matchExercise } from '@/lib/exercise-search';
+import { useApp } from '@/lib/app-context';
+import { toDisplayWeight, fromDisplayWeight, unitLabel } from '@/lib/units';
 import type { SetConfig } from '@/lib/app-context';
 
 export type ComboSetType = 'reps' | 'hold' | 'emom';
@@ -62,6 +64,7 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
+  const { weightUnit } = useApp();
   const [search, setSearch] = useState('');
   const [components, setComponents] = useState<ComboComponent[]>([]);
   const [rounds, setRounds] = useState(1);
@@ -186,11 +189,11 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
                         )}
                         <TextInput
                           style={[s.inlineInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                          value={c.weight ? String(c.weight) : ''}
-                          onChangeText={v => updateComponent(i, { weight: parseFloat(v) || 0 })}
+                          value={c.weight ? String(toDisplayWeight(c.weight, weightUnit)) : ''}
+                          onChangeText={v => updateComponent(i, { weight: fromDisplayWeight(parseFloat(v) || 0, weightUnit) })}
                           keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
                         />
-                        <Text style={[s.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.kg')}</Text>
+                        <Text style={[s.comboCompUnit, { color: theme.textMuted }]}>{unitLabel(weightUnit)}</Text>
                       </View>
                     </View>
                   </View>
