@@ -16,7 +16,7 @@ import { alertDialog, confirmDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
-import ComboBuilderModal, { type ComboBuildResult } from '@/components/ComboBuilderModal';
+import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult, type ComboSetType } from '@/components/ComboBuilderModal';
 import type { SetConfig, TemplateExercise, WorkoutType, WorkoutTemplate } from '@/lib/app-context';
 import { WORKOUT_TYPES, templateSig } from '@/lib/app-context';
 
@@ -333,9 +333,20 @@ function ComboPrepCard({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown, can
   const { t } = useTranslation();
   const rounds = exercise.comboRounds ?? 1;
   const components = exercise.components ?? [];
+  type PrepComboComp = (typeof components)[number];
 
-  const updateComponent = (ci: number, patch: { reps?: number; weight?: number }) => {
+  const updateComponent = (ci: number, patch: Partial<PrepComboComp>) => {
     onUpdate({ ...exercise, components: components.map((c, i) => i === ci ? { ...c, ...patch } : c) });
+  };
+
+  // switching type seeds sensible defaults for that type's fields (once)
+  const setComponentType = (ci: number, setType: ComboSetType) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const c = components[ci];
+    if (!c) return;
+    if (setType === 'hold') updateComponent(ci, { setType, durationSeconds: c.durationSeconds ?? 30 });
+    else if (setType === 'emom') updateComponent(ci, { setType, repsPerInterval: c.repsPerInterval ?? 10, intervalSeconds: c.intervalSeconds ?? 60, totalIntervals: c.totalIntervals ?? 10 });
+    else updateComponent(ci, { setType, reps: c.reps ?? 8 });
   };
 
   const removeComponent = (ci: number) => {
@@ -374,31 +385,83 @@ function ComboPrepCard({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown, can
         </Pressable>
       </View>
 
-      {/* components: each with its own reps + weight */}
+      {/* components: each with its own set type + type-specific fields */}
       <View style={s.cpComponents}>
-        {components.map((c, ci) => (
-          <View key={ci} style={s.cpCompRow}>
-            <Text style={[s.cpCompIdx, { color: Colors.accent }]}>{ci + 1}</Text>
-            <Text style={[s.cpCompName, { color: theme.textSecondary }]} numberOfLines={1}>{c.name}</Text>
-            <TextInput
-              style={[s.cpCompInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-              value={c.reps ? String(c.reps) : ''}
-              onChangeText={(v) => updateComponent(ci, { reps: parseInt(v) || 0 })}
-              keyboardType="numeric" placeholder="8" placeholderTextColor={theme.textMuted} selectTextOnFocus
-            />
-            <Text style={[s.cpCompUnit, { color: theme.textMuted }]}>{t('workoutSession.reps')}</Text>
-            <TextInput
-              style={[s.cpCompInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-              value={c.weight ? String(c.weight) : ''}
-              onChangeText={(v) => updateComponent(ci, { weight: parseFloat(v) || 0 })}
-              keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
-            />
-            <Text style={[s.cpCompUnit, { color: theme.textMuted }]}>{t('workoutSession.kg')}</Text>
-            <Pressable onPress={() => removeComponent(ci)} hitSlop={6}>
-              <Ionicons name="close-circle" size={17} color={Colors.accent} />
-            </Pressable>
-          </View>
-        ))}
+        {components.map((c, ci) => {
+          const ty = c.setType ?? 'reps';
+          const inputStyle = [s.cpCompInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }];
+          return (
+            <View key={ci} style={s.cpCompBlock}>
+              <View style={s.cpCompHead}>
+                <Text style={[s.cpCompIdx, { color: Colors.accent }]}>{ci + 1}</Text>
+                <Text style={[s.cpCompName, { color: theme.textSecondary }]} numberOfLines={1}>{c.name}</Text>
+                <Pressable onPress={() => removeComponent(ci)} hitSlop={6}>
+                  <Ionicons name="close-circle" size={17} color={Colors.accent} />
+                </Pressable>
+              </View>
+              <View style={s.cpCompCtl}>
+                <View style={s.cpTypeChipRow}>
+                  {(['reps', 'hold', 'emom'] as const).map(opt => (
+                    <Pressable
+                      key={opt}
+                      onPress={() => setComponentType(ci, opt)}
+                      style={[s.cpTypeChip, { borderColor: ty === opt ? Colors.accent : theme.border, backgroundColor: ty === opt ? Colors.accent + '18' : 'transparent' }]}
+                    >
+                      <Text style={[s.cpTypeChipText, { color: ty === opt ? Colors.accent : theme.textMuted }]}>{t(`workoutSession.${opt}`)}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <View style={s.cpFieldRow}>
+                  {ty === 'hold' ? (
+                    <>
+                      <TextInput
+                        style={inputStyle}
+                        value={c.durationSeconds ? String(c.durationSeconds) : ''}
+                        onChangeText={(v) => updateComponent(ci, { durationSeconds: parseInt(v) || 0 })}
+                        keyboardType="numeric" placeholder="30" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                      />
+                      <Text style={[s.cpCompUnit, { color: theme.textMuted }]}>{t('workoutSession.sec')}</Text>
+                    </>
+                  ) : ty === 'emom' ? (
+                    <>
+                      <TextInput
+                        style={inputStyle}
+                        value={c.repsPerInterval ? String(c.repsPerInterval) : ''}
+                        onChangeText={(v) => updateComponent(ci, { repsPerInterval: parseInt(v) || 0 })}
+                        keyboardType="numeric" placeholder="10" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                      />
+                      <Text style={[s.cpCompUnit, { color: theme.textMuted }]}>{t('workoutSession.reps')}</Text>
+                      <TextInput
+                        style={inputStyle}
+                        value={c.totalIntervals ? String(c.totalIntervals) : ''}
+                        onChangeText={(v) => updateComponent(ci, { totalIntervals: parseInt(v) || 0 })}
+                        keyboardType="numeric" placeholder="10" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                      />
+                      <Text style={[s.cpCompUnit, { color: theme.textMuted }]}>×</Text>
+                    </>
+                  ) : (
+                    <>
+                      <TextInput
+                        style={inputStyle}
+                        value={c.reps ? String(c.reps) : ''}
+                        onChangeText={(v) => updateComponent(ci, { reps: parseInt(v) || 0 })}
+                        keyboardType="numeric" placeholder="8" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                      />
+                      <Text style={[s.cpCompUnit, { color: theme.textMuted }]}>{t('workoutSession.reps')}</Text>
+                    </>
+                  )}
+                  <TextInput
+                    style={inputStyle}
+                    value={c.weight ? String(c.weight) : ''}
+                    onChangeText={(v) => updateComponent(ci, { weight: parseFloat(v) || 0 })}
+                    keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                  />
+                  <Text style={[s.cpCompUnit, { color: theme.textMuted }]}>{t('workoutSession.kg')}</Text>
+                </View>
+              </View>
+            </View>
+          );
+        })}
       </View>
 
       {/* rounds + unbroken */}
@@ -1165,7 +1228,7 @@ export default function PrepareWorkoutScreen() {
             components: e.components.map(c => ({ exerciseId: c.exerciseId, name: c.name, muscleGroup: c.muscleGroup })),
             rounds: Array.from({ length: Math.max(1, e.comboRounds ?? 1) }, () => ({
               status: 'pending' as const,
-              entries: e.components!.map(c => ({ reps: c.reps ?? 0, weight: c.weight ?? 0 })),
+              entries: e.components!.map(c => componentToSetConfig(c)),
             })),
           };
         }
@@ -1614,8 +1677,14 @@ const s = StyleSheet.create({
   reorderBtn: { paddingVertical: 1 },
   cpChip: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7 },
   cpChipText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
-  cpComponents: { paddingHorizontal: 16, paddingBottom: 4, gap: 6 },
-  cpCompRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cpComponents: { paddingHorizontal: 16, paddingBottom: 4, gap: 8 },
+  cpCompBlock: { gap: 5 },
+  cpCompHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cpCompCtl: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, paddingLeft: 26 },
+  cpTypeChipRow: { flexDirection: 'row', gap: 4 },
+  cpTypeChip: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, borderWidth: 1 },
+  cpTypeChipText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
+  cpFieldRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, flexShrink: 1 },
   cpCompIdx: { fontSize: 12, fontWeight: '800', width: 16, textAlign: 'center' },
   cpCompName: { fontSize: 14, fontWeight: '500', flex: 1 },
   cpCompInput: { width: 44, height: 32, borderRadius: 8, borderWidth: 1, textAlign: 'center', fontSize: 14, fontWeight: '600', paddingVertical: 0 },

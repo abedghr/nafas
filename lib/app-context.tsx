@@ -109,7 +109,12 @@ export interface TemplateExercise {
   // combo plan (optional): a planned back-to-back combo set. `sets` stays empty.
   combo?: boolean;
   unbroken?: boolean;
-  components?: { exerciseId: string; name: string; muscleGroup: string; reps?: number; weight?: number }[];
+  components?: {
+    exerciseId: string; name: string; muscleGroup: string;
+    setType?: 'reps' | 'hold' | 'emom'; // absent = 'reps' (backward compat)
+    reps?: number; weight?: number;
+    durationSeconds?: number; repsPerInterval?: number; intervalSeconds?: number; totalIntervals?: number;
+  }[];
   comboRounds?: number;
   comboReps?: number;
 }
@@ -218,7 +223,10 @@ export interface ActiveSession {
     components?: { exerciseId: string; name: string; muscleGroup: string }[];
     rounds?: {
       status: 'pending' | 'done' | 'skipped' | 'in_progress';
-      entries: { reps: number; weight: number }[]; // aligned to components
+      // aligned to components; each entry carries its component's set type + fields.
+      // Sessions persisted before per-component set types have {reps,weight}-only
+      // entries (no `type`) — readers must treat a missing type as 'reps'.
+      entries: SetConfig[];
     }[];
   }[];
 }

@@ -6,8 +6,41 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { exerciseLibrary } from '@/src/features/workout/library-cache';
+import type { SetConfig } from '@/lib/app-context';
 
-export interface ComboComponent { exerciseId: string; name: string; muscleGroup: string; reps: number; weight: number }
+export type ComboSetType = 'reps' | 'hold' | 'emom';
+
+export interface ComboComponent {
+  exerciseId: string;
+  name: string;
+  muscleGroup: string;
+  setType: ComboSetType; // default 'reps'
+  reps: number;
+  weight: number;
+  durationSeconds?: number; // hold
+  repsPerInterval?: number; // emom
+  intervalSeconds?: number; // emom (default 60)
+  totalIntervals?: number; // emom
+}
+
+// Convert a combo component (from the builder OR a persisted template, where
+// setType may be absent → treat as 'reps') into the SetConfig used by live
+// session rounds and workout logs.
+export function componentToSetConfig(c: {
+  setType?: ComboSetType; reps?: number; weight?: number;
+  durationSeconds?: number; repsPerInterval?: number; intervalSeconds?: number; totalIntervals?: number;
+}): SetConfig {
+  const type = c.setType ?? 'reps';
+  if (type === 'hold') return { type: 'hold', durationSeconds: c.durationSeconds || 0, weight: c.weight || 0 };
+  if (type === 'emom') return {
+    type: 'emom',
+    repsPerInterval: c.repsPerInterval || 0,
+    intervalSeconds: c.intervalSeconds || 60,
+    totalIntervals: c.totalIntervals || 0,
+    weight: c.weight || 0,
+  };
+  return { type: 'reps', reps: c.reps || 0, weight: c.weight || 0 };
+}
 
 export interface ComboBuildResult {
   components: ComboComponent[];
@@ -49,11 +82,22 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
 
   const addComponent = (ex: { id: string; name: string; muscleGroup: string }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setComponents(prev => [...prev, { exerciseId: ex.id, name: ex.name, muscleGroup: ex.muscleGroup, reps: 8, weight: 0 }]);
+    setComponents(prev => [...prev, { exerciseId: ex.id, name: ex.name, muscleGroup: ex.muscleGroup, setType: 'reps', reps: 8, weight: 0 }]);
   };
 
   const updateComponent = (idx: number, patch: Partial<ComboComponent>) => {
     setComponents(prev => prev.map((c, i) => i === idx ? { ...c, ...patch } : c));
+  };
+
+  // switching type seeds sensible defaults for that type's fields (once)
+  const setComponentType = (idx: number, setType: ComboSetType) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setComponents(prev => prev.map((c, i) => {
+      if (i !== idx) return c;
+      if (setType === 'hold') return { ...c, setType, durationSeconds: c.durationSeconds ?? 30 };
+      if (setType === 'emom') return { ...c, setType, repsPerInterval: c.repsPerInterval ?? 10, intervalSeconds: c.intervalSeconds ?? 60, totalIntervals: c.totalIntervals ?? 10 };
+      return { ...c, setType };
+    }));
   };
 
   const removeComponent = (idx: number) => {
@@ -81,25 +125,73 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
             {components.length > 0 && (
               <View style={s.comboCompList}>
                 {components.map((c, i) => (
-                  <View key={i} style={s.comboCompRow}>
-                    <Text style={[s.comboCompName, { color: theme.text }]} numberOfLines={1}>{i + 1}. {c.name}</Text>
-                    <TextInput
-                      style={[s.inlineInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                      value={c.reps ? String(c.reps) : ''}
-                      onChangeText={v => updateComponent(i, { reps: parseInt(v) || 0 })}
-                      keyboardType="numeric" placeholder="8" placeholderTextColor={theme.textMuted} selectTextOnFocus
-                    />
-                    <Text style={[s.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.reps')}</Text>
-                    <TextInput
-                      style={[s.inlineInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                      value={c.weight ? String(c.weight) : ''}
-                      onChangeText={v => updateComponent(i, { weight: parseFloat(v) || 0 })}
-                      keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
-                    />
-                    <Text style={[s.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.kg')}</Text>
-                    <Pressable onPress={() => removeComponent(i)} hitSlop={6}>
-                      <Ionicons name="close-circle" size={18} color={Colors.accent} />
-                    </Pressable>
+                  <View key={i} style={s.comboCompBlock}>
+                    <View style={s.comboCompHead}>
+                      <Text style={[s.comboCompName, { color: theme.text }]} numberOfLines={1}>{i + 1}. {c.name}</Text>
+                      <Pressable onPress={() => removeComponent(i)} hitSlop={6}>
+                        <Ionicons name="close-circle" size={18} color={Colors.accent} />
+                      </Pressable>
+                    </View>
+                    <View style={s.comboCompCtl}>
+                      <View style={s.typeChipRow}>
+                        {(['reps', 'hold', 'emom'] as const).map(ty => (
+                          <Pressable
+                            key={ty}
+                            onPress={() => setComponentType(i, ty)}
+                            style={[s.typeChip, { borderColor: c.setType === ty ? Colors.accent : theme.border, backgroundColor: c.setType === ty ? Colors.accent + '18' : 'transparent' }]}
+                          >
+                            <Text style={[s.typeChipText, { color: c.setType === ty ? Colors.accent : theme.textMuted }]}>{t(`workoutSession.${ty}`)}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                      <View style={s.fieldRow}>
+                        {c.setType === 'hold' ? (
+                          <>
+                            <TextInput
+                              style={[s.inlineInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                              value={c.durationSeconds ? String(c.durationSeconds) : ''}
+                              onChangeText={v => updateComponent(i, { durationSeconds: parseInt(v) || 0 })}
+                              keyboardType="numeric" placeholder="30" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                            />
+                            <Text style={[s.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.sec')}</Text>
+                          </>
+                        ) : c.setType === 'emom' ? (
+                          <>
+                            <TextInput
+                              style={[s.inlineInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                              value={c.repsPerInterval ? String(c.repsPerInterval) : ''}
+                              onChangeText={v => updateComponent(i, { repsPerInterval: parseInt(v) || 0 })}
+                              keyboardType="numeric" placeholder="10" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                            />
+                            <Text style={[s.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.reps')}</Text>
+                            <TextInput
+                              style={[s.inlineInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                              value={c.totalIntervals ? String(c.totalIntervals) : ''}
+                              onChangeText={v => updateComponent(i, { totalIntervals: parseInt(v) || 0 })}
+                              keyboardType="numeric" placeholder="10" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                            />
+                            <Text style={[s.comboCompUnit, { color: theme.textMuted }]}>×</Text>
+                          </>
+                        ) : (
+                          <>
+                            <TextInput
+                              style={[s.inlineInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                              value={c.reps ? String(c.reps) : ''}
+                              onChangeText={v => updateComponent(i, { reps: parseInt(v) || 0 })}
+                              keyboardType="numeric" placeholder="8" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                            />
+                            <Text style={[s.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.reps')}</Text>
+                          </>
+                        )}
+                        <TextInput
+                          style={[s.inlineInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                          value={c.weight ? String(c.weight) : ''}
+                          onChangeText={v => updateComponent(i, { weight: parseFloat(v) || 0 })}
+                          keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                        />
+                        <Text style={[s.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.kg')}</Text>
+                      </View>
+                    </View>
                   </View>
                 ))}
               </View>
@@ -169,8 +261,14 @@ const s = StyleSheet.create({
   exPickerName: { fontSize: 15, fontWeight: '600' },
   exPickerGroup: { fontSize: 12, marginTop: 2 },
   inlineInput: { width: 44, height: 34, borderRadius: 8, borderWidth: 1, textAlign: 'center', fontSize: 15, fontWeight: '600', paddingVertical: 0 },
-  comboCompList: { gap: 6, marginBottom: 10 },
-  comboCompRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  comboCompList: { gap: 8, marginBottom: 10 },
+  comboCompBlock: { gap: 5 },
+  comboCompHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  comboCompCtl: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
+  typeChipRow: { flexDirection: 'row', gap: 4 },
+  typeChip: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, borderWidth: 1 },
+  typeChipText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
+  fieldRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, flexShrink: 1 },
   comboCompName: { fontSize: 13, fontWeight: '600', flex: 1 },
   comboCompUnit: { fontSize: 9, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
   comboCfgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginBottom: 12 },

@@ -14,7 +14,7 @@ import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
-import ComboBuilderModal, { type ComboBuildResult } from '@/components/ComboBuilderModal';
+import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult } from '@/components/ComboBuilderModal';
 import * as Crypto from 'expo-crypto';
 import type { SetConfig, ActiveSession, LogExercise, LogSetData } from '@/lib/app-context';
 
@@ -841,7 +841,7 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, them
 // ── Combo set card (multiple movements per round, done back-to-back) ──────────
 function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReopen, onAddRound, onDelete, theme }: {
   combo: SessionExercise;
-  onUpdateEntry: (roundIdx: number, compIdx: number, patch: { reps?: number; weight?: number }) => void;
+  onUpdateEntry: (roundIdx: number, compIdx: number, patch: Partial<SetConfig>) => void;
   onRoundDone: (roundIdx: number) => void;
   onRoundSkip: (roundIdx: number) => void;
   onRoundReopen: (roundIdx: number) => void;
@@ -889,7 +889,13 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
                 </Text>
                 {!isSkipped && (
                   <Text style={[styles.comboRoundSummary, { color: theme.textSecondary }]} numberOfLines={1}>
-                    {components.map((c, ci) => `${round.entries[ci]?.reps || 0}${round.entries[ci]?.weight ? '×' + round.entries[ci].weight : ''}`).join(' · ')}
+                    {components.map((c, ci) => {
+                      const e = round.entries[ci];
+                      const ty = e?.type ?? 'reps';
+                      if (ty === 'hold') return `${e?.durationSeconds || 0}s`;
+                      if (ty === 'emom') return `${e?.repsPerInterval || 0}×${e?.totalIntervals || 0}`;
+                      return `${e?.reps || 0}${e?.weight ? '×' + e.weight : ''}`;
+                    }).join(' · ')}
                   </Text>
                 )}
                 <Ionicons name="pencil" size={13} color={theme.textMuted} />
@@ -912,27 +918,63 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
                 <Ionicons name="close" size={18} color="#F87171" />
               </Pressable>
             </View>
-            {components.map((c, ci) => (
-              <View key={ci} style={styles.comboCompRow}>
-                <Text style={[styles.comboCompName, { color: theme.textSecondary }]} numberOfLines={1}>{c.name}</Text>
-                <View style={styles.comboCompFields}>
-                  <TextInput
-                    style={[styles.inlineInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-                    value={String(round.entries[ci]?.reps ?? '')}
-                    onChangeText={(v) => onUpdateEntry(ri, ci, { reps: parseInt(v) || 0 })}
-                    keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
-                  />
-                  <Text style={[styles.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.reps')}</Text>
-                  <TextInput
-                    style={[styles.inlineInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-                    value={String(round.entries[ci]?.weight ?? '')}
-                    onChangeText={(v) => onUpdateEntry(ri, ci, { weight: parseFloat(v) || 0 })}
-                    keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
-                  />
-                  <Text style={[styles.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.kg')}</Text>
+            {components.map((c, ci) => {
+              const entry = round.entries[ci];
+              const ty = entry?.type ?? 'reps';
+              const inputStyle = [styles.inlineInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }];
+              return (
+                <View key={ci} style={styles.comboCompRow}>
+                  <Text style={[styles.comboCompName, { color: theme.textSecondary }]} numberOfLines={1}>{c.name}</Text>
+                  <View style={styles.comboCompFields}>
+                    {ty === 'hold' ? (
+                      <>
+                        <TextInput
+                          style={inputStyle}
+                          value={String(entry?.durationSeconds ?? '')}
+                          onChangeText={(v) => onUpdateEntry(ri, ci, { durationSeconds: parseInt(v) || 0 })}
+                          keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                        />
+                        <Text style={[styles.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.sec')}</Text>
+                      </>
+                    ) : ty === 'emom' ? (
+                      <>
+                        <TextInput
+                          style={inputStyle}
+                          value={String(entry?.repsPerInterval ?? '')}
+                          onChangeText={(v) => onUpdateEntry(ri, ci, { repsPerInterval: parseInt(v) || 0 })}
+                          keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                        />
+                        <Text style={[styles.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.reps')}</Text>
+                        <TextInput
+                          style={inputStyle}
+                          value={String(entry?.totalIntervals ?? '')}
+                          onChangeText={(v) => onUpdateEntry(ri, ci, { totalIntervals: parseInt(v) || 0 })}
+                          keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                        />
+                        <Text style={[styles.comboCompUnit, { color: theme.textMuted }]}>×</Text>
+                      </>
+                    ) : (
+                      <>
+                        <TextInput
+                          style={inputStyle}
+                          value={String(entry?.reps ?? '')}
+                          onChangeText={(v) => onUpdateEntry(ri, ci, { reps: parseInt(v) || 0 })}
+                          keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                        />
+                        <Text style={[styles.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.reps')}</Text>
+                      </>
+                    )}
+                    <TextInput
+                      style={inputStyle}
+                      value={String(entry?.weight ?? '')}
+                      onChangeText={(v) => onUpdateEntry(ri, ci, { weight: parseFloat(v) || 0 })}
+                      keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                    />
+                    <Text style={[styles.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.kg')}</Text>
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         );
       })}
@@ -1213,13 +1255,13 @@ export default function LiveWorkoutScreen() {
         components: data.components.map(c => ({ exerciseId: c.exerciseId, name: c.name, muscleGroup: c.muscleGroup })),
         rounds: Array.from({ length: Math.max(1, data.rounds) }, () => ({
           status: 'pending' as const,
-          entries: data.components.map(c => ({ reps: c.reps, weight: c.weight })),
+          entries: data.components.map(c => componentToSetConfig(c)),
         })),
       }],
     }));
   }, [updateSession]);
 
-  const updateRoundEntry = useCallback((exIdx: number, roundIdx: number, compIdx: number, patch: { reps?: number; weight?: number }) => {
+  const updateRoundEntry = useCallback((exIdx: number, roundIdx: number, compIdx: number, patch: Partial<SetConfig>) => {
     updateSession(s => {
       const exercises = [...s.exercises];
       const ex = { ...exercises[exIdx] };
@@ -1302,10 +1344,11 @@ export default function LiveWorkoutScreen() {
           comboLabel: ex.name,
           comboUnbroken: !!ex.unbroken,
           sets: (ex.rounds || []).map(r => {
-            const e = r.entries[ci] || { reps: 0, weight: 0 };
-            tallySet(r.status, 'reps', e.reps || 0, e.weight || 0);
-            const cfg: SetConfig = { type: 'reps', reps: e.reps || 0, weight: e.weight || 0 };
-            return { type: 'reps', planned: cfg, actual: { ...cfg }, status: r.status } as LogSetData;
+            const raw = r.entries[ci];
+            // entries persisted before per-component set types have no `type` → treat as reps
+            const cfg: SetConfig = raw ? { ...raw, type: raw.type || 'reps' } : { type: 'reps', reps: 0, weight: 0 };
+            tallySet(r.status, cfg.type, cfg.reps || 0, cfg.weight || 0);
+            return { type: cfg.type, planned: { ...cfg }, actual: { ...cfg }, status: r.status } as LogSetData;
           }),
         }));
       }
@@ -1416,7 +1459,7 @@ export default function LiveWorkoutScreen() {
             if (ex.combo) {
               for (const r of ex.rounds || []) {
                 total++;
-                if (r.status === 'done') { done++; for (const e of r.entries) vol += (e.reps || 0) * (e.weight || 0); }
+                if (r.status === 'done') { done++; for (const e of r.entries) { if (!e.type || e.type === 'reps') vol += (e.reps || 0) * (e.weight || 0); } }
               }
             } else for (const st of ex.sets) {
               total++;
@@ -1793,9 +1836,9 @@ const styles = StyleSheet.create({
   comboRoundHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   comboRoundLabel: { fontSize: 14, fontWeight: '600' as const },
   comboRoundSummary: { fontSize: 12, flex: 1, textAlign: 'right' as const },
-  comboCompRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, paddingLeft: 32 },
-  comboCompName: { fontSize: 13, fontWeight: '500' as const, flex: 1 },
-  comboCompFields: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  comboCompRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' as const, gap: 8, marginTop: 8, paddingLeft: 32 },
+  comboCompName: { fontSize: 13, fontWeight: '500' as const, flex: 1, minWidth: 80 },
+  comboCompFields: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' as const, gap: 5, flexShrink: 1 },
   comboCompUnit: { fontSize: 9, fontWeight: '700' as const, letterSpacing: 0.4, textTransform: 'uppercase' as const },
   comboAddRound: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(140,140,160,0.18)' },
   comboAddRoundText: { fontSize: 13, fontWeight: '700' as const },
