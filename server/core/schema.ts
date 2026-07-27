@@ -4,6 +4,7 @@ export * from "../modules/countries/countries.db";
 export * from "../modules/identity/identity.db";
 export * from "../modules/auth/auth.db";
 export * from "../modules/workout/workout.db";
+export * from "../modules/programs/programs.db";
 export * from "../modules/i18n/i18n.db";
 export * from "../modules/nutrition/nutrition.db";
 export * from "../modules/gyms/gyms.db";

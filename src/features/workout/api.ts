@@ -23,6 +23,12 @@ export const workoutApi = {
   updateTemplate: (id: string, body: unknown) => apiFetch(`/workout-templates/${id}`, { method: "PATCH", auth: true, body }),
   deleteTemplate: (id: string) => apiFetch(`/workout-templates/${id}`, { method: "DELETE", auth: true }),
 
+  // programs (multi-week schedules)
+  programs: () => apiFetch<{ data: any[] }>("/programs", { auth: true }).then((r) => r.data),
+  createProgram: (body: unknown) => apiFetch("/programs", { method: "POST", auth: true, body }),
+  updateProgram: (id: string, body: unknown) => apiFetch(`/programs/${id}`, { method: "PATCH", auth: true, body }),
+  deleteProgram: (id: string) => apiFetch(`/programs/${id}`, { method: "DELETE", auth: true }),
+
   logs: () => apiFetch<{ data: any[] }>("/workout-logs", { auth: true }).then((r) => r.data),
   prs: (limit = 5) => apiFetch<{ data: { name: string; weight: number; reps: number; date: string }[] }>(`/workout/prs?limit=${limit}`, { auth: true }).then((r) => r.data),
   lastPerformance: (names: string[]) =>

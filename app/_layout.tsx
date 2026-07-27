@@ -64,6 +64,8 @@ function RootLayoutNav() {
         <Stack.Screen name="share-workout" options={{ headerShown: false }} />
         <Stack.Screen name="saved-workouts" options={{ headerShown: false }} />
         <Stack.Screen name="workout-detail/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="programs" options={{ headerShown: false }} />
+        <Stack.Screen name="program/[id]" options={{ headerShown: false }} />
       </Stack>
     </>
   );

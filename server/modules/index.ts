@@ -4,6 +4,7 @@ import { countriesModule } from "./countries/countries.module";
 import { identityModule } from "./identity/identity.module";
 import { authModule } from "./auth/auth.module";
 import { workoutModule } from "./workout/workout.module";
+import { programsModule } from "./programs/programs.module";
 import { i18nModule } from "./i18n/i18n.module";
 import { nutritionModule } from "./nutrition/nutrition.module";
 import { gymsModule } from "./gyms/gyms.module";
@@ -20,6 +21,7 @@ export const modules: AppModule[] = [
   authModule,
   i18nModule,   // before workout: its public /labels,/languages must resolve before workout's "/" requireAuth wall
   workoutModule,
+  programsModule,
   nutritionModule,
   gymsModule,
   restaurantsModule,

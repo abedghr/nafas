@@ -1165,7 +1165,7 @@ function TemplatePickerModal({ visible, onClose, onSelect, onEdit, onDelete, tem
 export default function PrepareWorkoutScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { templateId } = useLocalSearchParams<{ templateId?: string }>();
+  const { templateId, run } = useLocalSearchParams<{ templateId?: string; run?: string }>();
   const {
     workoutTemplates, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, setActiveSession,
     customExercises, addCustomExercise, user, workoutTypes,
@@ -1202,10 +1202,10 @@ export default function PrepareWorkoutScreen() {
         setWorkoutName(tmpl.name);
         setWorkoutType(tmpl.workoutType || null);
         setExercises(tmpl.exercises.map(e => ({ ...e, uid: Crypto.randomUUID() })));
-        setEditingId(tmpl.id); // deep-linked = edit this template in place
+        if (!run) setEditingId(tmpl.id); // deep-linked = edit; run=1 = load to run (e.g. from a program)
       }
     }
-  }, [templateId]);
+  }, [templateId, run]);
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 

@@ -123,6 +123,25 @@ export interface TemplateExercise {
   comboReps?: number;
 }
 
+export interface ProgramDay {
+  id?: string;
+  weekIndex: number;
+  dayIndex: number; // 0=Mon .. 6=Sun
+  restDay: boolean;
+  templateId?: string | null;
+  label: string;
+  notes: string;
+}
+export interface Program {
+  id: string;
+  userId: string;
+  name: string;
+  startDate?: string | null;
+  weeks: number;
+  notes: string;
+  days: ProgramDay[];
+}
+
 export const WORKOUT_TYPES = [
   'Push Day', 'Pull Day', 'Leg Day', 'Upper Body', 'Lower Body',
   'Full Body', 'Cardio', 'HIIT', 'Strength', 'Mobility', 'Custom',
@@ -318,6 +337,10 @@ interface AppContextValue {
   addWorkoutTemplate: (t: Omit<WorkoutTemplate, 'id'>) => void;
   updateWorkoutTemplate: (id: string, t: Omit<WorkoutTemplate, 'id'>) => void;
   deleteWorkoutTemplate: (id: string) => void;
+  programs: Program[];
+  addProgram: (p: Omit<Program, 'id' | 'userId'>) => string;
+  updateProgram: (id: string, p: Omit<Program, 'id' | 'userId'>) => void;
+  deleteProgram: (id: string) => void;
   workoutLogs: WorkoutLog[];
   addWorkoutLog: (log: Omit<WorkoutLog, 'id'> & { id?: string }) => string;
   deleteWorkoutLog: (id: string) => void;
@@ -381,6 +404,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set(['p2', 'p5']));
   const [inBodyTests, setInBodyTests] = useState<InBodyTest[]>([]);
   const [workoutTemplates, setWorkoutTemplates] = useState<WorkoutTemplate[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([]);
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [activeSession, setActiveSessionState] = useState<ActiveSession | null>(null);
@@ -460,6 +484,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 durationMinutes: Number(l.durationMinutes) || 0,
               })) as any);
               if (tmpls?.length) setWorkoutTemplates(tmpls as any);
+              workoutApi.programs().then(ps => { if (Array.isArray(ps)) setPrograms(ps as any); }).catch(() => {});
               if (sess) setActiveSessionState(sess as any);
             } catch {}
             // nutrition: today's day (+targets) and InBody history
@@ -633,6 +658,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     workoutApi.deleteTemplate(id).catch(() => {});
   }, []);
 
+  // ── programs (multi-week schedules) ───────────────────────────────────────
+  const programToApi = (p: Omit<Program, 'id' | 'userId'> & { id?: string }) => ({
+    id: p.id, name: p.name, startDate: p.startDate ?? null, weeks: p.weeks, notes: p.notes ?? '',
+    days: (p.days ?? []).map(d => ({
+      weekIndex: d.weekIndex, dayIndex: d.dayIndex, restDay: !!d.restDay,
+      templateId: d.templateId ?? null, label: d.label ?? '', notes: d.notes ?? '',
+    })),
+  });
+  const addProgram = useCallback((p: Omit<Program, 'id' | 'userId'>): string => {
+    const id = Crypto.randomUUID();
+    const local: Program = { ...p, id, userId: user?.id || 'u1' };
+    setPrograms(prev => [...prev, local]);
+    workoutApi.createProgram(programToApi({ ...p, id }))
+      .then(() => workoutApi.programs()).then(srv => { if (Array.isArray(srv)) setPrograms(srv as any); })
+      .catch(() => {});
+    return id;
+  }, [user]);
+  const updateProgram = useCallback((id: string, p: Omit<Program, 'id' | 'userId'>) => {
+    setPrograms(prev => prev.map(x => x.id === id ? { ...x, ...p, id } : x));
+    workoutApi.updateProgram(id, programToApi({ ...p, id }))
+      .then(() => workoutApi.programs()).then(srv => { if (Array.isArray(srv)) setPrograms(srv as any); })
+      .catch(() => {});
+  }, []);
+  const deleteProgram = useCallback((id: string) => {
+    setPrograms(prev => prev.filter(x => x.id !== id));
+    workoutApi.deleteProgram(id).catch(() => {});
+  }, []);
+
   const addWorkoutLog = useCallback((log: Omit<WorkoutLog, 'id'> & { id?: string }): string => {
     const id = log.id || Crypto.randomUUID();
     setWorkoutLogs(prev => {
@@ -755,12 +808,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     likedPosts, toggleLike, streak, weeklyWorkouts,
     inBodyTests, addInBodyTest,
     workoutTemplates, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate,
+    programs, addProgram, updateProgram, deleteProgram,
     workoutLogs, addWorkoutLog, deleteWorkoutLog,
     customExercises, addCustomExercise,
     exerciseLibrary, workoutTypes: workoutTypesData, muscleGroups: WORKOUT_MUSCLE_GROUPS,
     activeSession, setActiveSession,
     logout, deleteAccount,
-  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, weightUnit, setWeightUnit, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
+  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, weightUnit, setWeightUnit, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, programs, addProgram, updateProgram, deleteProgram, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
 
   if (!loaded) return null;
 

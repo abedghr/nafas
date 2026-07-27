@@ -500,6 +500,20 @@ export default function CoachScreen() {
                 ))}
               </View>
 
+              <Pressable
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/programs' as any); }}
+                style={({ pressed }) => [s.programsCard, { backgroundColor: theme.card, opacity: pressed ? 0.85 : 1 }]}
+              >
+                <View style={[s.programsCardIcon, { backgroundColor: Colors.primary + '15' }]}>
+                  <Ionicons name="calendar-outline" size={20} color={Colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.programsCardTitle, { color: theme.text }]}>{t('programs.programsCardTitle')}</Text>
+                  <Text style={[s.programsCardSub, { color: theme.textMuted }]}>{t('programs.programsCardSub')}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+              </Pressable>
+
               {prs.length > 0 && (
                 <>
                   <Text style={[s.sectionTitle, { color: theme.text }]}>{t('workoutTab.personalRecords')}</Text>
@@ -698,6 +712,13 @@ const s = StyleSheet.create({
   aiTipTitle: { fontSize: 15, fontFamily: 'Rubik_600SemiBold' },
   aiTipText: { fontSize: 14, fontFamily: 'Rubik_400Regular', lineHeight: 21 },
   sectionTitle: { fontSize: 17, fontFamily: 'Rubik_600SemiBold', paddingHorizontal: 20, marginTop: 24, marginBottom: 12 },
+  programsCard: {
+    marginHorizontal: 20, marginTop: 16, borderRadius: 16, padding: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+  },
+  programsCardIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  programsCardTitle: { fontSize: 15, fontFamily: 'Rubik_600SemiBold' },
+  programsCardSub: { fontSize: 12, fontFamily: 'Rubik_400Regular', marginTop: 2 },
   prCard: { marginHorizontal: 20, borderRadius: 16, paddingHorizontal: 14 },
   prRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   prRank: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
