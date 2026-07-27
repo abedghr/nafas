@@ -69,6 +69,11 @@ const NAME_AR: Record<string, string> = {
   "Incline Treadmill Walk": "المشي المائل على المشاية", "Elliptical": "جهاز الإليبتيكال",
   "Ski Erg": "جهاز التزلج (سكي إيرغ)", "Swimming": "السباحة", "Outdoor Cycling": "ركوب الدراجة في الخارج",
   "High Knees": "رفع الركبتين العالي", "Shadow Boxing": "ملاكمة الظل",
+  "Chin-Over-Bar Hold": "ثبات الذقن فوق البار", "Bottom Pull-up Hold": "ثبات منتصف العقلة",
+  "Dip Support Hold": "ثبات الارتكاز على المتوازي", "90° Dip Hold": "ثبات الغطس بزاوية 90 درجة",
+  "Ring Support Hold": "ثبات الارتكاز على الحلق", "Tuck Planche Hold": "ثبات البلانش المطوي",
+  "Frog Stand": "وقفة الضفدع", "Copenhagen Plank": "بلانك كوبنهاغن",
+  "Chin-up Negative Hold": "ثبات العقلة بالقبضة المعكوسة", "Wall Handstand Hold": "الوقوف على اليدين على الحائط",
 };
 
 export async function seedExerciseAr() {

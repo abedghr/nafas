@@ -97,6 +97,12 @@ import {
 } from "./exercises-cardio";
 
 import {
+  chinOverBarHold, bottomPullUpHold, dipSupportHold, ninetyDegreeDipHold,
+  ringSupportHold, tuckPlancheHold, frogStand, copenhagenPlank,
+  chinUpNegativeHold, wallHandstandHold,
+} from "./exercises-holds";
+
+import {
   hip9090Stretch,
   thoracicRotation,
   worldsGreatestStretch,
@@ -183,6 +189,9 @@ export const workoutGroups: WorkoutGroupSeed[] = [
       overheadTricepsExtension,
       closeGripBenchPress,
       benchDip,
+      dipSupportHold,
+      ninetyDegreeDipHold,
+      ringSupportHold,
     ],
   },
 
@@ -229,6 +238,9 @@ export const workoutGroups: WorkoutGroupSeed[] = [
       concentrationCurl,
       inclineDumbbellCurl,
       reverseCurl,
+      chinOverBarHold,
+      bottomPullUpHold,
+      chinUpNegativeHold,
     ],
   },
 
@@ -373,6 +385,9 @@ export const workoutGroups: WorkoutGroupSeed[] = [
       lyingLegRaise,
       hollowBodyHold,
       cableWoodchopper,
+      copenhagenPlank,
+      frogStand,
+      tuckPlancheHold,
     ],
   },
 
@@ -511,6 +526,16 @@ export const workoutGroups: WorkoutGroupSeed[] = [
       barMuscleUp,
       ringMuscleUp,
       chestToBarPullUp,
+      chinOverBarHold,
+      bottomPullUpHold,
+      dipSupportHold,
+      ninetyDegreeDipHold,
+      ringSupportHold,
+      tuckPlancheHold,
+      frogStand,
+      copenhagenPlank,
+      chinUpNegativeHold,
+      wallHandstandHold,
     ],
   },
 

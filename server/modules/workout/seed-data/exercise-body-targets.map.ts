@@ -909,4 +909,68 @@ export const EXERCISE_BODY_TARGETS: Record<string, BodyTargetEntry[]> = {
     { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_ABS, percentage: 12 },
     { bodyTarget: ENUM_SYSTEM_BODY_TARGET.OBLIQUES, percentage: 10 },
   ],
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ISOMETRIC HOLD EXERCISES (10)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  "Chin-Over-Bar Hold": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.LATS, percentage: 40 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.BICEPS, percentage: 30 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.UPPER_BACK, percentage: 20 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.FOREARMS, percentage: 10 },
+  ],
+  "Bottom Pull-up Hold": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.LATS, percentage: 45 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.BICEPS, percentage: 35 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.FOREARMS, percentage: 10 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.MID_BACK, percentage: 10 },
+  ],
+  "Dip Support Hold": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRICEPS, percentage: 35 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CHEST, percentage: 25 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 25 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_DEEP, percentage: 15 },
+  ],
+  "90° Dip Hold": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CHEST, percentage: 40 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRICEPS, percentage: 35 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 25 },
+  ],
+  "Ring Support Hold": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRICEPS, percentage: 30 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CHEST, percentage: 25 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 25 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_DEEP, percentage: 20 },
+  ],
+  "Tuck Planche Hold": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 40 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_DEEP, percentage: 25 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CHEST, percentage: 20 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRICEPS, percentage: 15 },
+  ],
+  "Frog Stand": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 40 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.FOREARMS, percentage: 25 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_DEEP, percentage: 20 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.BALANCE, percentage: 15 },
+  ],
+  "Copenhagen Plank": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.ADDUCTORS, percentage: 50 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.OBLIQUES, percentage: 30 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_DEEP, percentage: 20 },
+  ],
+  "Chin-up Negative Hold": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.BICEPS, percentage: 40 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.LATS, percentage: 35 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.FOREARMS, percentage: 15 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.MID_BACK, percentage: 10 },
+  ],
+  "Wall Handstand Hold": [
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.SHOULDERS_ANTERIOR, percentage: 40 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.TRAPS, percentage: 20 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.CORE_DEEP, percentage: 20 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.FOREARMS, percentage: 10 },
+    { bodyTarget: ENUM_SYSTEM_BODY_TARGET.BALANCE, percentage: 10 },
+  ],
 };
