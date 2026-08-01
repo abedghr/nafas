@@ -3,7 +3,7 @@ import {
   View, Text, Pressable, StyleSheet, ScrollView, Platform, Modal,
   TextInput, Alert, Dimensions, Switch, useWindowDimensions,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -13,10 +13,11 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useApp } from '@/lib/app-context';
 import { toDisplayWeight, fromDisplayWeight, unitLabel } from '@/lib/units';
 import Colors from '@/constants/colors';
-import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
+import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
 import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult } from '@/components/ComboBuilderModal';
-import { exerciseIcon } from '@/lib/exercise-icon';
+import ExerciseRow from '@/components/ExerciseRow';
+import ExerciseFilterBar from '@/components/ExerciseFilterBar';
 import { matchExercise } from '@/lib/exercise-search';
 import * as Crypto from 'expo-crypto';
 import type { SetConfig, ActiveSession, LogExercise, LogSetData } from '@/lib/app-context';
@@ -759,7 +760,8 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, them
 }) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [equipment, setEquipment] = useState<string | null>(null);
+  const [muscle, setMuscle] = useState<string | null>(null);
 
   const allExercises = useMemo(() => {
     const lib = exerciseLibrary.map(e => ({ ...e, isCustom: false }));
@@ -772,10 +774,11 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, them
 
   const filtered = useMemo(() => {
     let list = allExercises;
-    if (selectedGroup) list = list.filter(e => e.muscleGroup === selectedGroup);
+    if (equipment) list = list.filter(e => e.equipment === equipment);
+    if (muscle) list = list.filter(e => (e.primaryMuscle || e.muscleGroup) === muscle);
     if (search.trim()) list = list.filter(e => matchExercise(search, e));
     return list;
-  }, [allExercises, selectedGroup, search]);
+  }, [allExercises, equipment, muscle, search]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -800,43 +803,26 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, them
               placeholderTextColor={theme.textMuted}
             />
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} contentContainerStyle={styles.chipsContent}>
-            <Pressable
-              onPress={() => setSelectedGroup(null)}
-              style={[styles.filterChip, { backgroundColor: !selectedGroup ? Colors.primary : theme.card, borderColor: !selectedGroup ? Colors.primary : theme.border }]}
-            >
-              <Text style={[styles.filterChipText, { color: !selectedGroup ? '#fff' : theme.textSecondary }]}>{t('workoutSession.all')}</Text>
-            </Pressable>
-            {MUSCLE_GROUPS.map(g => (
-              <Pressable
-                key={g}
-                onPress={() => setSelectedGroup(selectedGroup === g ? null : g)}
-                style={[styles.filterChip, { backgroundColor: selectedGroup === g ? Colors.primary : theme.card, borderColor: selectedGroup === g ? Colors.primary : theme.border }]}
-              >
-                <Text style={[styles.filterChipText, { color: selectedGroup === g ? '#fff' : theme.textSecondary }]}>{g}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          <ExerciseFilterBar
+            equipment={equipment}
+            muscle={muscle}
+            onEquipment={setEquipment}
+            onMuscle={setMuscle}
+            resultCount={filtered.length}
+            theme={theme}
+          />
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 120 }}>
             {filtered.map((ex, i) => (
-              <Pressable
+              <ExerciseRow
                 key={ex.id + i}
+                ex={ex}
+                theme={theme}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   onSelect(ex);
                   onClose();
                 }}
-                style={({ pressed }) => [styles.exPickerItem, { backgroundColor: pressed ? theme.card : 'transparent' }]}
-              >
-                <View style={[styles.exPickerIcon, { backgroundColor: Colors.primary + '15' }]}>
-                  <MaterialCommunityIcons name={exerciseIcon(ex.name, ex.muscleGroup) as any} size={20} color={Colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.exPickerName, { color: theme.text }]}>{ex.name}</Text>
-                  <Text style={[styles.exPickerGroup, { color: theme.textMuted }]}>{ex.muscleGroup}</Text>
-                </View>
-                <Ionicons name="add-circle" size={22} color={Colors.primary} />
-              </Pressable>
+              />
             ))}
           </ScrollView>
         </View>
@@ -2225,14 +2211,6 @@ const styles = StyleSheet.create({
     borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12,
   },
   searchInput: { flex: 1, fontSize: 15 },
-  chipsScroll: { flexGrow: 0, height: 52, marginBottom: 8 },
-  chipsContent: { gap: 8, paddingRight: 16, alignItems: 'center' },
-  filterChip: { height: 38, paddingHorizontal: 16, borderRadius: 16, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
-  filterChipText: { fontSize: 13, fontWeight: '600' as const, lineHeight: 18, includeFontPadding: false },
-  exPickerItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 16 },
-  exPickerIcon: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  exPickerName: { fontSize: 15, fontWeight: '600' as const },
-  exPickerGroup: { fontSize: 12, marginTop: 2 },
   finishSheet: {
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     paddingHorizontal: 24, paddingBottom: 40,

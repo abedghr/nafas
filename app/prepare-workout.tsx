@@ -3,7 +3,7 @@ import {
   View, Text, Pressable, StyleSheet, ScrollView, Platform, Modal,
   TextInput, Dimensions, KeyboardAvoidingView, Switch,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -18,7 +18,8 @@ import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
 import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult, type ComboSetType } from '@/components/ComboBuilderModal';
-import { exerciseIcon } from '@/lib/exercise-icon';
+import ExerciseRow from '@/components/ExerciseRow';
+import ExerciseFilterBar from '@/components/ExerciseFilterBar';
 import { matchExercise } from '@/lib/exercise-search';
 import type { SetConfig, TemplateExercise, WorkoutType, WorkoutTemplate } from '@/lib/app-context';
 import { WORKOUT_TYPES, templateSig } from '@/lib/app-context';
@@ -710,7 +711,8 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
 }) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [equipment, setEquipment] = useState<string | null>(null);
+  const [muscle, setMuscle] = useState<string | null>(null);
 
   const allExercises = useMemo(() => {
     const lib = exerciseLibrary.map(e => ({ ...e, isCustom: false }));
@@ -726,14 +728,13 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
 
   const filtered = useMemo(() => {
     let list = allExercises;
-    if (selectedGroup) {
-      list = list.filter(e => e.muscleGroup === selectedGroup);
-    }
+    if (equipment) list = list.filter(e => e.equipment === equipment);
+    if (muscle) list = list.filter(e => (e.primaryMuscle || e.muscleGroup) === muscle);
     if (search.trim()) {
       list = list.filter(e => matchExercise(search, e));
     }
     return list;
-  }, [allExercises, selectedGroup, search]);
+  }, [allExercises, equipment, muscle, search]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -765,23 +766,14 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
             )}
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipsScroll} contentContainerStyle={s.chipsContent}>
-            <Pressable
-              onPress={() => setSelectedGroup(null)}
-              style={[s.filterChip, { backgroundColor: !selectedGroup ? Colors.primary : theme.card, borderColor: !selectedGroup ? Colors.primary : theme.border }]}
-            >
-              <Text style={[s.filterChipText, { color: !selectedGroup ? '#fff' : theme.textSecondary }]}>{t('workoutPrep.all')}</Text>
-            </Pressable>
-            {MUSCLE_GROUPS.map(g => (
-              <Pressable
-                key={g}
-                onPress={() => setSelectedGroup(selectedGroup === g ? null : g)}
-                style={[s.filterChip, { backgroundColor: selectedGroup === g ? Colors.primary : theme.card, borderColor: selectedGroup === g ? Colors.primary : theme.border }]}
-              >
-                <Text style={[s.filterChipText, { color: selectedGroup === g ? '#fff' : theme.textSecondary }]}>{g}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          <ExerciseFilterBar
+            equipment={equipment}
+            muscle={muscle}
+            onEquipment={setEquipment}
+            onMuscle={setMuscle}
+            resultCount={filtered.length}
+            theme={theme}
+          />
 
           <Pressable
             onPress={() => {
@@ -808,34 +800,16 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
               </Text>
             )}
             {filtered.map((ex, i) => (
-              <Pressable
+              <ExerciseRow
                 key={ex.id + i}
+                ex={ex}
+                theme={theme}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   onSelect(ex);
                   onClose();
                 }}
-                style={({ pressed }) => [
-                  s.exPickerItem,
-                  { backgroundColor: pressed ? theme.card : 'transparent' },
-                ]}
-              >
-                <View style={[s.exPickerIcon, { backgroundColor: Colors.primary + '15' }]}>
-                  <MaterialCommunityIcons name={exerciseIcon(ex.name, ex.muscleGroup) as any} size={20} color={Colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={[s.exPickerName, { color: theme.text }]}>{ex.name}</Text>
-                    {ex.isCustom && (
-                      <View style={[s.customBadge, { backgroundColor: Colors.accent + '20' }]}>
-                        <Text style={[s.customBadgeText, { color: Colors.accent }]}>{t('workoutPrep.customBadge')}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={[s.exPickerGroup, { color: theme.textMuted }]}>{ex.muscleGroup}</Text>
-                </View>
-                <Ionicons name="add-circle" size={22} color={Colors.primary} />
-              </Pressable>
+              />
             ))}
           </ScrollView>
         </View>
@@ -2120,64 +2094,6 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     height: '100%',
-  },
-  chipsScroll: {
-    height: 44,          // horizontal ScrollViews need an explicit height on iOS or they collapse/clip
-    flexGrow: 0,
-    flexShrink: 0,
-    marginTop: 4,
-    marginBottom: 14,
-  },
-  chipsContent: {
-    gap: 8,
-    paddingRight: 16,
-    alignItems: 'center',
-  },
-  filterChip: {
-    height: 34,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 16,
-  },
-  exPickerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-  },
-  exPickerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  exPickerName: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  exPickerGroup: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  customBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  customBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    textTransform: 'uppercase',
   },
   createCustomBtn: {
     flexDirection: 'row',

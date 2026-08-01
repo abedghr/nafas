@@ -129,6 +129,10 @@ export const extraEn = {
     collapseAll: "Collapse all", expandAll: "Expand all", setsSummary: "{{n}} sets", comboSummary: "{{r}} rounds · {{m}} moves",
     perMinuteReps: "Customize each minute", applyMinute1ToAll: "Make all minutes the same",
   },
+  exFilter: {
+    allEquipment: "All Equipment", allMuscles: "All Muscles", equipment: "Equipment", muscle: "Muscle",
+    clearFilters: "Clear Filters", showResults: "Show {{n}} results",
+  },
   programs: {
     title: "My Programs", newProgram: "New Program", weeksCount: "{{n}} weeks", restDay: "Rest", startDay: "Start",
     weekN: "Week {{n}}", pickWorkout: "Pick a workout", clearDay: "Clear day", programsCardTitle: "Programs",
@@ -308,6 +312,10 @@ export const extraAr = {
     noExercisesFound: "لم يتم العثور على تمارين", category_all: "الكل", category_push: "دفع", category_pull: "سحب", category_legs: "أرجل", category_core: "الجذع", category_calisthenics: "تمارين وزن الجسم",
     collapseAll: "طيّ الكل", expandAll: "توسيع الكل", setsSummary: "{{n}} مجموعات", comboSummary: "{{r}} جولات · {{m}} حركات",
     perMinuteReps: "تخصيص كل دقيقة", applyMinute1ToAll: "اجعل كل الدقائق متطابقة",
+  },
+  exFilter: {
+    allEquipment: "كل المعدات", allMuscles: "كل العضلات", equipment: "المعدات", muscle: "العضلة",
+    clearFilters: "مسح الفلاتر", showResults: "عرض {{n}} نتيجة",
   },
   programs: {
     title: "برامجي", newProgram: "برنامج جديد", weeksCount: "{{n}} أسابيع", restDay: "راحة", startDay: "ابدأ",

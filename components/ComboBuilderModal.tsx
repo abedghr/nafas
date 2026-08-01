@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, TextInput, Modal } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { exerciseLibrary } from '@/src/features/workout/library-cache';
-import { exerciseIcon } from '@/lib/exercise-icon';
+import ExerciseRow from '@/components/ExerciseRow';
+import ExerciseFilterBar from '@/components/ExerciseFilterBar';
 import { matchExercise } from '@/lib/exercise-search';
 import { useApp } from '@/lib/app-context';
 import { toDisplayWeight, fromDisplayWeight, unitLabel } from '@/lib/units';
@@ -70,25 +71,38 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
   const { t } = useTranslation();
   const { weightUnit } = useApp();
   const [search, setSearch] = useState('');
+  const [equipment, setEquipment] = useState<string | null>(null);
+  const [muscle, setMuscle] = useState<string | null>(null);
   const [components, setComponents] = useState<ComboComponent[]>([]);
   const [rounds, setRounds] = useState(1);
   const [unbroken, setUnbroken] = useState(true);
   const [mode, setMode] = useState<ComboMode>('circuit');
   const [intervalSeconds, setIntervalSeconds] = useState(60);
 
-  const reset = () => { setSearch(''); setComponents([]); setRounds(1); setUnbroken(true); setMode('circuit'); setIntervalSeconds(60); };
+  const reset = () => { setSearch(''); setEquipment(null); setMuscle(null); setComponents([]); setRounds(1); setUnbroken(true); setMode('circuit'); setIntervalSeconds(60); };
   const close = () => { reset(); onClose(); };
 
   const allExercises = useMemo(() => {
-    const lib = exerciseLibrary.map(e => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup, nameEn: e.nameEn, nameAr: e.nameAr }));
-    const custom = customExercises.map(e => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup, nameEn: e.name, nameAr: null }));
+    const lib = exerciseLibrary.map(e => ({
+      id: e.id, name: e.name, muscleGroup: e.muscleGroup,
+      primaryMuscle: e.primaryMuscle, equipment: e.equipment || '', imageUrl: e.imageUrl || '',
+      nameEn: e.nameEn, nameAr: e.nameAr,
+    }));
+    const custom = customExercises.map(e => ({
+      id: e.id, name: e.name, muscleGroup: e.muscleGroup,
+      primaryMuscle: e.primaryMuscle, equipment: e.equipment || '', imageUrl: e.imageUrl || '',
+      nameEn: e.name, nameAr: null,
+    }));
     return [...lib, ...custom];
   }, [customExercises]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return allExercises;
-    return allExercises.filter(e => matchExercise(search, e));
-  }, [allExercises, search]);
+    let list = allExercises;
+    if (equipment) list = list.filter(e => e.equipment === equipment);
+    if (muscle) list = list.filter(e => (e.primaryMuscle || e.muscleGroup) === muscle);
+    if (search.trim()) list = list.filter(e => matchExercise(search, e));
+    return list;
+  }, [allExercises, equipment, muscle, search]);
 
   const addComponent = (ex: { id: string; name: string; muscleGroup: string }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -263,18 +277,24 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
               <TextInput style={[s.searchInput, { color: theme.text }]} value={search} onChangeText={setSearch} placeholder={t('workoutSession.searchExercises')} placeholderTextColor={theme.textMuted} />
             </View>
 
+            <ExerciseFilterBar
+              equipment={equipment}
+              muscle={muscle}
+              onEquipment={setEquipment}
+              onMuscle={setMuscle}
+              resultCount={filtered.length}
+              theme={theme}
+            />
+
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 120 }}>
               {filtered.map((ex, i) => (
-                <Pressable key={ex.id + i} onPress={() => addComponent(ex)} style={({ pressed }) => [s.exPickerItem, { backgroundColor: pressed ? theme.card : 'transparent' }]}>
-                  <View style={[s.exPickerIcon, { backgroundColor: Colors.primary + '15' }]}>
-                    <MaterialCommunityIcons name={exerciseIcon(ex.name, ex.muscleGroup) as any} size={20} color={Colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.exPickerName, { color: theme.text }]}>{ex.name}</Text>
-                    <Text style={[s.exPickerGroup, { color: theme.textMuted }]}>{ex.muscleGroup}</Text>
-                  </View>
-                  <Ionicons name="add-circle-outline" size={22} color={Colors.accent} />
-                </Pressable>
+                <ExerciseRow
+                  key={ex.id + i}
+                  ex={ex}
+                  theme={theme}
+                  onPress={() => addComponent(ex)}
+                  trailing={<Ionicons name="add-circle-outline" size={22} color={Colors.accent} />}
+                />
               ))}
             </ScrollView>
 
@@ -300,10 +320,6 @@ const s = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: '700' },
   searchBar: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12 },
   searchInput: { flex: 1, fontSize: 15 },
-  exPickerItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 16 },
-  exPickerIcon: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  exPickerName: { fontSize: 15, fontWeight: '600' },
-  exPickerGroup: { fontSize: 12, marginTop: 2 },
   inlineInput: { width: 44, height: 34, borderRadius: 8, borderWidth: 1, textAlign: 'center', fontSize: 15, fontWeight: '600', paddingVertical: 0 },
   comboCompList: { gap: 8, marginBottom: 10 },
   comboCompBlock: { gap: 5 },
