@@ -1,46 +1,53 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, Image, StyleSheet } from 'react-native';
+import React from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { exerciseIcon } from '@/lib/exercise-icon';
-import MuscleMap from '@/components/MuscleMap';
 
-// Hevy-style exercise picker row: circular image (icon fallback) + name +
-// primary-muscle subtitle + trailing action (default: progress-arrow that
-// opens the exercise's progression chart).
-export default function ExerciseRow({ ex, onPress, theme, trailing }: {
+// Nafas exercise-picker row: branded media tile · name · primary-muscle subtitle ·
+// trailing progress-arrow (opens the exercise's progression chart).
+// Real demonstration photos are hidden for now — the media tile is a Nafas-brand
+// placeholder (green gradient squircle + exercise-type glyph), identical treatment
+// for every exercise until real images land.
+export default function ExerciseRow({ ex, onPress, theme, trailing, divider = true }: {
   ex: any;
   onPress: () => void;
   theme: typeof Colors.dark;
   trailing?: React.ReactNode;
+  divider?: boolean;
 }) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const showImage = !!ex.imageUrl && !imgFailed;
-  const muscles: string[] = ex.muscles || [];
-
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [s.row, { backgroundColor: pressed ? theme.card : 'transparent' }]}>
-      {showImage ? (
-        // public-domain demonstration photo — shows the actual movement (the "shape" of the exercise)
-        <View style={s.imageCircle}>
-          <Image source={{ uri: ex.imageUrl }} style={s.image} resizeMode="cover" onError={() => setImgFailed(true)} />
-        </View>
-      ) : muscles.length ? (
-        // fallback for exercises with no photo: owned muscle-map highlighting the worked muscle
-        <View style={s.imageCircle}>
-          <MuscleMap muscles={muscles} primary={muscles[0]} size={44} />
-        </View>
-      ) : (
-        <View style={[s.iconCircle, { backgroundColor: Colors.primary + '15' }]}>
-          <MaterialCommunityIcons name={exerciseIcon(ex.name, ex.muscleGroup) as any} size={22} color={Colors.primary} />
-        </View>
-      )}
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        s.row,
+        divider && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border },
+        { backgroundColor: pressed ? theme.card : 'transparent' },
+      ]}
+    >
+      <LinearGradient
+        colors={[Colors.primary + '2E', Colors.primary + '0A']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={s.tile}
+      >
+        <MaterialCommunityIcons
+          name={exerciseIcon(ex.name, ex.muscleGroup) as any}
+          size={24}
+          color={Colors.primary}
+        />
+      </LinearGradient>
+
       <View style={s.textCol}>
         <Text style={[s.name, { color: theme.text }]} numberOfLines={1}>{ex.name}</Text>
-        <Text style={[s.subtitle, { color: theme.textMuted }]} numberOfLines={1}>{ex.primaryMuscle || ex.muscleGroup}</Text>
+        <Text style={[s.subtitle, { color: theme.textMuted }]} numberOfLines={1}>
+          {ex.primaryMuscle || ex.muscleGroup}
+        </Text>
       </View>
+
       {trailing !== undefined ? trailing : (
         <Pressable
           hitSlop={8}
@@ -59,12 +66,14 @@ export default function ExerciseRow({ ex, onPress, theme, trailing }: {
 }
 
 const s = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12 },
-  imageCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFFFFF', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  image: { width: 48, height: 48 },
-  iconCircle: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingHorizontal: 12 },
+  tile: {
+    width: 48, height: 48, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: Colors.primary + '26',
+  },
   textCol: { flex: 1, minWidth: 0 },
-  name: { fontSize: 15, fontWeight: '600' },
-  subtitle: { fontSize: 12, marginTop: 2 },
+  name: { fontSize: 15, fontWeight: '700', letterSpacing: 0.1 },
+  subtitle: { fontSize: 12, fontWeight: '500', marginTop: 3 },
   progressBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 });
