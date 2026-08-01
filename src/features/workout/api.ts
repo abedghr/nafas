@@ -85,6 +85,7 @@ export function mapExercise(e: ApiExercise) {
   return {
     id: e.id,
     name: e.name,
+    description: e.description || "",
     category: (e.workoutTypes[0] || "").toLowerCase(),
     muscleGroup: top ? GROUP[top.bodyTarget] ?? "Full Body" : "Full Body",
     primaryMuscle: primaryMuscle(e.bodyTargets),
@@ -92,6 +93,7 @@ export function mapExercise(e: ApiExercise) {
     imageUrl: e.imageUrl || "",
     defaultSetType: e.measurementType === "time_hold" ? ("hold" as const) : ("reps" as const),
     muscles: [...e.bodyTargets].sort((a, b) => b.percentage - a.percentage).map((t) => t.bodyTarget), // strongest first
+    bodyTargets: [...e.bodyTargets].sort((a, b) => b.percentage - a.percentage), // strongest first, with %
   };
 }
 
