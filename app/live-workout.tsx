@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useApp } from '@/lib/app-context';
-import { toDisplayWeight, fromDisplayWeight, unitLabel } from '@/lib/units';
+import { toDisplayWeight, fromDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
 import Colors from '@/constants/colors';
 import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
@@ -44,6 +44,16 @@ function formatCountdown(sec: number): string {
 type SessionExercise = ActiveSession['exercises'][number];
 type SessionSet = SessionExercise['sets'][number];
 
+// Weight unit for THIS workout session (user can switch KG/LB mid-workout);
+// falls back to the profile default. Weights are always stored canonically in
+// kg, so stats/history elsewhere convert to the profile default independently.
+const SessionUnitContext = React.createContext<WeightUnit | null>(null);
+function useSessionUnit(): WeightUnit {
+  const ctx = React.useContext(SessionUnitContext);
+  const { weightUnit: profileUnit } = useApp();
+  return ctx ?? profileUnit;
+}
+
 function RepsSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
   set: SessionSet;
   setIndex: number;
@@ -54,7 +64,7 @@ function RepsSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
-  const { weightUnit } = useApp();
+  const weightUnit = useSessionUnit();
   const [editReps, setEditReps] = useState(String(set.actual.reps || set.config.reps || ''));
   const [editWeight, setEditWeight] = useState(() => {
     const kg = set.actual.weight ?? set.config.weight;
@@ -162,7 +172,7 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
-  const { weightUnit } = useApp();
+  const weightUnit = useSessionUnit();
   const [phase, setPhase] = useState<'idle' | 'prep' | 'active'>('idle');
   const [prepRemaining, setPrepRemaining] = useState(PREP_SECONDS);
   const [holdRemaining, setHoldRemaining] = useState(set.config.durationSeconds || 30);
@@ -844,7 +854,7 @@ function ComboEmomBody({ combo, onFinishEmom, theme }: {
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
-  const { weightUnit } = useApp();
+  const weightUnit = useSessionUnit();
   const components = combo.components || [];
   const rounds = combo.rounds || [];
   const compLen = Math.max(1, components.length);
@@ -1081,7 +1091,7 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
-  const { weightUnit } = useApp();
+  const weightUnit = useSessionUnit();
   const components = combo.components || [];
   const rounds = combo.rounds || [];
   const isEmom = (combo.mode ?? 'circuit') === 'emom'; // no mode = circuit (backward compat)
@@ -1290,6 +1300,7 @@ export default function LiveWorkoutScreen() {
 
   const { activeSession, setActiveSession, addWorkoutLog, customExercises, user, weightUnit } = useApp();
   const [session, setSession] = useState<ActiveSession | null>(activeSession);
+  const [sessionUnit, setSessionUnit] = useState<WeightUnit>(weightUnit); // per-workout KG/LB; profile default until changed
   const [elapsed, setElapsed] = useState('00:00');
   const [restTimer, setRestTimer] = useState(0);
   const [restTotal, setRestTotal] = useState(0);
@@ -1705,6 +1716,7 @@ export default function LiveWorkoutScreen() {
   if (!session) return null;
 
   return (
+    <SessionUnitContext.Provider value={sessionUnit}>
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 8 }]}>
         <LinearGradient
@@ -1720,6 +1732,17 @@ export default function LiveWorkoutScreen() {
             <View style={styles.liveDot} />
             <Text style={[styles.headerTimer, { color: Colors.primary }]}>{elapsed}</Text>
           </View>
+        </View>
+        <View style={[styles.unitToggle, { borderColor: theme.border }]}>
+          {(['kg', 'lb'] as WeightUnit[]).map((u) => (
+            <Pressable
+              key={u}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSessionUnit(u); }}
+              style={[styles.unitToggleChip, { backgroundColor: sessionUnit === u ? Colors.primary : 'transparent' }]}
+            >
+              <Text style={[styles.unitToggleText, { color: sessionUnit === u ? '#fff' : theme.textMuted }]}>{u.toUpperCase()}</Text>
+            </Pressable>
+          ))}
         </View>
         <Pressable
           onPress={() => setShowFinishModal(true)}
@@ -1759,7 +1782,7 @@ export default function LiveWorkoutScreen() {
             <View style={[styles.progressCard, { backgroundColor: theme.card }]}>
               <View style={styles.progRow}>
                 <View style={styles.progStat}><Text style={[styles.progVal, { color: theme.text }]}>{done}/{total}</Text><Text style={[styles.progLbl, { color: theme.textMuted }]}>{t('workoutSession.sets')}</Text></View>
-                <View style={styles.progStat}><Text style={[styles.progVal, { color: theme.text }]}>{Math.round(toDisplayWeight(vol, weightUnit)).toLocaleString()}</Text><Text style={[styles.progLbl, { color: theme.textMuted }]}>{t('workoutSession.volume')} ({unitLabel(weightUnit)})</Text></View>
+                <View style={styles.progStat}><Text style={[styles.progVal, { color: theme.text }]}>{Math.round(toDisplayWeight(vol, sessionUnit)).toLocaleString()}</Text><Text style={[styles.progLbl, { color: theme.textMuted }]}>{t('workoutSession.volume')} ({unitLabel(sessionUnit)})</Text></View>
                 <View style={styles.progStat}><Text style={[styles.progVal, { color: Colors.primary }]}>{Math.round(pct * 100)}%</Text><Text style={[styles.progLbl, { color: theme.textMuted }]}>{t('workoutSession.done')}</Text></View>
               </View>
               <View style={styles.progTrack}><View style={[styles.progFill, { width: `${Math.round(pct * 100)}%` }]} /></View>
@@ -1828,8 +1851,8 @@ export default function LiveWorkoutScreen() {
                       <Ionicons name="time-outline" size={11} color={theme.textMuted} />
                       <Text style={[styles.lastPerfText, { color: theme.textMuted }]}>
                         {t('workoutSession.lastTimeHint', {
-                          weight: toDisplayWeight(lastPerf[ex.name].weight, weightUnit),
-                          unit: unitLabel(weightUnit),
+                          weight: toDisplayWeight(lastPerf[ex.name].weight, sessionUnit),
+                          unit: unitLabel(sessionUnit),
                           reps: lastPerf[ex.name].reps,
                           date: new Date(lastPerf[ex.name].date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
                         })}
@@ -1864,7 +1887,7 @@ export default function LiveWorkoutScreen() {
                         <Text style={[styles.setHeadText, { color: theme.textMuted }]}>{t('workoutSession.colSet', { defaultValue: 'Set' })}</Text>
                       </View>
                       <Text style={[styles.setHeadText, styles.setHeadCell, { color: theme.textMuted }]}>{t('workoutSession.reps')}</Text>
-                      <Text style={[styles.setHeadText, styles.setHeadCell, { color: theme.textMuted }]}>{unitLabel(weightUnit)}</Text>
+                      <Text style={[styles.setHeadText, styles.setHeadCell, { color: theme.textMuted }]}>{unitLabel(sessionUnit)}</Text>
                       <View style={styles.setColAction} />
                     </View>
                   )}
@@ -2002,6 +2025,7 @@ export default function LiveWorkoutScreen() {
         theme={theme}
       />
     </View>
+    </SessionUnitContext.Provider>
   );
 }
 
@@ -2017,6 +2041,9 @@ const styles = StyleSheet.create({
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.primary },
   headerTitle: { fontSize: 15, fontWeight: '600' as const },
   headerTimer: { fontSize: 13, fontWeight: '700' as const, letterSpacing: 1 },
+  unitToggle: { flexDirection: 'row', borderRadius: 10, borderWidth: 1, overflow: 'hidden', padding: 2, gap: 2 },
+  unitToggleChip: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8 },
+  unitToggleText: { fontSize: 11, fontWeight: '700' as const },
   finishBtn: { borderRadius: 16, overflow: 'hidden' },
   finishBtnGrad: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16 },
   finishBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' as const },
