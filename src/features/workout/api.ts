@@ -66,7 +66,7 @@ const PRIMARY_MUSCLE: Record<string, string> = {
   lats: "Lats", upper_back: "Upper Back", mid_back: "Upper Back", lower_back: "Lower Back", erector_spinae: "Lower Back", traps: "Traps",
   shoulders_anterior: "Shoulders", shoulders_lateral: "Shoulders", shoulders_posterior: "Shoulders",
   biceps: "Biceps", triceps: "Triceps", forearms: "Forearms",
-  glutes: "Glutes", hamstrings: "Hamstrings", quadriceps: "Quadriceps", adductors: "Quadriceps", hip_flexors: "Quadriceps", calves: "Calves",
+  glutes: "Glutes", hamstrings: "Hamstrings", quadriceps: "Quadriceps", adductors: "Adductors", hip_flexors: "Quadriceps", calves: "Calves",
   core_abs: "Abdominals", core_deep: "Abdominals", obliques: "Abdominals",
   cardiovascular: "Cardio", endurance: "Cardio", flexibility: "Full Body", balance: "Full Body",
 };
@@ -77,7 +77,13 @@ export function primaryMuscle(bodyTargets: { bodyTarget: string; percentage: num
 
 // Filter option lists (Hevy parity).
 export const EQUIPMENT_OPTIONS = ["None", "Barbell", "Dumbbell", "Kettlebell", "Machine", "Plate", "Resistance Band", "Suspension Band", "Other"];
-export const PRIMARY_MUSCLES = ["Abdominals", "Biceps", "Calves", "Cardio", "Chest", "Forearms", "Full Body", "Glutes", "Hamstrings", "Lats", "Lower Back", "Quadriceps", "Shoulders", "Traps", "Triceps", "Upper Back"];
+// Muscle groups grouped like Hevy's picker (Upper Body / Lower Body / Other).
+export const MUSCLE_CATEGORIES: { key: string; muscles: string[] }[] = [
+  { key: "upperBody", muscles: ["Abdominals", "Biceps", "Chest", "Forearms", "Lats", "Lower Back", "Shoulders", "Traps", "Triceps", "Upper Back"] },
+  { key: "lowerBody", muscles: ["Adductors", "Calves", "Glutes", "Hamstrings", "Quadriceps"] },
+  { key: "other", muscles: ["Cardio", "Full Body"] },
+];
+export const PRIMARY_MUSCLES = MUSCLE_CATEGORIES.flatMap((c) => c.muscles);
 
 // Old exerciseLibrary item shape the screens expect.
 export function mapExercise(e: ApiExercise) {

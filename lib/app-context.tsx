@@ -219,6 +219,9 @@ export interface CustomExercise {
   userId: string;
   name: string;
   muscleGroup: string;
+  primaryMuscle?: string;
+  otherMuscles?: string[];
+  equipment?: string;
   defaultSetType: SetConfig['type'];
   notes: string;
   isCustom: true;

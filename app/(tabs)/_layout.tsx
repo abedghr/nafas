@@ -59,7 +59,9 @@ function ClassicTabLayout() {
         headerShown: false,
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: isDark ? Colors.dark.tabIconDefault : Colors.light.tabIconDefault,
-        tabBarLabelStyle: { fontFamily: 'Rubik_500Medium', fontSize: 11 },
+        // lineHeight/padding keep taller Arabic glyphs (e.g. "التمرين") from clipping
+        tabBarLabelStyle: { fontFamily: 'Rubik_500Medium', fontSize: 11, lineHeight: 15, includeFontPadding: false },
+        tabBarItemStyle: { paddingVertical: 4 },
         tabBarStyle: {
           position: "absolute",
           backgroundColor: isIOS ? "transparent" : isDark ? Colors.dark.tabBar : Colors.light.tabBar,

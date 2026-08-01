@@ -115,6 +115,8 @@ export const extraEn = {
     createCustomExercise: "Create Custom Exercise", requiredTitle: "Required", enterExerciseName: "Please enter an exercise name.",
     exerciseNameRequired: "Exercise Name *", exerciseNamePlaceholder: "e.g. Bulgarian Split Squat", muscleGroup: "Muscle Group", defaultSetType: "Default Set Type",
     notesOptional: "Notes (optional)", notesPlaceholder: "Form cues, variations, etc.", saveExercise: "Save Exercise", loadSavedWorkout: "Load Saved Workout",
+    createExercise: "Create Exercise", select: "Select", optionalTag: "(optional)",
+    exerciseName: "Exercise Name", equipment: "Equipment", primaryMuscleGroup: "Primary Muscle Group", otherMuscles: "Other Muscles", exerciseType: "Exercise Type",
     searchSavedWorkouts: "Search saved workouts...", noSavedWorkouts: "No saved workouts yet", noMatchingWorkouts: "No matching workouts",
     deleteSavedWorkout: "Delete saved workout", deleteSavedWorkoutConfirm: "Delete \"{{name}}\"? This can't be undone.",
     templateMeta: "{{exercises}} exercises · {{sets}} sets", nameRequiredTitle: "Name Required", nameRequiredOrType: "Please enter a workout name or select a type.",
@@ -132,6 +134,7 @@ export const extraEn = {
   },
   exFilter: {
     allEquipment: "All Equipment", allMuscles: "All Muscles", equipment: "Equipment", muscle: "Muscle",
+    upperBody: "Upper Body", lowerBody: "Lower Body", other: "Other",
     clearFilters: "Clear Filters", showResults: "Show {{n}} results",
   },
   programs: {
@@ -300,6 +303,8 @@ export const extraAr = {
     createCustomExercise: "إنشاء تمرين مخصّص", requiredTitle: "مطلوب", enterExerciseName: "يرجى إدخال اسم التمرين.",
     exerciseNameRequired: "اسم التمرين *", exerciseNamePlaceholder: "مثال: سكوات بلغاري بقدم واحدة", muscleGroup: "المجموعة العضلية", defaultSetType: "نوع المجموعة الافتراضي",
     notesOptional: "ملاحظات (اختياري)", notesPlaceholder: "تنبيهات على الأداء، تنويعات، إلخ.", saveExercise: "حفظ التمرين", loadSavedWorkout: "تحميل تمرين محفوظ",
+    createExercise: "إنشاء تمرين", select: "اختر", optionalTag: "(اختياري)",
+    exerciseName: "اسم التمرين", equipment: "المعدّات", primaryMuscleGroup: "المجموعة العضلية الأساسية", otherMuscles: "عضلات أخرى", exerciseType: "نوع التمرين",
     searchSavedWorkouts: "ابحث في التمارين المحفوظة...", noSavedWorkouts: "لا توجد تمارين محفوظة بعد", noMatchingWorkouts: "لا توجد تمارين مطابقة",
     deleteSavedWorkout: "حذف التمرين المحفوظ", deleteSavedWorkoutConfirm: "حذف \"{{name}}\"؟ لا يمكن التراجع.",
     templateMeta: "{{exercises}} تمارين · {{sets}} مجموعات", nameRequiredTitle: "الاسم مطلوب", nameRequiredOrType: "يرجى إدخال اسم للتمرين أو اختيار نوع.",
@@ -317,6 +322,7 @@ export const extraAr = {
   },
   exFilter: {
     allEquipment: "كل المعدات", allMuscles: "كل العضلات", equipment: "المعدات", muscle: "العضلة",
+    upperBody: "الجزء العلوي", lowerBody: "الجزء السفلي", other: "أخرى",
     clearFilters: "مسح الفلاتر", showResults: "عرض {{n}} نتيجة",
   },
   programs: {

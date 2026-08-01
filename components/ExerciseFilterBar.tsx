@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
-import { EQUIPMENT_OPTIONS, PRIMARY_MUSCLES } from '@/src/features/workout/api';
+import { EQUIPMENT_OPTIONS, MUSCLE_CATEGORIES } from '@/src/features/workout/api';
 
 // Hevy-style Equipment / Muscle filter pills for the exercise pickers. Tapping
 // a pill opens a bottom-sheet with a 2-column option grid + "Clear Filters" +
@@ -20,9 +20,29 @@ export default function ExerciseFilterBar({ equipment, muscle, onEquipment, onMu
   const { t } = useTranslation();
   const [sheet, setSheet] = useState<'equipment' | 'muscle' | null>(null);
 
-  const options = sheet === 'equipment' ? EQUIPMENT_OPTIONS : PRIMARY_MUSCLES;
   const selected = sheet === 'equipment' ? equipment : muscle;
   const setSelected = sheet === 'equipment' ? onEquipment : onMuscle;
+
+  const renderOption = (opt: string) => {
+    const isSel = selected === opt;
+    return (
+      <Pressable
+        key={opt}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setSelected(isSel ? null : opt);
+          setSheet(null);
+        }}
+        style={[s.option, {
+          backgroundColor: isSel ? Colors.primary + '18' : theme.card,
+          borderColor: isSel ? Colors.primary : theme.border,
+        }]}
+      >
+        <Text style={[s.optionText, { color: isSel ? Colors.primary : theme.text }]} numberOfLines={1}>{opt}</Text>
+        {isSel && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
+      </Pressable>
+    );
+  };
 
   const pill = (kind: 'equipment' | 'muscle') => {
     const value = kind === 'equipment' ? equipment : muscle;
@@ -68,27 +88,17 @@ export default function ExerciseFilterBar({ equipment, muscle, onEquipment, onMu
               </Pressable>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.grid}>
-              {options.map((opt) => {
-                const isSel = selected === opt;
-                return (
-                  <Pressable
-                    key={opt}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelected(isSel ? null : opt);
-                      setSheet(null);
-                    }}
-                    style={[s.option, {
-                      backgroundColor: isSel ? Colors.primary + '18' : theme.card,
-                      borderColor: isSel ? Colors.primary : theme.border,
-                    }]}
-                  >
-                    <Text style={[s.optionText, { color: isSel ? Colors.primary : theme.text }]} numberOfLines={1}>{opt}</Text>
-                    {isSel && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
-                  </Pressable>
-                );
-              })}
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
+              {sheet === 'equipment' ? (
+                <View style={s.grid}>{EQUIPMENT_OPTIONS.map(renderOption)}</View>
+              ) : (
+                MUSCLE_CATEGORIES.map((cat) => (
+                  <View key={cat.key}>
+                    <Text style={[s.catHeader, { color: theme.textMuted }]}>{t(`exFilter.${cat.key}`, { defaultValue: cat.key })}</Text>
+                    <View style={s.grid}>{cat.muscles.map(renderOption)}</View>
+                  </View>
+                ))
+              )}
             </ScrollView>
 
             <View style={s.footer}>
@@ -130,7 +140,8 @@ const s = StyleSheet.create({
   handleBar: { width: 40, height: 4, borderRadius: 2 },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12 },
   sheetTitle: { fontSize: 18, fontWeight: '700' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 12 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 4 },
+  catHeader: { fontSize: 12, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase', marginTop: 12, marginBottom: 8 },
   option: { width: '48.5%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1 },
   optionText: { fontSize: 14, fontWeight: '600', flexShrink: 1 },
   footer: { flexDirection: 'row', gap: 10, paddingVertical: 12, paddingBottom: 24 },

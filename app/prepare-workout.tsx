@@ -16,7 +16,7 @@ import { toDisplayWeight, fromDisplayWeight, unitLabel } from '@/lib/units';
 import { alertDialog, confirmDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
-import { workoutApi } from '@/src/features/workout/api';
+import { workoutApi, EQUIPMENT_OPTIONS, MUSCLE_CATEGORIES } from '@/src/features/workout/api';
 import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult, type ComboSetType } from '@/components/ComboBuilderModal';
 import ExerciseRow from '@/components/ExerciseRow';
 import ExerciseFilterBar from '@/components/ExerciseFilterBar';
@@ -720,6 +720,8 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
       id: e.id,
       name: e.name,
       muscleGroup: e.muscleGroup,
+      primaryMuscle: e.primaryMuscle || e.muscleGroup,
+      equipment: e.equipment || '',
       defaultSetType: e.defaultSetType,
       isCustom: true,
     }));
@@ -841,138 +843,172 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
   );
 }
 
+// fine primary-muscle label → the app's coarse muscle group (for legacy filters/icons)
+const MUSCLE_TO_GROUP: Record<string, string> = {
+  Abdominals: 'Core', Biceps: 'Arms', Chest: 'Chest', Forearms: 'Arms', Lats: 'Back',
+  'Lower Back': 'Back', Shoulders: 'Shoulders', Traps: 'Back', Triceps: 'Arms', 'Upper Back': 'Back',
+  Adductors: 'Legs', Calves: 'Legs', Glutes: 'Legs', Hamstrings: 'Legs', Quadriceps: 'Legs',
+  Cardio: 'Cardio', 'Full Body': 'Full Body',
+};
+
+// A single bottom-sheet picker (flat or categorized; single-select or multi).
+function PickerSheet({ visible, title, sections, selected, multi, onPick, onToggle, onClose, theme }: {
+  visible: boolean;
+  title: string;
+  sections: { title: string; options: string[] }[];
+  selected: string | string[] | null;
+  multi?: boolean;
+  onPick?: (v: string) => void;
+  onToggle?: (v: string) => void;
+  onClose: () => void;
+  theme: typeof Colors.dark;
+}) {
+  const { t } = useTranslation();
+  const isSel = (v: string) => (multi ? (selected as string[]).includes(v) : selected === v);
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={s.pkOverlay}>
+        <Pressable style={{ flex: 1 }} onPress={onClose} />
+        <View style={[s.pkSheet, { backgroundColor: theme.background }]}>
+          <View style={s.modalHandle}><View style={[s.handleBar, { backgroundColor: theme.border }]} /></View>
+          <View style={s.modalHeader}>
+            <Text style={[s.modalTitle, { color: theme.text }]}>{title}</Text>
+            <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={22} color={theme.text} /></Pressable>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+            {sections.map((sec, si) => (
+              <View key={si}>
+                {!!sec.title && <Text style={[s.pkCatHeader, { color: theme.textMuted }]}>{sec.title}</Text>}
+                <View style={s.pkGrid}>
+                  {sec.options.map((opt) => {
+                    const sel = isSel(opt);
+                    return (
+                      <Pressable
+                        key={opt}
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); multi ? onToggle?.(opt) : onPick?.(opt); }}
+                        style={[s.pkOption, { backgroundColor: sel ? Colors.primary + '18' : theme.card, borderColor: sel ? Colors.primary : theme.border }]}
+                      >
+                        <Text style={[s.pkOptionText, { color: sel ? Colors.primary : theme.text }]} numberOfLines={1}>{opt}</Text>
+                        {sel && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+          {multi && (
+            <Pressable onPress={onClose} style={[s.pkDone, { backgroundColor: Colors.primary }]}>
+              <Text style={s.pkDoneText}>{t('workoutPrep.done', { defaultValue: 'Done' })}</Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function CreateCustomModal({ visible, onClose, onSave, theme }: {
   visible: boolean;
   onClose: () => void;
-  onSave: (ex: { userId: string; name: string; muscleGroup: string; defaultSetType: SetConfig['type']; notes: string; isCustom: true }) => void;
+  onSave: (ex: { userId: string; name: string; muscleGroup: string; primaryMuscle?: string; otherMuscles?: string[]; equipment?: string; defaultSetType: SetConfig['type']; notes: string; isCustom: true }) => void;
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
-  const [muscleGroup, setMuscleGroup] = useState(MUSCLE_GROUPS[0]);
+  const [equipment, setEquipment] = useState<string | null>(null);
+  const [primary, setPrimary] = useState<string | null>(null);
+  const [others, setOthers] = useState<string[]>([]);
   const [setType, setSetType] = useState<SetConfig['type']>('reps');
-  const [notes, setNotes] = useState('');
-  const [showMuscleDropdown, setShowMuscleDropdown] = useState(false);
+  const [picker, setPicker] = useState<null | 'equipment' | 'primary' | 'other' | 'type'>(null);
+
+  const reset = () => { setName(''); setEquipment(null); setPrimary(null); setOthers([]); setSetType('reps'); };
+  const canSave = !!name.trim();
 
   const handleSave = () => {
-    if (!name.trim()) {
-      alertDialog(t('workoutPrep.requiredTitle'), t('workoutPrep.enterExerciseName'));
-      return;
-    }
+    if (!canSave) { alertDialog(t('workoutPrep.requiredTitle'), t('workoutPrep.enterExerciseName')); return; }
     onSave({
       userId: 'u1',
       name: name.trim(),
-      muscleGroup,
+      muscleGroup: MUSCLE_TO_GROUP[primary || ''] || 'Full Body',
+      primaryMuscle: primary || undefined,
+      otherMuscles: others.length ? others : undefined,
+      equipment: equipment || undefined,
       defaultSetType: setType,
-      notes: notes.trim(),
+      notes: '',
       isCustom: true,
     });
-    setName('');
-    setMuscleGroup(MUSCLE_GROUPS[0]);
-    setSetType('reps');
-    setNotes('');
+    reset();
     onClose();
   };
 
+  const muscleSections = MUSCLE_CATEGORIES.map((c) => ({ title: t(`exFilter.${c.key}`, { defaultValue: c.key }), options: c.muscles }));
+
+  const Row = ({ label, value, optional, onPress }: { label: string; value?: string | null; optional?: boolean; onPress: () => void }) => (
+    <Pressable onPress={onPress} style={[s.ccRow, { borderBottomColor: theme.border }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={[s.ccRowLabel, { color: theme.text }]}>{label}</Text>
+        <Text style={[s.ccRowValue, { color: value ? Colors.primary : theme.textMuted }]} numberOfLines={1}>
+          {value || t('workoutPrep.select', { defaultValue: 'Select' })}{optional && !value ? `  ${t('workoutPrep.optionalTag', { defaultValue: '(optional)' })}` : ''}
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+    </Pressable>
+  );
+
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={s.modalOverlay}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={[s.modalOverlay, { justifyContent: 'flex-end' }]}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <View style={[s.modalContent, { backgroundColor: theme.background, maxHeight: '80%' }]}>
-            <View style={s.modalHandle}>
-              <View style={[s.handleBar, { backgroundColor: theme.border }]} />
-            </View>
-            <View style={s.modalHeader}>
-              <Text style={[s.modalTitle, { color: theme.text }]}>{t('workoutPrep.createCustomExercise')}</Text>
-              <Pressable onPress={onClose} hitSlop={8}>
-                <Ionicons name="close" size={24} color={theme.text} />
+          <View style={[s.modalContent, { backgroundColor: theme.background, maxHeight: '90%' }]}>
+            <View style={s.modalHandle}><View style={[s.handleBar, { backgroundColor: theme.border }]} /></View>
+            <View style={s.ccHeader}>
+              <Pressable onPress={onClose} hitSlop={8} style={s.ccHeaderBtn}><Ionicons name="close" size={22} color={theme.text} /></Pressable>
+              <Text style={[s.modalTitle, { color: theme.text }]}>{t('workoutPrep.createExercise', { defaultValue: 'Create Exercise' })}</Text>
+              <Pressable onPress={handleSave} hitSlop={8} style={[s.ccSaveBtn, { backgroundColor: canSave ? Colors.primary : theme.card }]}>
+                <Text style={[s.ccSaveText, { color: canSave ? '#fff' : theme.textMuted }]}>{t('workoutPrep.save', { defaultValue: 'Save' })}</Text>
               </Pressable>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 16, paddingBottom: 32 }}>
-              <View>
-                <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{t('workoutPrep.exerciseNameRequired')}</Text>
-                <TextInput
-                  style={[s.fieldInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                  value={name}
-                  onChangeText={setName}
-                  placeholder={t('workoutPrep.exerciseNamePlaceholder')}
-                  placeholderTextColor={theme.textMuted}
-                />
-              </View>
-
-              <View>
-                <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{t('workoutPrep.muscleGroup')}</Text>
-                <Pressable
-                  onPress={() => setShowMuscleDropdown(!showMuscleDropdown)}
-                  style={[s.fieldInput, s.dropdownTrigger, { backgroundColor: theme.card, borderColor: theme.border }]}
-                >
-                  <Text style={{ color: theme.text, fontSize: 15 }}>{muscleGroup}</Text>
-                  <Ionicons name="chevron-down" size={16} color={theme.textMuted} />
-                </Pressable>
-                {showMuscleDropdown && (
-                  <View style={[s.dropdown, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                    {MUSCLE_GROUPS.map(g => (
-                      <Pressable
-                        key={g}
-                        onPress={() => {
-                          setMuscleGroup(g);
-                          setShowMuscleDropdown(false);
-                        }}
-                        style={[s.dropdownItem, muscleGroup === g && { backgroundColor: Colors.primary + '15' }]}
-                      >
-                        <Text style={{ color: muscleGroup === g ? Colors.primary : theme.text, fontSize: 14 }}>{g}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-              </View>
-
-              <View>
-                <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{t('workoutPrep.defaultSetType')}</Text>
-                <View style={s.typePills}>
-                  {SET_TYPES.map(st => (
-                    <Pressable
-                      key={st}
-                      onPress={() => setSetType(st)}
-                      style={[
-                        s.typePill,
-                        {
-                          backgroundColor: setType === st ? Colors.primary : theme.card,
-                          borderColor: setType === st ? Colors.primary : theme.border,
-                        },
-                      ]}
-                    >
-                      <Text style={{ color: setType === st ? '#fff' : theme.textSecondary, fontSize: 11, fontWeight: '600' }}>
-                        {SET_TYPE_LABELS[st]}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              <View>
-                <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{t('workoutPrep.notesOptional')}</Text>
-                <TextInput
-                  style={[s.fieldInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border, height: 70, textAlignVertical: 'top' }]}
-                  value={notes}
-                  onChangeText={setNotes}
-                  placeholder={t('workoutPrep.notesPlaceholder')}
-                  placeholderTextColor={theme.textMuted}
-                  multiline
-                />
-              </View>
-
-              <Pressable onPress={handleSave} style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1 }]}>
-                <LinearGradient colors={[Colors.primary, Colors.primaryDark]} style={s.saveBtn}>
-                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                  <Text style={s.saveBtnText}>{t('workoutPrep.saveExercise')}</Text>
-                </LinearGradient>
-              </Pressable>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+              <TextInput
+                style={[s.ccNameInput, { color: theme.text, borderBottomColor: theme.border }]}
+                value={name}
+                onChangeText={setName}
+                placeholder={t('workoutPrep.exerciseName', { defaultValue: 'Exercise Name' })}
+                placeholderTextColor={theme.textMuted}
+              />
+              <Row label={t('workoutPrep.equipment', { defaultValue: 'Equipment' })} value={equipment} onPress={() => setPicker('equipment')} />
+              <Row label={t('workoutPrep.primaryMuscleGroup', { defaultValue: 'Primary Muscle Group' })} value={primary} onPress={() => setPicker('primary')} />
+              <Row label={t('workoutPrep.otherMuscles', { defaultValue: 'Other Muscles' })} value={others.join(', ')} optional onPress={() => setPicker('other')} />
+              <Row label={t('workoutPrep.exerciseType', { defaultValue: 'Exercise Type' })} value={SET_TYPE_LABELS[setType]} onPress={() => setPicker('type')} />
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </View>
+
+      <PickerSheet
+        visible={picker === 'equipment'} title={t('workoutPrep.equipment', { defaultValue: 'Equipment' })} theme={theme}
+        sections={[{ title: '', options: EQUIPMENT_OPTIONS }]} selected={equipment}
+        onPick={(v) => { setEquipment(v); setPicker(null); }} onClose={() => setPicker(null)}
+      />
+      <PickerSheet
+        visible={picker === 'primary'} title={t('workoutPrep.primaryMuscleGroup', { defaultValue: 'Primary Muscle Group' })} theme={theme}
+        sections={muscleSections} selected={primary}
+        onPick={(v) => { setPrimary(v); setPicker(null); }} onClose={() => setPicker(null)}
+      />
+      <PickerSheet
+        visible={picker === 'other'} title={t('workoutPrep.otherMuscles', { defaultValue: 'Other Muscles' })} theme={theme} multi
+        sections={muscleSections} selected={others}
+        onToggle={(v) => setOthers((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]))}
+        onClose={() => setPicker(null)}
+      />
+      <PickerSheet
+        visible={picker === 'type'} title={t('workoutPrep.exerciseType', { defaultValue: 'Exercise Type' })} theme={theme}
+        sections={[{ title: '', options: SET_TYPES.map((st) => SET_TYPE_LABELS[st]) }]} selected={SET_TYPE_LABELS[setType]}
+        onPick={(lbl) => { const st = SET_TYPES.find((x) => SET_TYPE_LABELS[x] === lbl); if (st) setSetType(st); setPicker(null); }}
+        onClose={() => setPicker(null)}
+      />
     </Modal>
   );
 }
@@ -2190,6 +2226,24 @@ const s = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
+  // Create-custom (Hevy-style) header + rows
+  ccHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, paddingBottom: 14 },
+  ccHeaderBtn: { width: 40, height: 36, alignItems: 'flex-start', justifyContent: 'center' },
+  ccSaveBtn: { paddingHorizontal: 18, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  ccSaveText: { fontSize: 14, fontWeight: '700' },
+  ccNameInput: { fontSize: 18, fontWeight: '600', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: 4 },
+  ccRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth },
+  ccRowLabel: { fontSize: 16, fontWeight: '600' },
+  ccRowValue: { fontSize: 14, fontWeight: '500', marginTop: 4 },
+  // PickerSheet
+  pkOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  pkSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '72%', paddingHorizontal: 16 },
+  pkCatHeader: { fontSize: 12, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase', marginTop: 12, marginBottom: 8 },
+  pkGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  pkOption: { width: '48.5%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 13, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1 },
+  pkOptionText: { fontSize: 14, fontWeight: '600', flexShrink: 1 },
+  pkDone: { height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginVertical: 12 },
+  pkDoneText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   loadTemplateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
