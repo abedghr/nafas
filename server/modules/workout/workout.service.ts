@@ -93,7 +93,7 @@ export const workoutService = {
       ));
     }
     const rows = await db.select().from(exercises).where(and(...conds))
-      .orderBy(exercises.name).limit(500); // library is bounded (~100s); hard cap as a guard
+      .orderBy(exercises.name).limit(2000); // full catalog (~500+); high guard cap
     return hydrateExercises(rows, opts.locale ?? "en");
   },
 
