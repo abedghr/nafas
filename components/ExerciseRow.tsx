@@ -6,6 +6,8 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { exerciseIcon } from '@/lib/exercise-icon';
+import { useApp } from '@/lib/app-context';
+import { muscleLabel } from '@/lib/exercise-i18n';
 
 // Nafas exercise-picker row: branded media tile · name · primary-muscle subtitle ·
 // trailing progress-arrow (opens the exercise's progression chart).
@@ -19,6 +21,8 @@ export default function ExerciseRow({ ex, onPress, theme, trailing, divider = tr
   trailing?: React.ReactNode;
   divider?: boolean;
 }) {
+  const { language } = useApp();
+  const isAr = language === 'ar';
   return (
     <Pressable
       onPress={onPress}
@@ -44,7 +48,7 @@ export default function ExerciseRow({ ex, onPress, theme, trailing, divider = tr
       <View style={s.textCol}>
         <Text style={[s.name, { color: theme.text }]} numberOfLines={1}>{ex.name}</Text>
         <Text style={[s.subtitle, { color: theme.textMuted }]} numberOfLines={1}>
-          {ex.primaryMuscle || ex.muscleGroup}
+          {muscleLabel(ex.primaryMuscle || ex.muscleGroup, isAr)}
         </Text>
       </View>
 

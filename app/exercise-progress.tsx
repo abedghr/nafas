@@ -12,15 +12,15 @@ import ProgressChart from '@/components/ProgressChart';
 import { workoutApi } from '@/src/features/workout/api';
 import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import { exerciseIcon } from '@/lib/exercise-icon';
+import { bodyTargetLabel, muscleLabel, equipLabel } from '@/lib/exercise-i18n';
 
 type Point = { date: string; weight: number; reps: number; volume: number };
-
-const muscleLabel = (m: string) => m.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 export default function ExerciseProgressScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { isDark, weightUnit } = useApp();
+  const { isDark, weightUnit, language } = useApp();
+  const isAr = language === 'ar';
   const theme = isDark ? Colors.dark : Colors.light;
   const { name } = useLocalSearchParams<{ name: string }>();
   const [points, setPoints] = useState<Point[]>([]);
@@ -34,7 +34,7 @@ export default function ExerciseProgressScreen() {
   // catalog data for the About / muscle sections (independent of logged history)
   const ex = useMemo(() => exerciseLibrary.find((e) => e.name === name), [name]);
   const targets: { bodyTarget: string; percentage: number }[] = ex?.bodyTargets || [];
-  const equip = ex?.equipment && ex.equipment !== 'None' ? ex.equipment : t('workoutTab.bodyweight');
+  const equip = ex?.equipment && ex.equipment !== 'None' ? equipLabel(ex.equipment, isAr) : t('workoutTab.bodyweight');
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/coach' as any));
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
@@ -66,7 +66,7 @@ export default function ExerciseProgressScreen() {
             <View style={s.chipRow}>
               {!!ex?.primaryMuscle && (
                 <View style={[s.chip, { backgroundColor: Colors.primary + '18' }]}>
-                  <Text style={[s.chipText, { color: Colors.primary }]}>{ex.primaryMuscle}</Text>
+                  <Text style={[s.chipText, { color: Colors.primary }]}>{muscleLabel(ex.primaryMuscle, isAr)}</Text>
                 </View>
               )}
               <View style={[s.chip, { backgroundColor: theme.card }]}>
@@ -94,7 +94,7 @@ export default function ExerciseProgressScreen() {
                 {targets.map((tg, i) => (
                   <View key={tg.bodyTarget}>
                     <View style={s.barLabelRow}>
-                      <Text style={[s.barLabel, { color: theme.text }]}>{muscleLabel(tg.bodyTarget)}</Text>
+                      <Text style={[s.barLabel, { color: theme.text }]}>{bodyTargetLabel(tg.bodyTarget, isAr)}</Text>
                       <Text style={[s.barPct, { color: theme.textMuted }]}>{tg.percentage}%</Text>
                     </View>
                     <View style={[s.barTrack, { backgroundColor: theme.border }]}>

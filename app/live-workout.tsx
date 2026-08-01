@@ -12,6 +12,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useApp } from '@/lib/app-context';
 import { toDisplayWeight, fromDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
+import { muscleLabel } from '@/lib/exercise-i18n';
 import Colors from '@/constants/colors';
 import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
@@ -1298,7 +1299,7 @@ export default function LiveWorkoutScreen() {
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
   const theme = Colors.dark;
 
-  const { activeSession, setActiveSession, addWorkoutLog, customExercises, user, weightUnit } = useApp();
+  const { activeSession, setActiveSession, addWorkoutLog, customExercises, user, weightUnit, language } = useApp();
   const [session, setSession] = useState<ActiveSession | null>(activeSession);
   const [sessionUnit, setSessionUnit] = useState<WeightUnit>(weightUnit); // per-workout KG/LB; profile default until changed
   const [elapsed, setElapsed] = useState('00:00');
@@ -1861,7 +1862,7 @@ export default function LiveWorkoutScreen() {
                   )}
                 </View>
                 <View style={[styles.muscleTag, { backgroundColor: Colors.primary + '18' }]}>
-                  <Text style={[styles.muscleTagText, { color: Colors.primary }]}>{ex.muscleGroup}</Text>
+                  <Text style={[styles.muscleTagText, { color: Colors.primary }]}>{muscleLabel(ex.muscleGroup, language === 'ar')}</Text>
                 </View>
                 <Pressable
                   onPress={() => toggleCollapse(ex.exerciseId + '-' + exIdx)}

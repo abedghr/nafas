@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { EQUIPMENT_OPTIONS, MUSCLE_CATEGORIES } from '@/src/features/workout/api';
+import { useApp } from '@/lib/app-context';
+import { muscleLabel, equipLabel } from '@/lib/exercise-i18n';
 
 // Hevy-style Equipment / Muscle filter pills for the exercise pickers. Tapping
 // a pill opens a bottom-sheet with a 2-column option grid + "Clear Filters" +
@@ -18,7 +20,10 @@ export default function ExerciseFilterBar({ equipment, muscle, onEquipment, onMu
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
+  const { language } = useApp();
+  const isAr = language === 'ar';
   const [sheet, setSheet] = useState<'equipment' | 'muscle' | null>(null);
+  const optLabel = (kind: 'equipment' | 'muscle', v: string) => (kind === 'equipment' ? equipLabel(v, isAr) : muscleLabel(v, isAr));
 
   const selected = sheet === 'equipment' ? equipment : muscle;
   const setSelected = sheet === 'equipment' ? onEquipment : onMuscle;
@@ -38,7 +43,7 @@ export default function ExerciseFilterBar({ equipment, muscle, onEquipment, onMu
           borderColor: isSel ? Colors.primary : theme.border,
         }]}
       >
-        <Text style={[s.optionText, { color: isSel ? Colors.primary : theme.text }]} numberOfLines={1}>{opt}</Text>
+        <Text style={[s.optionText, { color: isSel ? Colors.primary : theme.text }]} numberOfLines={1}>{optLabel(sheet === 'equipment' ? 'equipment' : 'muscle', opt)}</Text>
         {isSel && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
       </Pressable>
     );
@@ -46,7 +51,7 @@ export default function ExerciseFilterBar({ equipment, muscle, onEquipment, onMu
 
   const pill = (kind: 'equipment' | 'muscle') => {
     const value = kind === 'equipment' ? equipment : muscle;
-    const label = value || (kind === 'equipment'
+    const label = value ? optLabel(kind, value) : (kind === 'equipment'
       ? t('exFilter.allEquipment', { defaultValue: 'All Equipment' })
       : t('exFilter.allMuscles', { defaultValue: 'All Muscles' }));
     const active = !!value;

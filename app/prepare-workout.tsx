@@ -21,6 +21,7 @@ import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult, type Co
 import ExerciseRow from '@/components/ExerciseRow';
 import ExerciseFilterBar from '@/components/ExerciseFilterBar';
 import { matchExercise } from '@/lib/exercise-search';
+import { muscleLabel, equipLabel } from '@/lib/exercise-i18n';
 import type { SetConfig, TemplateExercise, WorkoutType, WorkoutTemplate } from '@/lib/app-context';
 import { WORKOUT_TYPES, templateSig } from '@/lib/app-context';
 
@@ -852,7 +853,7 @@ const MUSCLE_TO_GROUP: Record<string, string> = {
 };
 
 // A single bottom-sheet picker (flat or categorized; single-select or multi).
-function PickerSheet({ visible, title, sections, selected, multi, onPick, onToggle, onClose, theme }: {
+function PickerSheet({ visible, title, sections, selected, multi, onPick, onToggle, onClose, theme, labelFn }: {
   visible: boolean;
   title: string;
   sections: { title: string; options: string[] }[];
@@ -862,6 +863,7 @@ function PickerSheet({ visible, title, sections, selected, multi, onPick, onTogg
   onToggle?: (v: string) => void;
   onClose: () => void;
   theme: typeof Colors.dark;
+  labelFn?: (v: string) => string;
 }) {
   const { t } = useTranslation();
   const isSel = (v: string) => (multi ? (selected as string[]).includes(v) : selected === v);
@@ -888,7 +890,7 @@ function PickerSheet({ visible, title, sections, selected, multi, onPick, onTogg
                         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); multi ? onToggle?.(opt) : onPick?.(opt); }}
                         style={[s.pkOption, { backgroundColor: sel ? Colors.primary + '18' : theme.card, borderColor: sel ? Colors.primary : theme.border }]}
                       >
-                        <Text style={[s.pkOptionText, { color: sel ? Colors.primary : theme.text }]} numberOfLines={1}>{opt}</Text>
+                        <Text style={[s.pkOptionText, { color: sel ? Colors.primary : theme.text }]} numberOfLines={1}>{labelFn ? labelFn(opt) : opt}</Text>
                         {sel && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
                       </Pressable>
                     );
@@ -915,6 +917,8 @@ function CreateCustomModal({ visible, onClose, onSave, theme }: {
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
+  const { language } = useApp();
+  const isAr = language === 'ar';
   const [name, setName] = useState('');
   const [equipment, setEquipment] = useState<string | null>(null);
   const [primary, setPrimary] = useState<string | null>(null);
@@ -978,9 +982,9 @@ function CreateCustomModal({ visible, onClose, onSave, theme }: {
                 placeholder={t('workoutPrep.exerciseName', { defaultValue: 'Exercise Name' })}
                 placeholderTextColor={theme.textMuted}
               />
-              <Row label={t('workoutPrep.equipment', { defaultValue: 'Equipment' })} value={equipment} onPress={() => setPicker('equipment')} />
-              <Row label={t('workoutPrep.primaryMuscleGroup', { defaultValue: 'Primary Muscle Group' })} value={primary} onPress={() => setPicker('primary')} />
-              <Row label={t('workoutPrep.otherMuscles', { defaultValue: 'Other Muscles' })} value={others.join(', ')} optional onPress={() => setPicker('other')} />
+              <Row label={t('workoutPrep.equipment', { defaultValue: 'Equipment' })} value={equipment ? equipLabel(equipment, isAr) : null} onPress={() => setPicker('equipment')} />
+              <Row label={t('workoutPrep.primaryMuscleGroup', { defaultValue: 'Primary Muscle Group' })} value={primary ? muscleLabel(primary, isAr) : null} onPress={() => setPicker('primary')} />
+              <Row label={t('workoutPrep.otherMuscles', { defaultValue: 'Other Muscles' })} value={others.map((m) => muscleLabel(m, isAr)).join('، ')} optional onPress={() => setPicker('other')} />
               <Row label={t('workoutPrep.exerciseType', { defaultValue: 'Exercise Type' })} value={SET_TYPE_LABELS[setType]} onPress={() => setPicker('type')} />
             </ScrollView>
           </View>
@@ -989,17 +993,17 @@ function CreateCustomModal({ visible, onClose, onSave, theme }: {
 
       <PickerSheet
         visible={picker === 'equipment'} title={t('workoutPrep.equipment', { defaultValue: 'Equipment' })} theme={theme}
-        sections={[{ title: '', options: EQUIPMENT_OPTIONS }]} selected={equipment}
+        sections={[{ title: '', options: EQUIPMENT_OPTIONS }]} selected={equipment} labelFn={(v) => equipLabel(v, isAr)}
         onPick={(v) => { setEquipment(v); setPicker(null); }} onClose={() => setPicker(null)}
       />
       <PickerSheet
         visible={picker === 'primary'} title={t('workoutPrep.primaryMuscleGroup', { defaultValue: 'Primary Muscle Group' })} theme={theme}
-        sections={muscleSections} selected={primary}
+        sections={muscleSections} selected={primary} labelFn={(v) => muscleLabel(v, isAr)}
         onPick={(v) => { setPrimary(v); setPicker(null); }} onClose={() => setPicker(null)}
       />
       <PickerSheet
         visible={picker === 'other'} title={t('workoutPrep.otherMuscles', { defaultValue: 'Other Muscles' })} theme={theme} multi
-        sections={muscleSections} selected={others}
+        sections={muscleSections} selected={others} labelFn={(v) => muscleLabel(v, isAr)}
         onToggle={(v) => setOthers((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]))}
         onClose={() => setPicker(null)}
       />

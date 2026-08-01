@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, Pressable, StyleSheet, ScrollView, Platform, Switch,
+  View, Text, Pressable, StyleSheet, ScrollView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -220,12 +220,14 @@ export default function ProfileScreen() {
               isDark={isDark}
               onPress={toggleTheme}
               right={
-                <Switch
-                  value={isDark}
-                  onValueChange={toggleTheme}
-                  trackColor={{ false: '#767577', true: Colors.primary + '60' }}
-                  thumbColor={isDark ? Colors.primary : '#f4f3f4'}
-                />
+                <Pressable
+                  onPress={toggleTheme}
+                  style={[styles.themeTrack, { backgroundColor: isDark ? Colors.primary : theme.border, justifyContent: isDark ? 'flex-end' : 'flex-start' }]}
+                >
+                  <View style={styles.themeKnob}>
+                    <Ionicons name={isDark ? 'moon' : 'sunny'} size={13} color={isDark ? Colors.primary : '#F5A623'} />
+                  </View>
+                </Pressable>
               }
             />
             <SettingsItem
@@ -343,6 +345,8 @@ const styles = StyleSheet.create({
   },
   settingsIconBg: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   settingsLabel: { fontSize: 15, fontFamily: 'Rubik_500Medium' },
+  themeTrack: { width: 52, height: 30, borderRadius: 15, padding: 2, flexDirection: 'row', alignItems: 'center' },
+  themeKnob: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   langBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   langText: { fontSize: 13, fontFamily: 'Rubik_700Bold' },
   unitChipRow: { flexDirection: 'row', gap: 6 },
