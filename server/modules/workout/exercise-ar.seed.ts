@@ -2,6 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db, pool } from "../../core/db";
 import { exercises, exerciseBodyTargets, exerciseTranslations } from "./workout.db";
 import { labels } from "../i18n/i18n.db";
+import { HEVY_EXERCISES } from "./seed-data/exercises-hevy.data";
 
 // Arabic names for every system exercise (standard gym terminology).
 const NAME_AR: Record<string, string> = {
@@ -79,6 +80,8 @@ const NAME_AR: Record<string, string> = {
 export async function seedExerciseAr() {
   const arLbls = await db.select().from(labels).where(and(eq(labels.grp, "body_target"), eq(labels.locale, "ar")));
   const arLabel: Record<string, string> = Object.fromEntries(arLbls.map((l) => [l.key, l.value]));
+  // real authored Arabic descriptions for the Hevy-catalog exercises
+  const hevyAr = new Map(HEVY_EXERCISES.filter(h => h.descriptionAr).map(h => [h.name, h.descriptionAr]));
 
   const exRows = await db.select().from(exercises).where(isNull(exercises.userId));
   let n = 0;
@@ -86,9 +89,9 @@ export async function seedExerciseAr() {
     const arName = NAME_AR[ex.name] || ex.name;
     const tgts = await db.select().from(exerciseBodyTargets).where(eq(exerciseBodyTargets.exerciseId, ex.id));
     const top = tgts.sort((a, b) => b.percentage - a.percentage).slice(0, 3).map((t) => arLabel[t.bodyTarget] || t.bodyTarget);
-    const description = top.length
+    const description = hevyAr.get(ex.name) || (top.length
       ? `تمرين ${arName} يعمل بشكل رئيسي على: ${top.join("، ")}.`
-      : `تمرين ${arName}.`;
+      : `تمرين ${arName}.`);
     await db.insert(exerciseTranslations).values({ exerciseId: ex.id, locale: "ar", name: arName, description })
       .onConflictDoUpdate({ target: [exerciseTranslations.exerciseId, exerciseTranslations.locale], set: { name: arName, description } });
     n++;

@@ -5,6 +5,7 @@ import { workoutGroups } from "./seed-data/workout-groups.data";
 import { EXERCISE_BODY_TARGETS } from "./seed-data/exercise-body-targets.map";
 import { WORKOUT_TYPE_FALLBACK_TARGETS } from "./seed-data/workout-type-fallback-targets.data";
 import { EXERCISE_EQUIPMENT, EXERCISE_IMAGE } from "./seed-data/exercise-meta.map";
+import { HEVY_EXERCISES } from "./seed-data/exercises-hevy.data";
 import { ENUM_SYSTEM_BODY_TARGET as BT } from "./seed-data/body-target.enum";
 
 type Measurement = "reps" | "time_hold" | "distance_duration";
@@ -144,6 +145,39 @@ export async function seedWorkout() {
         await db.insert(exerciseBodyTargets).values({ exerciseId: row.id, bodyTarget: t.bodyTarget as string, percentage: t.percentage });
         btCount++;
       }
+    }
+  }
+
+  // 5. Hevy-catalog exercises (full data: description/measurement/targets/types) —
+  //    equipment + image come from the meta map; idempotent by name.
+  for (const hx of HEVY_EXERCISES) {
+    const equip = EXERCISE_EQUIPMENT[hx.name] ?? "";
+    const img = EXERCISE_IMAGE[hx.name] ?? "";
+    let row = await findExercise(hx.name);
+    if (!row) {
+      [row] = await db.insert(exercises).values({
+        name: hx.name, description: hx.description, measurementType: hx.measurement,
+        equipment: equip, imageUrl: img,
+      }).returning();
+      exCount++;
+    } else if ((equip && row.equipment !== equip) || (img && row.imageUrl !== img) || (hx.description && !row.description)) {
+      await db.update(exercises).set({
+        ...(equip ? { equipment: equip } : {}),
+        ...(img ? { imageUrl: img } : {}),
+        ...(hx.description && !row.description ? { description: hx.description } : {}),
+      }).where(eq(exercises.id, row.id));
+    }
+    for (const tName of hx.types) {
+      const wtId = typeId.get(tName);
+      if (!wtId) continue;
+      const [link] = await db.select().from(exerciseWorkoutTypes)
+        .where(and(eq(exerciseWorkoutTypes.exerciseId, row.id), eq(exerciseWorkoutTypes.workoutTypeId, wtId)));
+      if (!link) await db.insert(exerciseWorkoutTypes).values({ exerciseId: row.id, workoutTypeId: wtId });
+    }
+    for (const t of hx.targets) {
+      const [exists] = await db.select().from(exerciseBodyTargets)
+        .where(and(eq(exerciseBodyTargets.exerciseId, row.id), eq(exerciseBodyTargets.bodyTarget, t.bodyTarget)));
+      if (!exists) { await db.insert(exerciseBodyTargets).values({ exerciseId: row.id, bodyTarget: t.bodyTarget, percentage: t.percentage }); btCount++; }
     }
   }
 
