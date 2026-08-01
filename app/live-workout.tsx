@@ -54,9 +54,7 @@ function RepsSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
-  const { width } = useWindowDimensions();
   const { weightUnit } = useApp();
-  const narrow = width < 380;
   const [editReps, setEditReps] = useState(String(set.actual.reps || set.config.reps || ''));
   const [editWeight, setEditWeight] = useState(() => {
     const kg = set.actual.weight ?? set.config.weight;
@@ -93,81 +91,63 @@ function RepsSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
     ]);
   };
 
-  // done / skipped → compact summary row; tap to reopen for editing
-  if (isDone || isSkipped) {
-    return (
-      <Pressable onPress={onReopen} style={[styles.setRow, { backgroundColor: bgColor }]}>
-        <View style={styles.setRowLeft}>
-          <Ionicons name={isDone ? 'checkmark-circle' : 'close-circle'} size={20} color={isDone ? Colors.primary : theme.textMuted} />
-          <Text style={[styles.setLabel, { color: isSkipped ? theme.textMuted : theme.text }, isSkipped && styles.strikethrough]}>
-            {t('workoutSession.setN', { n: setIndex + 1 })}
-          </Text>
-        </View>
-        <View style={styles.setRowRight}>
-          {!isSkipped && (
-            <Text style={[styles.setValue, { color: theme.textSecondary }]}>
-              {set.actual.reps} × {toDisplayWeight(set.actual.weight || 0, weightUnit)} {unitLabel(weightUnit)}
-            </Text>
-          )}
-          <View style={[styles.doneBadge, { backgroundColor: isDone ? Colors.primary + '20' : theme.surface }]}>
-            <Text style={[styles.doneBadgeText, { color: isDone ? Colors.primary : theme.textMuted }]}>{isDone ? t('workoutSession.done') : t('workoutSession.skip')}</Text>
-          </View>
-          <Ionicons name="pencil" size={13} color={theme.textMuted} style={{ marginLeft: 2 }} />
-        </View>
-      </Pressable>
-    );
-  }
-
-  // pending → inline inputs, one-tap confirm. On narrow screens the controls drop to a 2nd line.
-  const controls = (
-    <View style={[styles.inlineEditRow, narrow && styles.inlineEditRowWide]}>
-      <View style={styles.inlineField}>
-        <Text style={[styles.inlineUnit, { color: theme.textMuted }]}>{t('workoutSession.reps')}</Text>
-        <TextInput
-          style={[styles.inlineInput, narrow && styles.inlineInputWide, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-          value={editReps} onChangeText={setEditReps} keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
-        />
-      </View>
-      <Text style={[styles.editX, { color: theme.textMuted }]}>×</Text>
-      <View style={styles.inlineField}>
-        <Text style={[styles.inlineUnit, { color: theme.textMuted }]}>{unitLabel(weightUnit)}</Text>
-        <TextInput
-          style={[styles.inlineInput, narrow && styles.inlineInputWide, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-          value={editWeight} onChangeText={setEditWeight} keyboardType="numeric" placeholder="0" placeholderTextColor={theme.textMuted} selectTextOnFocus
-        />
-      </View>
-      <Pressable onPress={complete} hitSlop={12} style={[styles.doneBtn, narrow && styles.doneBtnWide, { backgroundColor: Colors.primary }]}>
-        <Ionicons name="checkmark" size={18} color="#fff" />
-      </Pressable>
-      <Pressable onPress={confirmSkip} hitSlop={12} style={styles.skipBtn}>
-        <Ionicons name="close" size={18} color="#F87171" />
-      </Pressable>
+  // set-number chip: pending = number, done = green check, skipped = ×
+  const leadChip = isDone ? (
+    <View style={[styles.setCircle, { backgroundColor: Colors.primary, borderColor: Colors.primary }]}>
+      <Ionicons name="checkmark" size={13} color="#fff" />
+    </View>
+  ) : isSkipped ? (
+    <View style={[styles.setCircle, { borderColor: theme.border }]}>
+      <Ionicons name="close" size={12} color={theme.textMuted} />
+    </View>
+  ) : (
+    <View style={[styles.setCircle, { borderColor: isInProgress ? Colors.primary : theme.border }]}>
+      <Text style={[styles.setCircleText, { color: isInProgress ? Colors.primary : theme.textMuted }]}>{setIndex + 1}</Text>
     </View>
   );
 
-  if (narrow) {
+  // done / skipped → aligned summary row (SET · REPS · KG · status); tap to reopen
+  if (isDone || isSkipped) {
     return (
-      <View style={[styles.setRowCol, { backgroundColor: bgColor, borderLeftColor: borderColor, borderLeftWidth: isInProgress ? 3 : 0 }]}>
-        <View style={styles.setRowLeft}>
-          <View style={[styles.setCircle, { borderColor: theme.border }]}>
-            <Text style={[styles.setCircleText, { color: theme.textMuted }]}>{setIndex + 1}</Text>
+      <Pressable onPress={onReopen} style={[styles.setGridRow, { backgroundColor: bgColor }]}>
+        <View style={styles.setColLead}>{leadChip}</View>
+        <Text style={[styles.setCellValue, { color: isSkipped ? theme.textMuted : theme.text }, isSkipped && styles.strikethrough]}>
+          {isSkipped ? '—' : set.actual.reps}
+        </Text>
+        <Text style={[styles.setCellValue, { color: isSkipped ? theme.textMuted : theme.text }, isSkipped && styles.strikethrough]}>
+          {isSkipped ? '—' : toDisplayWeight(set.actual.weight || 0, weightUnit)}
+        </Text>
+        <View style={styles.setColAction}>
+          <View style={[styles.doneBadge, { backgroundColor: isDone ? Colors.primary + '20' : theme.surface }]}>
+            <Text style={[styles.doneBadgeText, { color: isDone ? Colors.primary : theme.textMuted }]}>{isDone ? t('workoutSession.done') : t('workoutSession.skip')}</Text>
           </View>
-          <Text style={[styles.setLabel, { color: theme.text }]}>{t('workoutSession.setN', { n: setIndex + 1 })}</Text>
         </View>
-        {controls}
-      </View>
+      </Pressable>
     );
   }
 
+  // pending → aligned inputs; planned rep/weight shows as ghost placeholder; one-tap confirm
   return (
-    <View style={[styles.setRow, { backgroundColor: bgColor, borderLeftColor: borderColor, borderLeftWidth: isInProgress ? 3 : 0 }]}>
-      <View style={styles.setRowLeft}>
-        <View style={[styles.setCircle, { borderColor: theme.border }]}>
-          <Text style={[styles.setCircleText, { color: theme.textMuted }]}>{setIndex + 1}</Text>
-        </View>
-        <Text style={[styles.setLabel, { color: theme.text }]} numberOfLines={1}>{t('workoutSession.setN', { n: setIndex + 1 })}</Text>
+    <View style={[styles.setGridRow, { backgroundColor: bgColor, borderLeftColor: borderColor, borderLeftWidth: isInProgress ? 3 : 0 }]}>
+      <View style={styles.setColLead}>{leadChip}</View>
+      <TextInput
+        style={[styles.setCellInput, { backgroundColor: theme.surface, color: theme.text, borderColor: isInProgress ? Colors.primary + '55' : theme.border }]}
+        value={editReps} onChangeText={setEditReps} keyboardType="numeric"
+        placeholder={String(set.config.reps || 0)} placeholderTextColor={theme.textMuted} selectTextOnFocus
+      />
+      <TextInput
+        style={[styles.setCellInput, { backgroundColor: theme.surface, color: theme.text, borderColor: isInProgress ? Colors.primary + '55' : theme.border }]}
+        value={editWeight} onChangeText={setEditWeight} keyboardType="numeric"
+        placeholder={set.config.weight == null ? '0' : String(toDisplayWeight(set.config.weight, weightUnit))} placeholderTextColor={theme.textMuted} selectTextOnFocus
+      />
+      <View style={styles.setColAction}>
+        <Pressable onPress={complete} hitSlop={8} style={[styles.doneBtn, { marginLeft: 0, backgroundColor: Colors.primary }]}>
+          <Ionicons name="checkmark" size={18} color="#fff" />
+        </Pressable>
+        <Pressable onPress={confirmSkip} hitSlop={8} style={[styles.skipBtn, { marginLeft: 0 }]}>
+          <Ionicons name="close" size={16} color="#F87171" />
+        </Pressable>
       </View>
-      {controls}
     </View>
   );
 }
@@ -1878,6 +1858,16 @@ export default function LiveWorkoutScreen() {
 
               {!collapsed.has(ex.exerciseId + '-' + exIdx) && (
                 <>
+                  {ex.sets.some(sset => (sset.config?.type || 'reps') === 'reps') && (
+                    <View style={styles.setHeadRow}>
+                      <View style={styles.setColLead}>
+                        <Text style={[styles.setHeadText, { color: theme.textMuted }]}>{t('workoutSession.colSet', { defaultValue: 'Set' })}</Text>
+                      </View>
+                      <Text style={[styles.setHeadText, styles.setHeadCell, { color: theme.textMuted }]}>{t('workoutSession.reps')}</Text>
+                      <Text style={[styles.setHeadText, styles.setHeadCell, { color: theme.textMuted }]}>{unitLabel(weightUnit)}</Text>
+                      <View style={styles.setColAction} />
+                    </View>
+                  )}
                   {ex.sets.map((set, setIdx) => (
                     <SetRowItem
                       key={setIdx}
@@ -2069,6 +2059,15 @@ const styles = StyleSheet.create({
   setLabel: { fontSize: 14, fontWeight: '500' as const },
   setValue: { fontSize: 13 },
   strikethrough: { textDecorationLine: 'line-through' as const },
+  // reps set-row grid: SET · REPS · KG · action (aligned with the column header)
+  setGridRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, marginBottom: 6 },
+  setColLead: { width: 40, alignItems: 'flex-start' as const },
+  setColAction: { width: 80, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
+  setCellValue: { flex: 1, textAlign: 'center' as const, fontSize: 15, fontWeight: '600' as const },
+  setCellInput: { flex: 1, height: 42, borderRadius: 10, borderWidth: 1, textAlign: 'center' as const, fontSize: 16, fontWeight: '700' as const, paddingVertical: 0 },
+  setHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, marginTop: 2, marginBottom: 6 },
+  setHeadCell: { flex: 1, textAlign: 'center' as const },
+  setHeadText: { fontSize: 11, fontWeight: '700' as const, letterSpacing: 0.6, textTransform: 'uppercase' as const },
   editRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'flex-end' },
   editInput: {
     width: 52, height: 34, borderRadius: 8, borderWidth: 1,
