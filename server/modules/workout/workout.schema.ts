@@ -24,6 +24,8 @@ export const AdminExerciseInputSchema = z
     name: z.string().min(1), // English (base/default)
     description: z.string().default(""),
     measurementType: z.enum(["reps", "time_hold", "distance_duration"]).default("reps"),
+    equipment: z.string().default(""),
+    imageUrl: z.string().default(""),
     bodyTargets: z.array(BodyTargetInputSchema).optional(),
     workoutTypeIds: z.array(z.string().uuid()).optional(),
     // other-locale overrides, e.g. { ar: { name, description } }
@@ -119,6 +121,8 @@ export const ExerciseSchema = z
     name: z.string(),
     description: z.string(),
     measurementType: z.enum(["reps", "time_hold", "distance_duration"]),
+    equipment: z.string().default(""),
+    imageUrl: z.string().default(""),
     isCustom: z.boolean(),
     workoutTypes: z.array(z.string()),
     bodyTargets: z.array(z.object({ bodyTarget: z.string(), percentage: z.number() })),

@@ -9,7 +9,7 @@ import { ApiError } from "../../middleware/error";
 import type { TemplateCreate, LogCreate } from "./workout.schema";
 
 async function hydrateExercises(
-  rows: { id: string; name: string; description: string; measurementType: string; isCustom: boolean }[],
+  rows: { id: string; name: string; description: string; measurementType: string; isCustom: boolean; equipment?: string; imageUrl?: string }[],
   locale = "en",
 ) {
   if (rows.length === 0) return [];
@@ -46,6 +46,8 @@ async function hydrateExercises(
       nameEn: r.name,                       // English base (for bilingual search)
       nameAr: arNameByEx.get(r.id) ?? null, // Arabic (for bilingual search)
       description: tr?.description || r.description,
+      equipment: r.equipment ?? "",
+      imageUrl: r.imageUrl ?? "",
       workoutTypes: typesByEx.get(r.id) ?? [],
       bodyTargets: targetsByEx.get(r.id) ?? [],
     };
@@ -349,10 +351,11 @@ export const workoutService = {
       if (workoutTypeIds.length) await db.insert(exerciseWorkoutTypes).values(workoutTypeIds.map((workoutTypeId) => ({ exerciseId, workoutTypeId })));
     }
   },
-  async adminCreateExercise(data: { name: string; description?: string; measurementType?: "reps" | "time_hold" | "distance_duration"; bodyTargets?: { bodyTarget: string; percentage: number }[]; workoutTypeIds?: string[] }) {
+  async adminCreateExercise(data: { name: string; description?: string; measurementType?: "reps" | "time_hold" | "distance_duration"; equipment?: string; imageUrl?: string; bodyTargets?: { bodyTarget: string; percentage: number }[]; workoutTypeIds?: string[] }) {
     this._assertTargetsSum(data.bodyTargets);
     const [row] = await db.insert(exercises).values({
       name: data.name, description: data.description ?? "", measurementType: data.measurementType ?? "reps",
+      equipment: data.equipment ?? "", imageUrl: data.imageUrl ?? "",
     }).returning();
     await this._setTargetsAndLinks(row.id, data.bodyTargets, data.workoutTypeIds);
     await this._setTranslations(row.id, (data as any).translations);
@@ -361,12 +364,14 @@ export const workoutService = {
   async adminDeleteExercise(id: string) {
     await db.delete(exercises).where(eq(exercises.id, id));
   },
-  async adminUpdateExercise(id: string, data: { name?: string; description?: string; measurementType?: "reps" | "time_hold" | "distance_duration"; bodyTargets?: { bodyTarget: string; percentage: number }[]; workoutTypeIds?: string[] }) {
+  async adminUpdateExercise(id: string, data: { name?: string; description?: string; measurementType?: "reps" | "time_hold" | "distance_duration"; equipment?: string; imageUrl?: string; bodyTargets?: { bodyTarget: string; percentage: number }[]; workoutTypeIds?: string[] }) {
     this._assertTargetsSum(data.bodyTargets);
     const set: Record<string, unknown> = {};
     if (data.name !== undefined) set.name = data.name;
     if (data.description !== undefined) set.description = data.description;
     if (data.measurementType !== undefined) set.measurementType = data.measurementType;
+    if (data.equipment !== undefined) set.equipment = data.equipment;
+    if (data.imageUrl !== undefined) set.imageUrl = data.imageUrl;
     if (Object.keys(set).length) {
       const [row] = await db.update(exercises).set(set).where(eq(exercises.id, id)).returning();
       if (!row) throw new ApiError(404, "NOT_FOUND", "Exercise not found");

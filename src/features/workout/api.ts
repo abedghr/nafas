@@ -7,6 +7,8 @@ export interface ApiExercise {
   nameAr?: string | null;
   description: string;
   measurementType: "reps" | "time_hold" | "distance_duration";
+  equipment?: string;
+  imageUrl?: string;
   isCustom: boolean;
   workoutTypes: string[];
   bodyTargets: { bodyTarget: string; percentage: number }[];
@@ -58,6 +60,25 @@ const GROUP: Record<string, string> = {
   cardiovascular: "Cardio", endurance: "Cardio", flexibility: "Core", balance: "Core",
 };
 
+// Finer, Hevy-style primary-muscle label from the top body target (row subtitle + muscle filter).
+const PRIMARY_MUSCLE: Record<string, string> = {
+  chest: "Chest",
+  lats: "Lats", upper_back: "Upper Back", mid_back: "Upper Back", lower_back: "Lower Back", erector_spinae: "Lower Back", traps: "Traps",
+  shoulders_anterior: "Shoulders", shoulders_lateral: "Shoulders", shoulders_posterior: "Shoulders",
+  biceps: "Biceps", triceps: "Triceps", forearms: "Forearms",
+  glutes: "Glutes", hamstrings: "Hamstrings", quadriceps: "Quadriceps", adductors: "Quadriceps", hip_flexors: "Quadriceps", calves: "Calves",
+  core_abs: "Abdominals", core_deep: "Abdominals", obliques: "Abdominals",
+  cardiovascular: "Cardio", endurance: "Cardio", flexibility: "Full Body", balance: "Full Body",
+};
+export function primaryMuscle(bodyTargets: { bodyTarget: string; percentage: number }[]): string {
+  const top = [...(bodyTargets || [])].sort((a, b) => b.percentage - a.percentage)[0];
+  return top ? PRIMARY_MUSCLE[top.bodyTarget] ?? "Full Body" : "Full Body";
+}
+
+// Filter option lists (Hevy parity).
+export const EQUIPMENT_OPTIONS = ["None", "Barbell", "Dumbbell", "Kettlebell", "Machine", "Plate", "Resistance Band", "Suspension Band", "Other"];
+export const PRIMARY_MUSCLES = ["Abdominals", "Biceps", "Calves", "Cardio", "Chest", "Forearms", "Full Body", "Glutes", "Hamstrings", "Lats", "Lower Back", "Quadriceps", "Shoulders", "Traps", "Triceps", "Upper Back"];
+
 // Old exerciseLibrary item shape the screens expect.
 export function mapExercise(e: ApiExercise) {
   const top = [...e.bodyTargets].sort((a, b) => b.percentage - a.percentage)[0];
@@ -66,6 +87,9 @@ export function mapExercise(e: ApiExercise) {
     name: e.name,
     category: (e.workoutTypes[0] || "").toLowerCase(),
     muscleGroup: top ? GROUP[top.bodyTarget] ?? "Full Body" : "Full Body",
+    primaryMuscle: primaryMuscle(e.bodyTargets),
+    equipment: e.equipment || "",
+    imageUrl: e.imageUrl || "",
     defaultSetType: e.measurementType === "time_hold" ? ("hold" as const) : ("reps" as const),
     muscles: e.bodyTargets.map((t) => t.bodyTarget),
   };

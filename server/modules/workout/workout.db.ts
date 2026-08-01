@@ -25,6 +25,8 @@ export const exercises = pgTable("exercises", {
   name: varchar("name", { length: 96 }).notNull(),
   description: text("description").notNull().default(""),
   measurementType: measurementType("measurement_type").notNull().default("reps"),
+  equipment: varchar("equipment", { length: 32 }).notNull().default(""), // None/Barbell/Dumbbell/Kettlebell/Machine/Plate/Resistance Band/Suspension Band/Other
+  imageUrl: text("image_url").notNull().default(""),                     // open-licensed exercise image URL (empty → icon fallback)
   isCustom: boolean("is_custom").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => ({

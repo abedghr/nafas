@@ -4,6 +4,7 @@ import { workoutTypes, exercises, exerciseWorkoutTypes, exerciseBodyTargets } fr
 import { workoutGroups } from "./seed-data/workout-groups.data";
 import { EXERCISE_BODY_TARGETS } from "./seed-data/exercise-body-targets.map";
 import { WORKOUT_TYPE_FALLBACK_TARGETS } from "./seed-data/workout-type-fallback-targets.data";
+import { EXERCISE_EQUIPMENT, EXERCISE_IMAGE } from "./seed-data/exercise-meta.map";
 import { ENUM_SYSTEM_BODY_TARGET as BT } from "./seed-data/body-target.enum";
 
 type Measurement = "reps" | "time_hold" | "distance_duration";
@@ -106,12 +107,21 @@ export async function seedWorkout() {
   // 2. exercises + 3. links + 4. body targets
   let exCount = 0, btCount = 0;
   for (const ex of allExercises.values()) {
+    const equip = EXERCISE_EQUIPMENT[ex.name] ?? "";
+    const img = EXERCISE_IMAGE[ex.name] ?? "";
     let row = await findExercise(ex.name);
     if (!row) {
       [row] = await db.insert(exercises).values({
         name: ex.name, description: ex.description, measurementType: measurementFor(ex.name),
+        equipment: equip, imageUrl: img,
       }).returning();
       exCount++;
+    } else if ((equip && row.equipment !== equip) || (img && row.imageUrl !== img)) {
+      // backfill equipment/image onto already-seeded rows (idempotent)
+      await db.update(exercises).set({
+        ...(equip ? { equipment: equip } : {}),
+        ...(img ? { imageUrl: img } : {}),
+      }).where(eq(exercises.id, row.id));
     }
     exId.set(ex.name, row.id);
 
