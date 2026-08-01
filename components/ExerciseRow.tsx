@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { exerciseIcon } from '@/lib/exercise-icon';
+import MuscleMap from '@/components/MuscleMap';
 
 // Hevy-style exercise picker row: circular image (icon fallback) + name +
 // primary-muscle subtitle + trailing action (default: progress-arrow that
@@ -17,12 +18,18 @@ export default function ExerciseRow({ ex, onPress, theme, trailing }: {
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const showImage = !!ex.imageUrl && !imgFailed;
+  const muscles: string[] = ex.muscles || [];
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [s.row, { backgroundColor: pressed ? theme.card : 'transparent' }]}>
       {showImage ? (
         <View style={s.imageCircle}>
           <Image source={{ uri: ex.imageUrl }} style={s.image} resizeMode="cover" onError={() => setImgFailed(true)} />
+        </View>
+      ) : muscles.length ? (
+        // owned muscle-map: highlights the worked muscle from the body-targets (100% coverage, no external image)
+        <View style={s.imageCircle}>
+          <MuscleMap muscles={muscles} primary={ex.muscles?.[0]} size={44} />
         </View>
       ) : (
         <View style={[s.iconCircle, { backgroundColor: Colors.primary + '15' }]}>

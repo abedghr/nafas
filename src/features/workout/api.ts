@@ -91,7 +91,7 @@ export function mapExercise(e: ApiExercise) {
     equipment: e.equipment || "",
     imageUrl: e.imageUrl || "",
     defaultSetType: e.measurementType === "time_hold" ? ("hold" as const) : ("reps" as const),
-    muscles: e.bodyTargets.map((t) => t.bodyTarget),
+    muscles: [...e.bodyTargets].sort((a, b) => b.percentage - a.percentage).map((t) => t.bodyTarget), // strongest first
   };
 }
 
