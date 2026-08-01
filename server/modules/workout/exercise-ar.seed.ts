@@ -3,9 +3,11 @@ import { db, pool } from "../../core/db";
 import { exercises, exerciseBodyTargets, exerciseTranslations } from "./workout.db";
 import { labels } from "../i18n/i18n.db";
 import { HEVY_EXERCISES } from "./seed-data/exercises-hevy.data";
+import { HEVY_NAME_AR } from "./seed-data/exercise-names-ar.data";
 
 // Arabic names for every system exercise (standard gym terminology).
-const NAME_AR: Record<string, string> = {
+// Curated originals below, merged with the authored Hevy-catalog names (HEVY_NAME_AR).
+const NAME_AR_CURATED: Record<string, string> = {
   "Barbell Bench Press": "ضغط البار المسطح", "Incline Barbell Press": "ضغط البار المائل",
   "Incline Dumbbell Press": "ضغط الدمبل المائل", "Flat Dumbbell Press": "ضغط الدمبل المسطح",
   "Dumbbell Fly": "تفتيح بالدمبل", "Cable Chest Fly": "تفتيح الصدر بالكابل",
@@ -76,6 +78,9 @@ const NAME_AR: Record<string, string> = {
   "Frog Stand": "وقفة الضفدع", "Copenhagen Plank": "بلانك كوبنهاغن",
   "Chin-up Negative Hold": "ثبات العقلة بالقبضة المعكوسة", "Wall Handstand Hold": "الوقوف على اليدين على الحائط",
 };
+
+// Curated originals win on conflict; authored Hevy names fill the rest.
+const NAME_AR: Record<string, string> = { ...HEVY_NAME_AR, ...NAME_AR_CURATED };
 
 export async function seedExerciseAr() {
   const arLbls = await db.select().from(labels).where(and(eq(labels.grp, "body_target"), eq(labels.locale, "ar")));
