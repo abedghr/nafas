@@ -104,6 +104,18 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
     return list;
   }, [allExercises, equipment, muscle, search]);
 
+  // Hevy-style grouping: searching → flat A-Z; otherwise own then full library, alphabetical.
+  const sections = useMemo(() => {
+    const byName = (a: any, b: any) => a.name.localeCompare(b.name);
+    if (search.trim()) return [{ title: null as string | null, data: [...filtered].sort(byName) }];
+    const custom = filtered.filter((e: any) => e.isCustom).sort(byName);
+    const lib = filtered.filter((e: any) => !e.isCustom).sort(byName);
+    const secs: { title: string | null; data: any[] }[] = [];
+    if (custom.length) secs.push({ title: t('workoutPrep.myExercises'), data: custom });
+    if (lib.length) secs.push({ title: t('workoutPrep.allExercises'), data: lib });
+    return secs;
+  }, [filtered, search, t]);
+
   const addComponent = (ex: { id: string; name: string; muscleGroup: string }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setComponents(prev => [...prev, { exerciseId: ex.id, name: ex.name, muscleGroup: ex.muscleGroup, setType: 'reps', reps: 8, weight: 0 }]);
@@ -287,14 +299,24 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
             />
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 120 }}>
-              {filtered.map((ex, i) => (
-                <ExerciseRow
-                  key={ex.id + i}
-                  ex={ex}
-                  theme={theme}
-                  onPress={() => addComponent(ex)}
-                  trailing={<Ionicons name="add-circle-outline" size={22} color={Colors.accent} />}
-                />
+              {sections.map((sec) => (
+                <View key={sec.title || 'flat'}>
+                  {sec.title && (
+                    <View style={s.sectionHeaderRow}>
+                      <Text style={[s.sectionHeaderText, { color: theme.textMuted }]}>{sec.title}</Text>
+                      <Text style={[s.sectionHeaderCount, { color: theme.textMuted }]}>{sec.data.length}</Text>
+                    </View>
+                  )}
+                  {sec.data.map((ex, i) => (
+                    <ExerciseRow
+                      key={ex.id + i}
+                      ex={ex}
+                      theme={theme}
+                      onPress={() => addComponent(ex)}
+                      trailing={<Ionicons name="add-circle-outline" size={22} color={Colors.accent} />}
+                    />
+                  ))}
+                </View>
               ))}
             </ScrollView>
 
@@ -345,4 +367,7 @@ const s = StyleSheet.create({
   comboToggleDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#fff' },
   comboCreateBtn: { paddingVertical: 15, borderRadius: 14, alignItems: 'center' },
   comboCreateText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, marginTop: 16, marginBottom: 4 },
+  sectionHeaderText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
+  sectionHeaderCount: { fontSize: 12, fontWeight: '600' },
 });

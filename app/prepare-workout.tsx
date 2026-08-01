@@ -736,6 +736,19 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
     return list;
   }, [allExercises, equipment, muscle, search]);
 
+  // Hevy-style grouping: searching → one flat A-Z list; otherwise the user's own
+  // exercises first, then the full library, each sorted alphabetically.
+  const sections = useMemo(() => {
+    const byName = (a: any, b: any) => a.name.localeCompare(b.name);
+    if (search.trim()) return [{ title: null as string | null, data: [...filtered].sort(byName) }];
+    const custom = filtered.filter(e => e.isCustom).sort(byName);
+    const lib = filtered.filter(e => !e.isCustom).sort(byName);
+    const secs: { title: string | null; data: any[] }[] = [];
+    if (custom.length) secs.push({ title: t('workoutPrep.myExercises'), data: custom });
+    if (lib.length) secs.push({ title: t('workoutPrep.allExercises'), data: lib });
+    return secs;
+  }, [filtered, search, t]);
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={[s.modalOverlay, { justifyContent: 'flex-end' }]}>
@@ -799,17 +812,27 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
                 {t('workoutPrep.noExercisesFound', { defaultValue: 'No exercises found' })}
               </Text>
             )}
-            {filtered.map((ex, i) => (
-              <ExerciseRow
-                key={ex.id + i}
-                ex={ex}
-                theme={theme}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onSelect(ex);
-                  onClose();
-                }}
-              />
+            {sections.map((sec) => (
+              <View key={sec.title || 'flat'}>
+                {sec.title && (
+                  <View style={s.sectionHeaderRow}>
+                    <Text style={[s.sectionHeaderText, { color: theme.textMuted }]}>{sec.title}</Text>
+                    <Text style={[s.sectionHeaderCount, { color: theme.textMuted }]}>{sec.data.length}</Text>
+                  </View>
+                )}
+                {sec.data.map((ex, i) => (
+                  <ExerciseRow
+                    key={ex.id + i}
+                    ex={ex}
+                    theme={theme}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      onSelect(ex);
+                      onClose();
+                    }}
+                  />
+                ))}
+              </View>
             ))}
           </ScrollView>
         </View>
@@ -2107,6 +2130,24 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#fff',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  sectionHeaderText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  sectionHeaderCount: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   fieldLabel: {
     fontSize: 13,
