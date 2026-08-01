@@ -22,14 +22,14 @@ export default function ExerciseRow({ ex, onPress, theme, trailing }: {
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [s.row, { backgroundColor: pressed ? theme.card : 'transparent' }]}>
-      {showImage ? (
+      {muscles.length ? (
+        // owned muscle-map (our own asset — matches assets/exercises/<slug>.svg), highlights the worked muscle
+        <View style={s.imageCircle}>
+          <MuscleMap muscles={muscles} primary={muscles[0]} size={44} />
+        </View>
+      ) : showImage ? (
         <View style={s.imageCircle}>
           <Image source={{ uri: ex.imageUrl }} style={s.image} resizeMode="cover" onError={() => setImgFailed(true)} />
-        </View>
-      ) : muscles.length ? (
-        // owned muscle-map: highlights the worked muscle from the body-targets (100% coverage, no external image)
-        <View style={s.imageCircle}>
-          <MuscleMap muscles={muscles} primary={ex.muscles?.[0]} size={44} />
         </View>
       ) : (
         <View style={[s.iconCircle, { backgroundColor: Colors.primary + '15' }]}>
