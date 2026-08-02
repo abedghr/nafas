@@ -238,6 +238,7 @@ export interface ActiveSession {
     name: string;
     muscleGroup: string;
     restSeconds: number;
+    weightUnit?: 'kg' | 'lb'; // per-exercise display/input unit; weights stored canonically in kg
     sets: {
       config: SetConfig;
       actual: SetConfig;

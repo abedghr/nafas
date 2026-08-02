@@ -4,6 +4,7 @@ import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useApp } from "@/lib/app-context";
@@ -50,8 +51,10 @@ function NativeTabLayout() {
 function ClassicTabLayout() {
   const { isDark } = useApp();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const isIOS = Platform.OS === "ios";
+  const bottomInset = isWeb ? 0 : insets.bottom;
 
   return (
     <Tabs
@@ -59,11 +62,13 @@ function ClassicTabLayout() {
         headerShown: false,
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: isDark ? Colors.dark.tabIconDefault : Colors.light.tabIconDefault,
-        // lineHeight/padding keep taller Arabic glyphs (e.g. "التمرين") from clipping
-        tabBarLabelStyle: { fontFamily: 'Rubik_500Medium', fontSize: 11, lineHeight: 15, includeFontPadding: false },
-        tabBarItemStyle: { paddingVertical: 4 },
+        tabBarLabelStyle: { fontFamily: 'Rubik_500Medium', fontSize: 11 },
+        // explicit height + safe-area padding so the icon AND label both fit (labels were clipping)
         tabBarStyle: {
           position: "absolute",
+          height: 58 + bottomInset,
+          paddingTop: 8,
+          paddingBottom: bottomInset > 0 ? bottomInset : 10,
           backgroundColor: isIOS ? "transparent" : isDark ? Colors.dark.tabBar : Colors.light.tabBar,
           borderTopWidth: isWeb ? 1 : 0,
           borderTopColor: isDark ? Colors.dark.border : Colors.light.border,

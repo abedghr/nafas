@@ -1301,7 +1301,9 @@ export default function LiveWorkoutScreen() {
 
   const { activeSession, setActiveSession, addWorkoutLog, customExercises, user, weightUnit, language } = useApp();
   const [session, setSession] = useState<ActiveSession | null>(activeSession);
-  const [sessionUnit, setSessionUnit] = useState<WeightUnit>(weightUnit); // per-workout KG/LB; profile default until changed
+  // Per-exercise weight unit (falls back to the profile default). Weights are stored
+  // canonically in kg, so stats/history convert to the profile default on read.
+  const exUnit = (ex: { weightUnit?: string }): WeightUnit => ((ex.weightUnit as WeightUnit) || weightUnit);
   const [elapsed, setElapsed] = useState('00:00');
   const [restTimer, setRestTimer] = useState(0);
   const [restTotal, setRestTotal] = useState(0);
@@ -1389,6 +1391,15 @@ export default function LiveWorkoutScreen() {
       return updater(prev);
     });
   }, []);
+
+  const setExerciseUnit = useCallback((exIdx: number, unit: WeightUnit) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    updateSession(s => {
+      const exercises = [...s.exercises];
+      exercises[exIdx] = { ...exercises[exIdx], weightUnit: unit };
+      return { ...s, exercises };
+    });
+  }, [updateSession]);
 
   const markSetDone = useCallback((exIdx: number, setIdx: number) => {
     updateSession(s => {
@@ -1717,7 +1728,6 @@ export default function LiveWorkoutScreen() {
   if (!session) return null;
 
   return (
-    <SessionUnitContext.Provider value={sessionUnit}>
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 8 }]}>
         <LinearGradient
@@ -1733,17 +1743,6 @@ export default function LiveWorkoutScreen() {
             <View style={styles.liveDot} />
             <Text style={[styles.headerTimer, { color: Colors.primary }]}>{elapsed}</Text>
           </View>
-        </View>
-        <View style={[styles.unitToggle, { borderColor: theme.border }]}>
-          {(['kg', 'lb'] as WeightUnit[]).map((u) => (
-            <Pressable
-              key={u}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSessionUnit(u); }}
-              style={[styles.unitToggleChip, { backgroundColor: sessionUnit === u ? Colors.primary : 'transparent' }]}
-            >
-              <Text style={[styles.unitToggleText, { color: sessionUnit === u ? '#fff' : theme.textMuted }]}>{u.toUpperCase()}</Text>
-            </Pressable>
-          ))}
         </View>
         <Pressable
           onPress={() => setShowFinishModal(true)}
@@ -1783,7 +1782,7 @@ export default function LiveWorkoutScreen() {
             <View style={[styles.progressCard, { backgroundColor: theme.card }]}>
               <View style={styles.progRow}>
                 <View style={styles.progStat}><Text style={[styles.progVal, { color: theme.text }]}>{done}/{total}</Text><Text style={[styles.progLbl, { color: theme.textMuted }]}>{t('workoutSession.sets')}</Text></View>
-                <View style={styles.progStat}><Text style={[styles.progVal, { color: theme.text }]}>{Math.round(toDisplayWeight(vol, sessionUnit)).toLocaleString()}</Text><Text style={[styles.progLbl, { color: theme.textMuted }]}>{t('workoutSession.volume')} ({unitLabel(sessionUnit)})</Text></View>
+                <View style={styles.progStat}><Text style={[styles.progVal, { color: theme.text }]}>{Math.round(toDisplayWeight(vol, weightUnit)).toLocaleString()}</Text><Text style={[styles.progLbl, { color: theme.textMuted }]}>{t('workoutSession.volume')} ({unitLabel(weightUnit)})</Text></View>
                 <View style={styles.progStat}><Text style={[styles.progVal, { color: Colors.primary }]}>{Math.round(pct * 100)}%</Text><Text style={[styles.progLbl, { color: theme.textMuted }]}>{t('workoutSession.done')}</Text></View>
               </View>
               <View style={styles.progTrack}><View style={[styles.progFill, { width: `${Math.round(pct * 100)}%` }]} /></View>
@@ -1822,6 +1821,7 @@ export default function LiveWorkoutScreen() {
 
         {session.exercises.map((ex, exIdx) => ex.combo ? (
           <Animated.View key={ex.exerciseId + '-' + exIdx} entering={FadeInDown.duration(350).delay(exIdx * 60)}>
+            <SessionUnitContext.Provider value={exUnit(ex)}>
             <ComboCard
               combo={ex}
               onUpdateEntry={(ri, ci, patch) => updateRoundEntry(exIdx, ri, ci, patch)}
@@ -1835,9 +1835,11 @@ export default function LiveWorkoutScreen() {
               onToggleCollapse={() => toggleCollapse(ex.exerciseId + '-' + exIdx)}
               theme={theme}
             />
+            </SessionUnitContext.Provider>
           </Animated.View>
         ) : (
           <Animated.View key={ex.exerciseId + '-' + exIdx} entering={FadeInDown.duration(350).delay(exIdx * 60)}>
+            <SessionUnitContext.Provider value={exUnit(ex)}>
             <View style={[styles.exCard, { backgroundColor: theme.card }]}>
               <View style={styles.exCardHeader}>
                 <View style={{ flex: 1 }}>
@@ -1852,8 +1854,8 @@ export default function LiveWorkoutScreen() {
                       <Ionicons name="time-outline" size={11} color={theme.textMuted} />
                       <Text style={[styles.lastPerfText, { color: theme.textMuted }]}>
                         {t('workoutSession.lastTimeHint', {
-                          weight: toDisplayWeight(lastPerf[ex.name].weight, sessionUnit),
-                          unit: unitLabel(sessionUnit),
+                          weight: toDisplayWeight(lastPerf[ex.name].weight, exUnit(ex)),
+                          unit: unitLabel(exUnit(ex)),
                           reps: lastPerf[ex.name].reps,
                           date: new Date(lastPerf[ex.name].date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
                         })}
@@ -1861,6 +1863,19 @@ export default function LiveWorkoutScreen() {
                     </View>
                   )}
                 </View>
+                {!collapsed.has(ex.exerciseId + '-' + exIdx) && ex.sets.some(sset => (sset.config?.type || 'reps') === 'reps') && (
+                  <View style={[styles.unitToggle, { borderColor: theme.border }]}>
+                    {(['kg', 'lb'] as WeightUnit[]).map((u) => (
+                      <Pressable
+                        key={u}
+                        onPress={() => setExerciseUnit(exIdx, u)}
+                        style={[styles.unitToggleChip, { backgroundColor: exUnit(ex) === u ? Colors.primary : 'transparent' }]}
+                      >
+                        <Text style={[styles.unitToggleText, { color: exUnit(ex) === u ? '#fff' : theme.textMuted }]}>{u.toUpperCase()}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
                 <View style={[styles.muscleTag, { backgroundColor: Colors.primary + '18' }]}>
                   <Text style={[styles.muscleTagText, { color: Colors.primary }]}>{muscleLabel(ex.muscleGroup, language === 'ar')}</Text>
                 </View>
@@ -1888,7 +1903,7 @@ export default function LiveWorkoutScreen() {
                         <Text style={[styles.setHeadText, { color: theme.textMuted }]}>{t('workoutSession.colSet', { defaultValue: 'Set' })}</Text>
                       </View>
                       <Text style={[styles.setHeadText, styles.setHeadCell, { color: theme.textMuted }]}>{t('workoutSession.reps')}</Text>
-                      <Text style={[styles.setHeadText, styles.setHeadCell, { color: theme.textMuted }]}>{unitLabel(sessionUnit)}</Text>
+                      <Text style={[styles.setHeadText, styles.setHeadCell, { color: theme.textMuted }]}>{unitLabel(exUnit(ex))}</Text>
                       <View style={styles.setColAction} />
                     </View>
                   )}
@@ -1908,6 +1923,7 @@ export default function LiveWorkoutScreen() {
                 </>
               )}
             </View>
+            </SessionUnitContext.Provider>
           </Animated.View>
         ))}
 
@@ -2026,7 +2042,6 @@ export default function LiveWorkoutScreen() {
         theme={theme}
       />
     </View>
-    </SessionUnitContext.Provider>
   );
 }
 
@@ -2088,13 +2103,13 @@ const styles = StyleSheet.create({
   setValue: { fontSize: 13 },
   strikethrough: { textDecorationLine: 'line-through' as const },
   // reps set-row grid: SET · REPS · KG · action (aligned with the column header)
-  setGridRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, marginBottom: 6 },
-  setColLead: { width: 40, alignItems: 'flex-start' as const },
-  setColAction: { width: 80, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
-  setCellValue: { flex: 1, textAlign: 'center' as const, fontSize: 15, fontWeight: '600' as const },
-  setCellInput: { flex: 1, height: 42, borderRadius: 10, borderWidth: 1, textAlign: 'center' as const, fontSize: 16, fontWeight: '700' as const, paddingVertical: 0 },
-  setHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, marginTop: 2, marginBottom: 6 },
-  setHeadCell: { flex: 1, textAlign: 'center' as const },
+  setGridRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', gap: 6, paddingHorizontal: 8, paddingVertical: 7, borderRadius: 10, marginBottom: 6 },
+  setColLead: { width: 34, alignItems: 'center' as const },
+  setColAction: { width: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
+  setCellValue: { flex: 1, minWidth: 0, textAlign: 'center' as const, fontSize: 15, fontWeight: '600' as const },
+  setCellInput: { flex: 1, minWidth: 0, height: 42, borderRadius: 10, borderWidth: 1, textAlign: 'center' as const, fontSize: 16, fontWeight: '700' as const, paddingVertical: 0, paddingHorizontal: 2 },
+  setHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, marginTop: 2, marginBottom: 6 },
+  setHeadCell: { flex: 1, minWidth: 0, textAlign: 'center' as const },
   setHeadText: { fontSize: 11, fontWeight: '700' as const, letterSpacing: 0.6, textTransform: 'uppercase' as const },
   editRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'flex-end' },
   editInput: {

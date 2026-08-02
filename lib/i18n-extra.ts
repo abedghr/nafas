@@ -10,8 +10,10 @@ export const extraEn = {
   },
   workoutTypeNames: {
     "Push Day": "Push Day", "Pull Day": "Pull Day", "Leg Day": "Leg Day", "Upper Body": "Upper Body",
-    "Lower Body": "Lower Body", "Full Body": "Full Body", Cardio: "Cardio", HIIT: "HIIT",
-    Strength: "Strength", Mobility: "Mobility", Custom: "Custom",
+    "Lower Body": "Lower Body", Core: "Core", "Full Body": "Full Body", HIIT: "HIIT", Cardio: "Cardio",
+    Calisthenics: "Calisthenics", Mobility: "Mobility", Functional: "Functional",
+    "Olympic Lifting": "Olympic Lifting", Powerlifting: "Powerlifting", "CrossFit / WOD": "CrossFit / WOD",
+    Strength: "Strength", Custom: "Custom",
   },
   authx: {
     tagline: "Your smart fitness companion", continueWithGoogle: "Continue with Google", continueWithApple: "Continue with Apple",
@@ -116,6 +118,7 @@ export const extraEn = {
     exerciseNameRequired: "Exercise Name *", exerciseNamePlaceholder: "e.g. Bulgarian Split Squat", muscleGroup: "Muscle Group", defaultSetType: "Default Set Type",
     notesOptional: "Notes (optional)", notesPlaceholder: "Form cues, variations, etc.", saveExercise: "Save Exercise", loadSavedWorkout: "Load Saved Workout",
     createExercise: "Create Exercise", select: "Select", optionalTag: "(optional)",
+    selectType: "Select training type", customTypeHint: "name your own",
     exerciseName: "Exercise Name", equipment: "Equipment", primaryMuscleGroup: "Primary Muscle Group", otherMuscles: "Other Muscles", exerciseType: "Exercise Type",
     searchSavedWorkouts: "Search saved workouts...", noSavedWorkouts: "No saved workouts yet", noMatchingWorkouts: "No matching workouts",
     deleteSavedWorkout: "Delete saved workout", deleteSavedWorkoutConfirm: "Delete \"{{name}}\"? This can't be undone.",
@@ -198,8 +201,10 @@ export const extraAr = {
   },
   workoutTypeNames: {
     "Push Day": "يوم الدفع", "Pull Day": "يوم السحب", "Leg Day": "يوم الأرجل", "Upper Body": "الجزء العلوي",
-    "Lower Body": "الجزء السفلي", "Full Body": "كامل الجسم", Cardio: "كارديو", HIIT: "تمارين عالية الكثافة",
-    Strength: "القوة", Mobility: "المرونة", Custom: "مخصّص",
+    "Lower Body": "الجزء السفلي", Core: "الجذع", "Full Body": "كامل الجسم", HIIT: "تمارين عالية الكثافة", Cardio: "كارديو",
+    Calisthenics: "تمارين وزن الجسم", Mobility: "المرونة والحركة", Functional: "تمارين وظيفية",
+    "Olympic Lifting": "الرفع الأولمبي", Powerlifting: "رفع الأثقال", "CrossFit / WOD": "كروسفت / تمرين اليوم",
+    Strength: "القوة", Custom: "مخصّص",
   },
   authx: {
     tagline: "رفيقك الذكي للياقة البدنية", continueWithGoogle: "المتابعة باستخدام Google", continueWithApple: "المتابعة باستخدام Apple",
@@ -304,6 +309,7 @@ export const extraAr = {
     exerciseNameRequired: "اسم التمرين *", exerciseNamePlaceholder: "مثال: سكوات بلغاري بقدم واحدة", muscleGroup: "المجموعة العضلية", defaultSetType: "نوع المجموعة الافتراضي",
     notesOptional: "ملاحظات (اختياري)", notesPlaceholder: "تنبيهات على الأداء، تنويعات، إلخ.", saveExercise: "حفظ التمرين", loadSavedWorkout: "تحميل تمرين محفوظ",
     createExercise: "إنشاء تمرين", select: "اختر", optionalTag: "(اختياري)",
+    selectType: "اختر نوع التمرين", customTypeHint: "سمِّ تمرينك الخاص",
     exerciseName: "اسم التمرين", equipment: "المعدّات", primaryMuscleGroup: "المجموعة العضلية الأساسية", otherMuscles: "عضلات أخرى", exerciseType: "نوع التمرين",
     searchSavedWorkouts: "ابحث في التمارين المحفوظة...", noSavedWorkouts: "لا توجد تمارين محفوظة بعد", noMatchingWorkouts: "لا توجد تمارين مطابقة",
     deleteSavedWorkout: "حذف التمرين المحفوظ", deleteSavedWorkoutConfirm: "حذف \"{{name}}\"؟ لا يمكن التراجع.",
