@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  Share,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -235,14 +236,13 @@ export default function ShareWorkoutScreen() {
     return best;
   }, [currentLog]);
 
-  const handlePostToCommunity = () => {
+  // real OS share sheet with a text summary (no fake "saved to gallery" / "posted")
+  const handleShare = () => {
+    if (!currentLog) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    alertDialog(t('workoutSession.comingSoon'), t('workoutSession.postToCommunitySoon'));
-  };
-
-  const handleSaveToGallery = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    alertDialog(t('workoutSession.imageSaved'), t('workoutSession.imageSavedMessage'));
+    const names = currentLog.exercises.map((e: any) => e.name).join(' · ');
+    const message = `${currentLog.name}\n${formatDuration(currentLog.durationMinutes)} · ${formatVolume(currentLog.totalVolumeKg)} · ${t('workoutSession.setsValue', { n: currentLog.completedSets })}` + (names ? `\n${names}` : '') + `\n\nNafas`;
+    Share.share({ message }).catch(() => {});
   };
 
   const handleDone = () => {
@@ -317,14 +317,8 @@ export default function ShareWorkoutScreen() {
           <Button
             variant="solid"
             icon="share-social-outline"
-            label={t('workoutSession.postToCommunity')}
-            onPress={handlePostToCommunity}
-          />
-          <Button
-            variant="ghost"
-            icon="download-outline"
-            label={t('workoutSession.saveToGallery')}
-            onPress={handleSaveToGallery}
+            label={t('workoutSession.share', { defaultValue: 'Share' })}
+            onPress={handleShare}
           />
           <Button
             variant="ghost"
