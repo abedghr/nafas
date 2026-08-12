@@ -31,6 +31,15 @@ export const workoutApi = {
   updateProgram: (id: string, body: unknown) => apiFetch(`/programs/${id}`, { method: "PATCH", auth: true, body }),
   deleteProgram: (id: string) => apiFetch(`/programs/${id}`, { method: "DELETE", auth: true }),
 
+  // program sharing
+  shareProgram: (id: string, body: { toUserId?: string | null; generateCode?: boolean; claimExpiresAt?: string | null; accessExpiresAt?: string | null }) =>
+    apiFetch<{ id: string; code: string | null }>(`/programs/${id}/share`, { method: "POST", auth: true, body }),
+  programInvites: () => apiFetch<{ data: any[] }>("/program-invites", { auth: true }).then((r) => r.data),
+  acceptInvite: (id: string) => apiFetch(`/program-invites/${id}/accept`, { method: "POST", auth: true }),
+  declineInvite: (id: string) => apiFetch(`/program-invites/${id}/decline`, { method: "POST", auth: true }),
+  claimProgram: (code: string) => apiFetch("/program-shares/claim", { method: "POST", auth: true, body: { code } }),
+  searchUsers: (q: string) => apiFetch<{ data: any[] }>(`/users/search?q=${encodeURIComponent(q)}`, { auth: true }).then((r) => r.data),
+
   logs: () => apiFetch<{ data: any[] }>("/workout-logs", { auth: true }).then((r) => r.data),
   prs: (limit = 5) => apiFetch<{ data: { name: string; weight: number; reps: number; date: string }[] }>(`/workout/prs?limit=${limit}`, { auth: true }).then((r) => r.data),
   lastPerformance: (names: string[]) =>

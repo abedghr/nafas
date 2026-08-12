@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  View, Text, Pressable, StyleSheet, ScrollView, Platform, Modal, TextInput, Switch,
+  View, Text, Pressable, StyleSheet, ScrollView, Platform, Modal, TextInput, Switch, Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,9 +8,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
-import { useApp, type Program, type ProgramDay } from '@/lib/app-context';
+import { useApp, type Program, type ProgramDay, type WeekMeta } from '@/lib/app-context';
+import { workoutApi } from '@/src/features/workout/api';
 import { confirmDialog } from '@/lib/dialog';
+import DateTimeField from '@/components/DateTimeField';
 import Colors from '@/constants/colors';
+import { Fonts } from '@/constants/typography';
 
 const DAY_KEYS = ['weekdayMon', 'weekdayTue', 'weekdayWed', 'weekdayThu', 'weekdayFri', 'weekdaySat', 'weekdaySun'] as const;
 
@@ -18,7 +21,7 @@ export default function ProgramBuilderScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { programs, updateProgram, workoutTemplates, isDark } = useApp();
+  const { programs, updateProgram, workoutTemplates, isDark, user } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
@@ -48,9 +51,21 @@ export default function ProgramBuilderScreen() {
       weeks: program.weeks,
       notes: program.notes ?? '',
       days: program.days ?? [],
+      weekMeta: program.weekMeta ?? [],
       ...patch,
     });
   }, [program, updateProgram]);
+
+  // per-week name/notes — merge one week's entry into the weekMeta array
+  const commitWeekMeta = useCallback((w: number, patch: Partial<Pick<WeekMeta, 'name' | 'notes'>>) => {
+    if (!program) return;
+    const existing = program.weekMeta ?? [];
+    const cur = existing.find(m => m.index === w);
+    const merged: WeekMeta = { index: w, name: cur?.name ?? '', notes: cur?.notes ?? '', ...patch };
+    if (cur && cur.name === merged.name && cur.notes === merged.notes) return; // no-op
+    commit({ weekMeta: [...existing.filter(m => m.index !== w), merged] });
+  }, [program, commit]);
+  const weekMetaFor = useCallback((w: number) => (program?.weekMeta ?? []).find(m => m.index === w), [program]);
 
   // upsert a day by (weekIndex, dayIndex) into the days array
   const upsertDay = useCallback((day: ProgramDay) => {
@@ -131,7 +146,10 @@ export default function ProgramBuilderScreen() {
     const days = (program.days ?? [])
       .filter(d => d.weekIndex !== k)
       .map(d => (d.weekIndex > k ? { ...d, weekIndex: d.weekIndex - 1 } : d));
-    commit({ days, weeks: program.weeks - 1 });
+    const weekMeta = (program.weekMeta ?? [])
+      .filter(m => m.index !== k)
+      .map(m => (m.index > k ? { ...m, index: m.index - 1 } : m));
+    commit({ days, weeks: program.weeks - 1, weekMeta });
   };
 
   const startDay = (day: ProgramDay) => {
@@ -150,6 +168,85 @@ export default function ProgramBuilderScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setEditing(null);
     router.push(('/prepare-workout?programId=' + program.id + '&weekIndex=' + week + '&dayIndex=' + dayIdx) as any);
+  };
+
+  // ── share (owner originals only) ──────────────────────────────────────────
+  // canShare comes from the API on hydrated objects; when it's absent (locally
+  // created, not yet round-tripped) default to shareable for programs the user
+  // owns and that are not received copies.
+  const shareable = useMemo(() => {
+    const p = program as (Program & { canShare?: boolean; sourceOwnerId?: string | null }) | undefined;
+    if (!p) return false;
+    const received = p.canShare === false || !!p.sourceOwnerId;
+    if (received) return false;
+    return p.canShare === true || !p.userId || p.userId === user?.id;
+  }, [program, user]);
+
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareQuery, setShareQuery] = useState('');
+  const [shareResults, setShareResults] = useState<{ id: string; name: string; username: string; avatarUrl?: string }[]>([]);
+  const [shareSearching, setShareSearching] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{ id: string; name: string; username: string; avatarUrl?: string } | null>(null);
+  const [genCode, setGenCode] = useState(false);
+  const [claimExpiry, setClaimExpiry] = useState<string | null>(null);
+  const [claimUnlimited, setClaimUnlimited] = useState(true);
+  const [accessExpiry, setAccessExpiry] = useState<string | null>(null);
+  const [accessUnlimited, setAccessUnlimited] = useState(true);
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState('');
+  const [resultCode, setResultCode] = useState<string | null>(null);
+  const [sharedDirect, setSharedDirect] = useState(false);
+
+  const openShare = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShareQuery(''); setShareResults([]); setSelectedUser(null);
+    setGenCode(false); setClaimExpiry(null); setClaimUnlimited(true);
+    setAccessExpiry(null); setAccessUnlimited(true);
+    setShareError(''); setResultCode(null); setSharedDirect(false); setSharing(false);
+    setShareOpen(true);
+  };
+
+  // debounced user search (min 2 chars)
+  useEffect(() => {
+    if (!shareOpen || genCode) { setShareResults([]); setShareSearching(false); return; }
+    const q = shareQuery.trim();
+    if (q.length < 2) { setShareResults([]); setShareSearching(false); return; }
+    setShareSearching(true);
+    const h = setTimeout(() => {
+      workoutApi.searchUsers(q)
+        .then(r => setShareResults(Array.isArray(r) ? r : []))
+        .catch(() => setShareResults([]))
+        .finally(() => setShareSearching(false));
+    }, 300);
+    return () => clearTimeout(h);
+  }, [shareQuery, shareOpen, genCode]);
+
+  const canSend = (genCode || !!selectedUser) && !sharing;
+
+  const doShare = async () => {
+    if (!program || !canSend) return;
+    setSharing(true); setShareError('');
+    try {
+      const res = await workoutApi.shareProgram(program.id, {
+        toUserId: genCode ? null : (selectedUser?.id ?? null),
+        generateCode: genCode,
+        claimExpiresAt: claimUnlimited ? null : claimExpiry,
+        accessExpiresAt: accessUnlimited ? null : accessExpiry,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (res?.code) setResultCode(res.code);
+      else setSharedDirect(true);
+    } catch {
+      setShareError(t('programs.shareError', { defaultValue: 'Could not share this program. Please try again.' }));
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  // expo-clipboard isn't installed → use the native share sheet for both copy + share
+  const shareCode = async (code: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try { await Share.share({ message: code }); } catch {}
   };
 
   const filteredTemplates = useMemo(() => {
@@ -180,7 +277,18 @@ export default function ProgramBuilderScreen() {
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
         <Text style={[s.headerTitle, { color: theme.text }]} numberOfLines={1}>{program.name}</Text>
-        <View style={{ width: 32 }} />
+        {shareable ? (
+          <Pressable
+            onPress={openShare}
+            hitSlop={12}
+            accessibilityLabel={t('programs.share', { defaultValue: 'Share' })}
+            style={({ pressed }) => [s.backBtn, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Ionicons name="share-social-outline" size={22} color={Colors.electric} />
+          </Pressable>
+        ) : (
+          <View style={{ width: 32 }} />
+        )}
       </View>
 
       <ScrollView
@@ -233,6 +341,13 @@ export default function ProgramBuilderScreen() {
                 </Pressable>
               )}
             </View>
+            <WeekMetaFields
+              key={`wm-${program.id}-${w}`}
+              meta={weekMetaFor(w)}
+              theme={theme}
+              onCommitName={(v) => commitWeekMeta(w, { name: v })}
+              onCommitNotes={(v) => commitWeekMeta(w, { notes: v })}
+            />
             {DAY_KEYS.map((dk, dIdx) => {
               const day = findDay(w, dIdx);
               const tmplName = templateName(day?.templateId);
@@ -462,6 +577,229 @@ export default function ProgramBuilderScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* share bottom sheet (owner originals only) */}
+      <Modal visible={shareOpen} transparent animationType="slide" onRequestClose={() => setShareOpen(false)}>
+        <View style={s.modalOverlay}>
+          <Pressable style={{ flex: 1 }} onPress={() => setShareOpen(false)} />
+          <View style={[s.sheet, { backgroundColor: theme.background, height: '82%' }]}>
+            <View style={s.sheetHandleWrap}>
+              <View style={[s.sheetHandle, { backgroundColor: theme.border }]} />
+            </View>
+            <View style={s.sheetHeader}>
+              <Text style={[s.sheetTitle, { color: theme.text }]}>{t('programs.shareProgram', { defaultValue: 'Share program' })}</Text>
+              <Pressable onPress={() => setShareOpen(false)} hitSlop={8}>
+                <Ionicons name="close" size={24} color={theme.text} />
+              </Pressable>
+            </View>
+
+            {resultCode ? (
+              /* code result */
+              <View style={{ flex: 1 }}>
+                <Text style={[s.miniLabel, { color: theme.textMuted, marginTop: 8 }]}>{t('programs.shareCodeReady', { defaultValue: 'Share this code' })}</Text>
+                <View style={[s.codeBox, { backgroundColor: theme.card, borderColor: Colors.electric + '55' }]}>
+                  <Text style={[s.codeText, { color: theme.text }]} selectable>{resultCode}</Text>
+                </View>
+                <Text style={{ color: theme.textMuted, fontSize: 12, marginTop: 10, lineHeight: 18 }}>
+                  {t('programs.shareCodeHint', { defaultValue: 'Anyone with this code can add a copy of the program to their account.' })}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                  <Pressable onPress={() => shareCode(resultCode)} style={({ pressed }) => [s.clearBtn, { flex: 1, borderColor: theme.border, opacity: pressed ? 0.8 : 1 }]}>
+                    <Ionicons name="copy-outline" size={16} color={theme.text} />
+                    <Text style={[s.clearBtnText, { color: theme.text }]}>{t('programs.copy', { defaultValue: 'Copy' })}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => shareCode(resultCode)} style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.9 : 1 }]}>
+                    <LinearGradient colors={[Colors.primary, Colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.saveBtn}>
+                      <Ionicons name="share-social-outline" size={18} color="#fff" />
+                      <Text style={s.saveBtnText}>{t('programs.share', { defaultValue: 'Share' })}</Text>
+                    </LinearGradient>
+                  </Pressable>
+                </View>
+              </View>
+            ) : sharedDirect ? (
+              /* direct share success */
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingBottom: 40 }}>
+                <View style={[s.successCircle, { backgroundColor: Colors.electric + '18' }]}>
+                  <Ionicons name="checkmark-circle" size={40} color={Colors.electric} />
+                </View>
+                <Text style={{ color: theme.text, fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
+                  {t('programs.shareSent', { defaultValue: 'Invitation sent' })}
+                </Text>
+                {selectedUser && (
+                  <Text style={{ color: theme.textMuted, fontSize: 13, textAlign: 'center' }}>
+                    {t('programs.shareSentTo', { defaultValue: 'Sent to {{name}}', name: selectedUser.name })}
+                  </Text>
+                )}
+                <Pressable onPress={() => setShareOpen(false)} style={({ pressed }) => [{ marginTop: 8, opacity: pressed ? 0.9 : 1 }]}>
+                  <LinearGradient colors={[Colors.primary, Colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[s.saveBtn, { paddingHorizontal: 40 }]}>
+                    <Text style={s.saveBtnText}>{t('programs.done', { defaultValue: 'Done' })}</Text>
+                  </LinearGradient>
+                </Pressable>
+              </View>
+            ) : (
+              /* share form */
+              <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                {/* generate-code toggle */}
+                <View style={[s.restRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <Ionicons name="link-outline" size={18} color={Colors.electric} />
+                    <Text style={{ color: theme.text, fontSize: 14, fontWeight: '500' }}>{t('programs.generateCode', { defaultValue: 'Generate a code / link' })}</Text>
+                  </View>
+                  <Switch
+                    value={genCode}
+                    onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setGenCode(v); if (v) setSelectedUser(null); }}
+                    trackColor={{ false: theme.border, true: Colors.primary }}
+                    thumbColor="#fff"
+                  />
+                </View>
+
+                {!genCode && (
+                  <>
+                    <Text style={[s.miniLabel, { color: theme.textMuted, marginTop: 4 }]}>{t('programs.shareWithUser', { defaultValue: 'Share with someone' })}</Text>
+                    {selectedUser ? (
+                      <View style={[s.userRow, { backgroundColor: theme.card, borderColor: Colors.electric + '55', borderWidth: 1 }]}>
+                        <View style={[s.avatar, { backgroundColor: theme.surface }]}>
+                          <Ionicons name="person" size={16} color={theme.textMuted} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>{selectedUser.name}</Text>
+                          <Text style={{ color: theme.textMuted, fontSize: 12 }} numberOfLines={1}>@{selectedUser.username}</Text>
+                        </View>
+                        <Pressable onPress={() => setSelectedUser(null)} hitSlop={8}>
+                          <Ionicons name="close-circle" size={20} color={theme.textMuted} />
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <>
+                        <View style={[s.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                          <Ionicons name="search" size={16} color={theme.textMuted} />
+                          <TextInput
+                            style={[s.searchInput, { color: theme.text }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]}
+                            value={shareQuery}
+                            onChangeText={setShareQuery}
+                            placeholder={t('programs.searchUsers', { defaultValue: 'Search by name or @username' })}
+                            placeholderTextColor={theme.textMuted}
+                            autoCapitalize="none"
+                          />
+                          {shareSearching && <Ionicons name="ellipsis-horizontal" size={16} color={theme.textMuted} />}
+                        </View>
+                        {shareResults.map(u => (
+                          <Pressable
+                            key={u.id}
+                            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedUser(u); setShareQuery(''); setShareResults([]); }}
+                            style={[s.userRow, { borderBottomColor: theme.border, borderBottomWidth: StyleSheet.hairlineWidth }]}
+                          >
+                            <View style={[s.avatar, { backgroundColor: theme.surface }]}>
+                              <Ionicons name="person" size={16} color={theme.textMuted} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>{u.name}</Text>
+                              <Text style={{ color: theme.textMuted, fontSize: 12 }} numberOfLines={1}>@{u.username}</Text>
+                            </View>
+                          </Pressable>
+                        ))}
+                        {!shareSearching && shareQuery.trim().length >= 2 && shareResults.length === 0 && (
+                          <Text style={{ color: theme.textMuted, textAlign: 'center', marginTop: 14, fontSize: 13 }}>
+                            {t('programs.noUsersFound', { defaultValue: 'No users found' })}
+                          </Text>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+
+                {/* claim expiry */}
+                <View style={{ marginTop: 16 }}>
+                  <View style={s.expiryHead}>
+                    <Text style={[s.miniLabel, { color: theme.textMuted, marginBottom: 0 }]}>{t('programs.claimExpiry', { defaultValue: 'Claim window' })}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ color: theme.textMuted, fontSize: 12 }}>{t('programs.unlimited', { defaultValue: 'Unlimited' })}</Text>
+                      <Switch
+                        value={claimUnlimited}
+                        onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setClaimUnlimited(v); if (v) setClaimExpiry(null); }}
+                        trackColor={{ false: theme.border, true: Colors.primary }}
+                        thumbColor="#fff"
+                      />
+                    </View>
+                  </View>
+                  {!claimUnlimited && (
+                    <DateTimeField label={t('programs.claimExpiryLabel', { defaultValue: 'Must be claimed before' })} value={claimExpiry} onChange={setClaimExpiry} theme={theme} minDate={new Date()} optional />
+                  )}
+                </View>
+
+                {/* access expiry */}
+                <View style={{ marginTop: 8 }}>
+                  <View style={s.expiryHead}>
+                    <Text style={[s.miniLabel, { color: theme.textMuted, marginBottom: 0 }]}>{t('programs.accessExpiry', { defaultValue: 'Access window' })}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ color: theme.textMuted, fontSize: 12 }}>{t('programs.unlimited', { defaultValue: 'Unlimited' })}</Text>
+                      <Switch
+                        value={accessUnlimited}
+                        onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setAccessUnlimited(v); if (v) setAccessExpiry(null); }}
+                        trackColor={{ false: theme.border, true: Colors.primary }}
+                        thumbColor="#fff"
+                      />
+                    </View>
+                  </View>
+                  {!accessUnlimited && (
+                    <DateTimeField label={t('programs.accessExpiryLabel', { defaultValue: 'Access expires' })} value={accessExpiry} onChange={setAccessExpiry} theme={theme} minDate={new Date()} optional />
+                  )}
+                </View>
+
+                {shareError ? (
+                  <Text style={{ color: Colors.semantic.danger, fontSize: 13, marginTop: 14, textAlign: 'center' }}>{shareError}</Text>
+                ) : null}
+              </ScrollView>
+            )}
+
+            {!resultCode && !sharedDirect && (
+              <View style={[s.sheetFooter, { paddingBottom: Platform.OS === 'web' ? 20 : insets.bottom + 12 }]}>
+                <Pressable onPress={doShare} disabled={!canSend} style={({ pressed }) => [{ flex: 1, opacity: !canSend ? 0.5 : pressed ? 0.9 : 1 }]}>
+                  <LinearGradient colors={[Colors.primary, Colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.saveBtn}>
+                    <Ionicons name={genCode ? 'key-outline' : 'paper-plane-outline'} size={18} color="#fff" />
+                    <Text style={s.saveBtnText}>{genCode ? t('programs.createCode', { defaultValue: 'Create code' }) : t('programs.send', { defaultValue: 'Send' })}</Text>
+                  </LinearGradient>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+// Per-week name + notes. Local-first (typed value is source of truth) and committed
+// on blur, matching the program name/notes fields above. Keyed by program+week so it
+// re-seeds when the program changes.
+function WeekMetaFields({ meta, theme, onCommitName, onCommitNotes }: {
+  meta?: WeekMeta;
+  theme: typeof Colors.dark;
+  onCommitName: (v: string) => void;
+  onCommitNotes: (v: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [name, setName] = useState(meta?.name ?? '');
+  const [notes, setNotes] = useState(meta?.notes ?? '');
+  return (
+    <View style={s.weekMetaWrap}>
+      <TextInput
+        style={[s.weekNameInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
+        value={name}
+        onChangeText={setName}
+        onBlur={() => onCommitName(name.trim())}
+        placeholder={t('programs.weekNamePlaceholder', { defaultValue: 'Week name (optional)' })}
+        placeholderTextColor={theme.textMuted}
+      />
+      <TextInput
+        style={[s.weekNotesInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
+        value={notes}
+        onChangeText={setNotes}
+        onBlur={() => onCommitNotes(notes.trim())}
+        placeholder={t('programs.weekNotesPlaceholder', { defaultValue: 'Notes for this week (optional)' })}
+        placeholderTextColor={theme.textMuted}
+        multiline
+      />
     </View>
   );
 }
@@ -550,4 +888,15 @@ const s = StyleSheet.create({
     borderRadius: 14, paddingVertical: 13,
   },
   saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  // per-week name/notes
+  weekMetaWrap: { gap: 6, marginBottom: 6 },
+  weekNameInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, fontWeight: '600' },
+  weekNotesInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, fontSize: 12, minHeight: 36, textAlignVertical: 'top' },
+  // share sheet
+  userRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 4, borderRadius: 12 },
+  avatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  expiryHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  codeBox: { borderWidth: 1, borderRadius: 14, paddingVertical: 18, paddingHorizontal: 16, marginTop: 8, alignItems: 'center' },
+  codeText: { fontFamily: Fonts.monoBold, fontSize: 26, letterSpacing: 3, textAlign: 'center' },
+  successCircle: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
 });

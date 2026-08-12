@@ -135,6 +135,11 @@ export interface ProgramDay {
   label: string;
   notes: string;
 }
+export interface WeekMeta {
+  index: number; // 0-based week index
+  name: string;
+  notes: string;
+}
 export interface Program {
   id: string;
   userId: string;
@@ -143,6 +148,11 @@ export interface Program {
   weeks: number;
   notes: string;
   days: ProgramDay[];
+  weekMeta?: WeekMeta[];
+  // server-provided sharing metadata (present on objects hydrated from the API)
+  canShare?: boolean;      // true only for user-authored originals
+  expired?: boolean;       // a received snapshot whose access window lapsed
+  sourceOwnerId?: string | null; // set on received copies
 }
 
 export const WORKOUT_TYPES = [
@@ -353,6 +363,7 @@ interface AppContextValue {
   addProgram: (p: Omit<Program, 'id' | 'userId'>) => string;
   updateProgram: (id: string, p: Omit<Program, 'id' | 'userId'>) => void;
   deleteProgram: (id: string) => void;
+  refreshPrograms: () => void;
   workoutLogs: WorkoutLog[];
   addWorkoutLog: (log: Omit<WorkoutLog, 'id'> & { id?: string }) => string;
   deleteWorkoutLog: (id: string) => void;
@@ -678,6 +689,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       templateId: d.templateId ?? null, name: d.name ?? '', exercises: d.exercises ?? [],
       label: d.label ?? '', notes: d.notes ?? '',
     })),
+    weekMeta: (p.weekMeta ?? []).map(m => ({ index: m.index, name: m.name ?? '', notes: m.notes ?? '' })),
   });
   const addProgram = useCallback((p: Omit<Program, 'id' | 'userId'>): string => {
     const id = Crypto.randomUUID();
@@ -697,6 +709,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteProgram = useCallback((id: string) => {
     setPrograms(prev => prev.filter(x => x.id !== id));
     workoutApi.deleteProgram(id).catch(() => {});
+  }, []);
+  const refreshPrograms = useCallback(() => {
+    workoutApi.programs().then(srv => { if (Array.isArray(srv)) setPrograms(srv as any); }).catch(() => {});
   }, []);
 
   const addWorkoutLog = useCallback((log: Omit<WorkoutLog, 'id'> & { id?: string }): string => {
@@ -821,13 +836,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     likedPosts, toggleLike, streak, weeklyWorkouts,
     inBodyTests, addInBodyTest,
     workoutTemplates, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate,
-    programs, addProgram, updateProgram, deleteProgram,
+    programs, addProgram, updateProgram, deleteProgram, refreshPrograms,
     workoutLogs, addWorkoutLog, deleteWorkoutLog,
     customExercises, addCustomExercise,
     exerciseLibrary, workoutTypes: workoutTypesData, muscleGroups: WORKOUT_MUSCLE_GROUPS,
     activeSession, setActiveSession,
     logout, deleteAccount,
-  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, weightUnit, setWeightUnit, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, programs, addProgram, updateProgram, deleteProgram, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
+  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, weightUnit, setWeightUnit, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, programs, addProgram, updateProgram, deleteProgram, refreshPrograms, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
 
   if (!loaded) return null;
 

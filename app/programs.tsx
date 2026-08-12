@@ -1,22 +1,34 @@
-import React from 'react';
-import { View, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, ScrollView, Platform, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp, type Program } from '@/lib/app-context';
-import { confirmDialog } from '@/lib/dialog';
-import { Button, Chip, ProgressRing, EmptyState, Display } from '@/components/ui';
+import { confirmDialog, alertDialog } from '@/lib/dialog';
+import { workoutApi } from '@/src/features/workout/api';
+import { Button, Chip, ProgressRing, EmptyState, Display, SectionHeader } from '@/components/ui';
+import { Fonts, Type } from '@/constants/typography';
 import Colors from '@/constants/colors';
 
 export default function ProgramsScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { programs, addProgram, deleteProgram, isDark } = useApp();
+  const { programs, addProgram, deleteProgram, refreshPrograms, isDark } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
+
+  const [invites, setInvites] = useState<any[]>([]);
+  const [claimOpen, setClaimOpen] = useState(false);
+  const [code, setCode] = useState('');
+  const [claiming, setClaiming] = useState(false);
+
+  const loadInvites = useCallback(() => {
+    workoutApi.programInvites().then((d) => setInvites(Array.isArray(d) ? d : [])).catch(() => {});
+  }, []);
+  useFocusEffect(useCallback(() => { loadInvites(); }, [loadInvites]));
 
   const handleNewProgram = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -27,72 +39,109 @@ export default function ProgramsScreen() {
   const handleDelete = async (p: Program) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (await confirmDialog({
-      title: t('programs.deleteProgram'),
-      message: t('programs.deleteProgramConfirm', { name: p.name }),
-      destructive: true,
-      confirmText: t('programs.delete'),
-      cancelText: t('programs.cancel'),
-    })) {
-      deleteProgram(p.id);
-    }
+      title: t('programs.deleteProgram'), message: t('programs.deleteProgramConfirm', { name: p.name }),
+      destructive: true, confirmText: t('programs.delete'), cancelText: t('programs.cancel'),
+    })) deleteProgram(p.id);
   };
 
-  const plannedCount = (p: Program) =>
-    p.days.filter(d => !d.restDay && (d.templateId || d.label)).length;
+  const accept = async (inv: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await workoutApi.acceptInvite(inv.id);
+      setInvites((prev) => prev.filter((x) => x.id !== inv.id));
+      refreshPrograms();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      await alertDialog(t('programs.inviteExpired', { defaultValue: 'Invite unavailable' }), t('programs.inviteExpiredSub', { defaultValue: 'This invite has expired or was withdrawn.' }));
+      loadInvites();
+    }
+  };
+  const decline = async (inv: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setInvites((prev) => prev.filter((x) => x.id !== inv.id));
+    workoutApi.declineInvite(inv.id).catch(() => {});
+  };
+
+  const submitClaim = async () => {
+    if (!code.trim() || claiming) return;
+    setClaiming(true);
+    try {
+      await workoutApi.claimProgram(code.trim().toUpperCase());
+      setClaimOpen(false); setCode('');
+      refreshPrograms();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      await alertDialog(t('programs.claimFailed', { defaultValue: 'Code not valid' }), t('programs.claimFailedSub', { defaultValue: 'The code is wrong, already used, or expired.' }));
+    } finally { setClaiming(false); }
+  };
+
+  const plannedCount = (p: Program) => p.days.filter(d => !d.restDay && (d.templateId || d.label)).length;
 
   return (
     <View style={[s.container, { backgroundColor: theme.background }]}>
       <View style={[s.header, { paddingTop: topPad + 8 }]}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
-          style={[s.backBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
-        >
+        <Pressable onPress={() => router.back()} hitSlop={12} style={[s.backBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Ionicons name="arrow-back" size={20} color={theme.text} />
         </Pressable>
         <Display variant="d3" color={theme.text}>{t('programs.title')}</Display>
-        <View style={{ width: 40 }} />
+        <Pressable onPress={() => setClaimOpen(true)} hitSlop={12} style={[s.backBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Ionicons name="enter-outline" size={20} color={Colors.electric} />
+        </Pressable>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: insets.bottom + 40 }}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: insets.bottom + 40 }}>
+        {/* pinned invites */}
+        {invites.length > 0 && (
+          <Animated.View entering={FadeInDown.duration(400)} style={{ marginBottom: 18 }}>
+            <SectionHeader title={t('programs.invites', { defaultValue: 'Invites' })} />
+            {invites.map((inv) => (
+              <View key={inv.id} style={[s.inviteCard, { borderColor: Colors.electric + '55' }]}>
+                <View style={s.inviteTop}>
+                  <View style={[s.inviteIcon, { backgroundColor: Colors.electric + '18' }]}>
+                    <Ionicons name="gift-outline" size={18} color={Colors.electric} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[Type.h2, { color: theme.text }]} numberOfLines={1}>{inv.programName}</Text>
+                    <Text style={[s.inviteMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                      {t('programs.fromOwner', { defaultValue: 'from' })} {inv.ownerName} · {t('programs.weeksCount', { n: inv.weeks })}
+                    </Text>
+                  </View>
+                </View>
+                <View style={s.inviteActions}>
+                  <Button variant="ghost" label={t('programs.decline', { defaultValue: 'Decline' })} onPress={() => decline(inv)} style={{ flex: 1 }} />
+                  <Button variant="solid" label={t('programs.accept', { defaultValue: 'Accept' })} icon="checkmark" onPress={() => accept(inv)} style={{ flex: 1 }} />
+                </View>
+              </View>
+            ))}
+          </Animated.View>
+        )}
+
         <Animated.View entering={FadeInDown.duration(450)} style={{ marginBottom: 20 }}>
-          <Button
-            variant="primary"
-            label={t('programs.newProgram')}
-            playIcon="add"
-            onPress={handleNewProgram}
-          />
+          <Button variant="primary" label={t('programs.newProgram')} playIcon="add" onPress={handleNewProgram} />
         </Animated.View>
 
         {programs.length === 0 ? (
-          <EmptyState
-            icon="calendar-outline"
-            title={t('programs.noPrograms')}
-            subtitle={t('programs.noProgramsSub')}
-          />
+          <EmptyState icon="calendar-outline" title={t('programs.noPrograms')} subtitle={t('programs.noProgramsSub')} />
         ) : (
-          programs.map((p, index) => {
+          programs.map((p: any, index) => {
             const planned = plannedCount(p);
             const progress = p.weeks > 0 ? Math.min(1, planned / (p.weeks * 7)) : 0;
+            const expired = !!p.expired;
+            const received = !p.canShare && p.canShare !== undefined;
             return (
               <Animated.View key={p.id} entering={FadeInDown.duration(350).delay(index * 70)}>
                 <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push(('/program/' + p.id) as any);
-                  }}
-                  style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] }]}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(('/program/' + p.id) as any); }}
+                  style={({ pressed }) => [{ opacity: pressed ? 0.92 : expired ? 0.5 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] }]}
                 >
                   <View style={[s.programCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                    <ProgressRing value={progress} size={56} stroke={5} color={Colors.electric} />
+                    <ProgressRing value={progress} size={56} stroke={5} color={expired ? theme.textMuted : Colors.electric} />
                     <View style={{ flex: 1 }}>
                       <Display variant="d3" color={theme.text} numberOfLines={1}>{p.name}</Display>
                       <View style={s.chipRow}>
                         <Chip label={t('programs.weeksCount', { n: p.weeks })} icon="calendar-outline" />
-                        <Chip label={t('programs.plannedDays', { n: planned })} icon="barbell-outline" />
+                        {received && <Chip label={t('programs.shared', { defaultValue: 'Shared' })} icon="gift-outline" />}
+                        {expired && <Chip label={t('programs.expired', { defaultValue: 'Expired' })} icon="time-outline" />}
                       </View>
                     </View>
                     <Pressable onPress={() => handleDelete(p)} hitSlop={10} style={s.trashBtn}>
@@ -105,21 +154,42 @@ export default function ProgramsScreen() {
           })
         )}
       </ScrollView>
+
+      {/* claim by code */}
+      <Modal visible={claimOpen} transparent animationType="fade" onRequestClose={() => setClaimOpen(false)}>
+        <Pressable style={s.overlay} onPress={() => setClaimOpen(false)}>
+          <Pressable style={[s.claimSheet, { backgroundColor: theme.card }]} onPress={(e) => e.stopPropagation()}>
+            <Display variant="d3" color={theme.text}>{t('programs.claimTitle', { defaultValue: 'Enter a program code' })}</Display>
+            <TextInput
+              value={code}
+              onChangeText={setCode}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              placeholder="XXXXXXXX"
+              placeholderTextColor={theme.textMuted}
+              style={[s.codeInput, { color: theme.text, backgroundColor: theme.cardAlt, borderColor: theme.border }]}
+            />
+            <Button variant="solid" label={t('programs.claim', { defaultValue: 'Claim program' })} icon="checkmark" onPress={submitClaim} disabled={!code.trim() || claiming} />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
 
 const s = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingBottom: 12,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 12 },
   backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  programCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1,
-  },
+  programCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1 },
   chipRow: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   trashBtn: { padding: 6 },
+  inviteCard: { borderRadius: 18, padding: 14, marginBottom: 10, borderWidth: 1 },
+  inviteTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  inviteIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  inviteMeta: { fontFamily: Fonts.medium, fontSize: 12.5, marginTop: 3 },
+  inviteActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', paddingHorizontal: 28 },
+  claimSheet: { borderRadius: 22, padding: 20, gap: 14 },
+  codeInput: { height: 52, borderRadius: 12, borderWidth: 1, paddingHorizontal: 16, fontFamily: Fonts.monoBold, fontSize: 20, letterSpacing: 3, textAlign: 'center' },
 });
