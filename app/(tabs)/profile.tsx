@@ -221,19 +221,6 @@ export default function ProfileScreen() {
           </Animated.View>
         )}
 
-        <Animated.View entering={FadeInDown.duration(400).delay(200)}>
-          <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/settings' as any); }}
-            style={({ pressed }) => [styles.settingsGroup, styles.settingsEntry, { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.9 : 1 }]}
-          >
-            <View style={[styles.settingsIconBg, { backgroundColor: Colors.electric + '15' }]}>
-              <Ionicons name="settings-outline" size={17} color={Colors.electric} />
-            </View>
-            <Text style={[styles.settingsLabel, { color: theme.text }]}>{t('profile.settings')}</Text>
-            <View style={{ flex: 1 }} />
-            <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
-          </Pressable>
-        </Animated.View>
       </ScrollView>
     </View>
   );
