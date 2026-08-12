@@ -9,6 +9,8 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
+import { Display, Button, Chip, EmptyState } from '@/components/ui';
+import { Fonts, Type } from '@/constants/typography';
 import Colors from '@/constants/colors';
 import { nutritionApi, type ApiFood } from '@/src/features/nutrition/api';
 
@@ -85,17 +87,21 @@ export default function MealLoggerScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 16 }]}>
-        <Pressable onPress={close} hitSlop={12}>
-          <Ionicons name="close" size={28} color={theme.text} />
-        </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>
+      <Animated.View
+        entering={FadeInDown.duration(400)}
+        style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 16 }]}
+      >
+        <Button variant="icon" icon="close" onPress={close} />
+        <Display variant="d3" color={theme.text} numberOfLines={1} style={styles.headerTitle}>
           {t('nutrition.log_meal')} - {mealNames[mealType || ''] || mealType}
-        </Text>
-        <View style={{ width: 28 }} />
-      </View>
+        </Display>
+        <View style={styles.headerSpacer} />
+      </Animated.View>
 
-      <View style={[styles.searchBar, { backgroundColor: theme.card }]}>
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(60)}
+        style={[styles.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}
+      >
         <Ionicons name="search-outline" size={18} color={theme.textMuted} />
         <TextInput
           style={[styles.searchInput, { color: theme.text }]}
@@ -110,33 +116,25 @@ export default function MealLoggerScreen() {
             <Ionicons name="close-circle" size={18} color={theme.textMuted} />
           </Pressable>
         )}
-      </View>
+      </Animated.View>
 
       {/* type filter — search foods by meal type */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filterRow}
-      >
-        {['', ...FILTER_TAGS].map(tag => {
-          const on = typeFilter === tag;
-          return (
-            <Pressable
+      <Animated.View entering={FadeInDown.duration(400).delay(120)} style={styles.filterScroll}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+        >
+          {['', ...FILTER_TAGS].map(tag => (
+            <Chip
               key={tag || 'all'}
-              onPress={() => { setTypeFilter(tag); Haptics.selectionAsync(); }}
-              style={[
-                styles.filterChip,
-                { backgroundColor: on ? Colors.primary : theme.card, borderColor: on ? Colors.primary : theme.border },
-              ]}
-            >
-              <Text style={[styles.filterChipText, { color: on ? '#fff' : theme.textMuted }]}>
-                {tag === '' ? t('nutrition.all_foods') : t(`mealTypeTag.${tag}`)}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+              label={tag === '' ? t('nutrition.all_foods') : t(`mealTypeTag.${tag}`)}
+              active={typeFilter === tag}
+              onPress={() => setTypeFilter(tag)}
+            />
+          ))}
+        </ScrollView>
+      </Animated.View>
 
       <FlatList
         data={filtered}
@@ -148,17 +146,15 @@ export default function MealLoggerScreen() {
               onPress={() => openFood(item)}
               style={({ pressed }) => [
                 styles.foodCard,
-                { backgroundColor: theme.card, opacity: pressed ? 0.9 : 1 },
+                { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.9 : 1 },
               ]}
             >
               <View style={{ flex: 1 }}>
-                <Text style={[styles.foodName, { color: theme.text }]}>{item.name}</Text>
+                <Display variant="d3" color={theme.text} numberOfLines={1} style={styles.foodName}>{item.name}</Display>
                 {item.mealTypes?.length > 0 && (
                   <View style={styles.hintRow}>
                     {item.mealTypes.slice(0, 3).map(mt => (
-                      <View key={mt} style={[styles.hintPill, { backgroundColor: Colors.primary + '18' }]}>
-                        <Text style={[styles.hintPillText, { color: Colors.primary }]}>{t(`mealTypeTag.${mt}`)}</Text>
-                      </View>
+                      <Chip key={mt} label={t(`mealTypeTag.${mt}`)} />
                     ))}
                   </View>
                 )}
@@ -178,30 +174,29 @@ export default function MealLoggerScreen() {
                 <Text style={[styles.foodCalValue, { color: theme.text }]}>{item.calories}</Text>
                 <Text style={[styles.foodCalUnit, { color: theme.textMuted }]}>{t('nutrition.kcal')}</Text>
               </View>
-              <Ionicons name="add-circle" size={28} color={Colors.primary} />
+              <Ionicons name="add-circle" size={30} color={Colors.electric} />
             </Pressable>
           </Animated.View>
         )}
-        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         ListEmptyComponent={
           status === 'loading' ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="time-outline" size={40} color={theme.textMuted} />
-              <Text style={[styles.emptyText, { color: theme.textMuted }]}>{t('nutrition.loading')}</Text>
-            </View>
+            <EmptyState
+              icon="time-outline"
+              title={t('nutrition.loading')}
+            />
           ) : status === 'error' ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="cloud-offline-outline" size={40} color={theme.textMuted} />
-              <Text style={[styles.emptyText, { color: theme.textMuted, textAlign: 'center', paddingHorizontal: 24 }]}>{t('nutrition.load_error')}</Text>
-              <Pressable onPress={() => setReloadKey(k => k + 1)} style={[styles.retryBtn, { backgroundColor: Colors.primary }]}>
-                <Text style={styles.retryText}>{t('nutrition.retry')}</Text>
-              </Pressable>
-            </View>
+            <EmptyState
+              icon="cloud-offline-outline"
+              title={t('nutrition.load_error')}
+              actionLabel={t('nutrition.retry')}
+              onAction={() => setReloadKey(k => k + 1)}
+            />
           ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="search-outline" size={40} color={theme.textMuted} />
-              <Text style={[styles.emptyText, { color: theme.textMuted }]}>{t('nutrition.no_food_found')}</Text>
-            </View>
+            <EmptyState
+              icon="search-outline"
+              title={t('nutrition.no_food_found')}
+            />
           )
         }
       />
@@ -209,18 +204,18 @@ export default function MealLoggerScreen() {
       {selected && (
         <View style={styles.sheetBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelected(null)} />
-          <Animated.View entering={FadeInDown.duration(220)} style={[styles.sheet, { backgroundColor: theme.card, paddingBottom: (Platform.OS === 'web' ? 24 : insets.bottom + 16) }]}>
+          <Animated.View entering={FadeInDown.duration(220)} style={[styles.sheet, { backgroundColor: theme.card, borderColor: theme.border, paddingBottom: (Platform.OS === 'web' ? 24 : insets.bottom + 16) }]}>
             <View style={styles.sheetHandle} />
-            <Text style={[styles.sheetTitle, { color: theme.text }]} numberOfLines={2}>{selected.name}</Text>
+            <Display variant="d3" color={theme.text} numberOfLines={2} style={styles.sheetTitle}>{selected.name}</Display>
 
             <View style={styles.qtyRow}>
               <Text style={[styles.qtyLabel, { color: theme.textSecondary }]}>{t('nutrition.servings')}</Text>
               <View style={styles.stepper}>
-                <Pressable onPress={() => stepQty(-0.5)} style={[styles.stepBtn, { backgroundColor: theme.surface }]}>
+                <Pressable onPress={() => stepQty(-0.5)} style={[styles.stepBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                   <Ionicons name="remove" size={20} color={theme.text} />
                 </Pressable>
                 <Text style={[styles.qtyValue, { color: theme.text }]}>{qty % 1 === 0 ? qty : qty.toFixed(1)}</Text>
-                <Pressable onPress={() => stepQty(0.5)} style={[styles.stepBtn, { backgroundColor: theme.surface }]}>
+                <Pressable onPress={() => stepQty(0.5)} style={[styles.stepBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                   <Ionicons name="add" size={20} color={theme.text} />
                 </Pressable>
               </View>
@@ -245,10 +240,12 @@ export default function MealLoggerScreen() {
               </View>
             </View>
 
-            <Pressable onPress={confirmAdd} style={[styles.addBtn, { backgroundColor: Colors.primary }]}>
-              <Ionicons name="add" size={20} color="#fff" />
-              <Text style={styles.addBtnText}>{t('nutrition.add_to_log')}</Text>
-            </Pressable>
+            <Button
+              variant="solid"
+              icon="add"
+              label={t('nutrition.add_to_log')}
+              onPress={confirmAdd}
+            />
           </Animated.View>
         </View>
       )}
@@ -260,49 +257,40 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingBottom: 16,
+    paddingHorizontal: 20, paddingBottom: 16, gap: 12,
   },
-  headerTitle: { fontSize: 17, fontFamily: 'Rubik_600SemiBold' },
+  headerTitle: { flex: 1, textAlign: 'center' },
+  headerSpacer: { width: 44 },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 20,
-    paddingHorizontal: 14, height: 48, borderRadius: 14, marginBottom: 16,
+    paddingHorizontal: 14, height: 48, borderRadius: 999, marginBottom: 16, borderWidth: 1,
   },
-  searchInput: { flex: 1, fontSize: 15, fontFamily: 'Rubik_400Regular' },
+  searchInput: { flex: 1, ...Type.body },
   filterScroll: { flexGrow: 0, flexShrink: 0, maxHeight: 50, marginBottom: 14 },
   filterRow: { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
-  filterChip: { paddingHorizontal: 14, height: 34, justifyContent: 'center', borderRadius: 999, borderWidth: 1 },
-  filterChipText: { fontSize: 12, fontFamily: 'Rubik_600SemiBold' },
   list: { paddingHorizontal: 20, paddingBottom: 40 },
   foodCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, borderWidth: 1,
   },
-  foodName: { fontSize: 15, fontFamily: 'Rubik_500Medium', marginBottom: 6 },
-  hintRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 6 },
-  hintPill: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5 },
-  hintPillText: { fontSize: 10, fontFamily: 'Rubik_500Medium' },
+  foodName: { marginBottom: 8 },
+  hintRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
   macrosRow: { flexDirection: 'row', gap: 6 },
-  macroPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  macroPillText: { fontSize: 11, fontFamily: 'Rubik_600SemiBold' },
+  macroPill: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
+  macroPillText: { fontFamily: Fonts.monoBold, fontSize: 11 },
   foodCalories: { alignItems: 'center' },
-  foodCalValue: { fontSize: 18, fontFamily: 'Rubik_700Bold' },
-  foodCalUnit: { fontSize: 10, fontFamily: 'Rubik_400Regular' },
-  emptyState: { alignItems: 'center', gap: 12, paddingTop: 60 },
-  emptyText: { fontSize: 15, fontFamily: 'Rubik_500Medium' },
-  retryBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, marginTop: 4 },
-  retryText: { color: '#fff', fontSize: 14, fontFamily: 'Rubik_600SemiBold' },
+  foodCalValue: { fontFamily: Fonts.monoBold, fontSize: 20 },
+  foodCalUnit: { ...Type.caption },
   sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 10 },
+  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 10, borderWidth: 1 },
   sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(140,140,160,0.4)', marginBottom: 16 },
-  sheetTitle: { fontSize: 18, fontFamily: 'Rubik_700Bold', marginBottom: 18 },
+  sheetTitle: { marginBottom: 18 },
   qtyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  qtyLabel: { fontSize: 15, fontFamily: 'Rubik_500Medium' },
+  qtyLabel: { ...Type.bodyMed },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 18 },
-  stepBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  qtyValue: { fontSize: 20, fontFamily: 'Rubik_700Bold', minWidth: 40, textAlign: 'center' },
+  stepBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  qtyValue: { fontFamily: Fonts.monoBold, fontSize: 20, minWidth: 44, textAlign: 'center' },
   sheetMacros: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 22 },
-  sheetMacro: { alignItems: 'center', gap: 3 },
-  sheetMacroVal: { fontSize: 17, fontFamily: 'Rubik_700Bold' },
-  sheetMacroLbl: { fontSize: 11, fontFamily: 'Rubik_400Regular' },
-  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 16, borderRadius: 16 },
-  addBtnText: { color: '#fff', fontSize: 16, fontFamily: 'Rubik_600SemiBold' },
+  sheetMacro: { alignItems: 'center', gap: 4 },
+  sheetMacroVal: { fontFamily: Fonts.monoBold, fontSize: 17 },
+  sheetMacroLbl: { ...Type.caption },
 });

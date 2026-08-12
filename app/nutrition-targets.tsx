@@ -6,9 +6,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
+import { Fonts, Type } from '@/constants/typography';
+import { Display, SectionHeader, ActivityRings, Button } from '@/components/ui';
 import { nutritionApi } from '@/src/features/nutrition/api';
 
 type Goal = 'cut' | 'maintain' | 'bulk';
@@ -17,11 +20,12 @@ const GOALS: { id: Goal; icon: any }[] = [
   { id: 'maintain', icon: 'sync-outline' },
   { id: 'bulk', icon: 'barbell-outline' },
 ];
+// macro colour language: protein = green, carbs = amber, fat = blue, calories = electric
 const MACROS: { key: 'calories' | 'protein' | 'carbs' | 'fat'; color: string }[] = [
-  { key: 'calories', color: Colors.primary },
-  { key: 'protein', color: Colors.macro.protein },
-  { key: 'carbs', color: Colors.macro.carbs },
-  { key: 'fat', color: Colors.macro.fat },
+  { key: 'calories', color: Colors.electric },
+  { key: 'protein', color: Colors.ring.green },
+  { key: 'carbs', color: Colors.ring.amber },
+  { key: 'fat', color: Colors.ring.blue },
 ];
 
 export default function NutritionTargetsScreen() {
@@ -68,79 +72,113 @@ export default function NutritionTargetsScreen() {
     setTimeout(close, 650); // brief confirmation before closing
   };
 
+  // donut preview — macro grams as a share of the total (purely derived display)
+  const gramsP = Number(vals.protein) || 0;
+  const gramsC = Number(vals.carbs) || 0;
+  const gramsF = Number(vals.fat) || 0;
+  const gramsTotal = gramsP + gramsC + gramsF;
+  const share = (n: number) => (gramsTotal > 0 ? n / gramsTotal : 0);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 16 }]}>
-        <Pressable onPress={close} hitSlop={12}>
-          <Ionicons name="close" size={28} color={theme.text} />
-        </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>{t('nutrition.edit_targets')}</Text>
-        <View style={{ width: 28 }} />
+      <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 8 : insets.top + 8 }]}>
+        <Button variant="icon" icon="close" onPress={close} />
+        <View style={{ flex: 1 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        {/* goal selector */}
-        <Text style={[styles.sectionLabel, { color: theme.text }]}>{t('nutrition.your_goal')}</Text>
-        <View style={styles.goalRow}>
-          {GOALS.map(({ id, icon }) => {
-            const on = goal === id;
-            return (
-              <Pressable
-                key={id}
-                onPress={() => pickGoal(id)}
-                style={[styles.goalCard, { backgroundColor: on ? Colors.primary + '18' : theme.card, borderColor: on ? Colors.primary : theme.border }]}
-              >
-                <Ionicons name={icon} size={22} color={on ? Colors.primary : theme.textMuted} />
-                <Text style={[styles.goalTitle, { color: on ? Colors.primary : theme.text }]}>{t(`nutrition.goal_${id}`)}</Text>
-                <Text style={[styles.goalDesc, { color: theme.textMuted }]}>{t(`nutrition.goal_${id}_desc`)}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        {/* hero: editorial headline + macro-split donut with calories at the centre */}
+        <Animated.View entering={FadeInDown.duration(500)} style={styles.hero}>
+          <Display variant="d2" color={theme.text} style={styles.heroTitle}>{t('nutrition.edit_targets')}</Display>
+          <View style={styles.donutWrap}>
+            <ActivityRings
+              size={168}
+              stroke={13}
+              gap={5}
+              rings={[
+                { value: share(gramsP), color: Colors.ring.green },
+                { value: share(gramsC), color: Colors.ring.amber },
+                { value: share(gramsF), color: Colors.ring.blue },
+              ]}
+              trackColor={isDark ? '#FFFFFF12' : '#0000000D'}
+            />
+            <View style={styles.donutCenter} pointerEvents="none">
+              <Text style={[Type.stat, { color: theme.text }]}>{vals.calories || '0'}</Text>
+              <Text style={[Type.overline, { color: theme.textMuted }]}>{t('nutrition.kcal')}</Text>
+            </View>
+          </View>
+        </Animated.View>
 
-        {goal && (
-          <Text style={[styles.recommendedHint, { color: Colors.primary }]}>
-            {recommending ? t('nutrition.loading') : t('nutrition.recommended')}
-          </Text>
-        )}
+        {/* goal selector */}
+        <Animated.View entering={FadeInDown.duration(500).delay(80)} style={{ marginTop: 24 }}>
+          <SectionHeader title={t('nutrition.your_goal')} />
+          <View style={styles.goalRow}>
+            {GOALS.map(({ id, icon }) => {
+              const on = goal === id;
+              return (
+                <Pressable
+                  key={id}
+                  onPress={() => pickGoal(id)}
+                  style={[styles.goalCard, { backgroundColor: on ? Colors.electric + '18' : theme.card, borderColor: on ? Colors.electric : theme.border }]}
+                >
+                  <Ionicons name={icon} size={22} color={on ? Colors.electric : theme.textMuted} />
+                  <Text style={[styles.goalTitle, { color: on ? Colors.electric : theme.text }]}>{t(`nutrition.goal_${id}`)}</Text>
+                  <Text style={[styles.goalDesc, { color: theme.textMuted }]}>{t(`nutrition.goal_${id}_desc`)}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {goal && (
+            <View style={styles.recommendedRow}>
+              <Ionicons name="sparkles" size={13} color={Colors.electric} />
+              <Text style={[styles.recommendedHint, { color: Colors.electric }]}>
+                {recommending ? t('nutrition.loading') : t('nutrition.recommended')}
+              </Text>
+            </View>
+          )}
+        </Animated.View>
 
         {/* editable targets */}
-        <View style={styles.fields}>
-          {MACROS.map(({ key, color }) => (
-            <View key={key} style={[styles.field, { backgroundColor: theme.card }]}>
-              <View style={styles.fieldLabel}>
-                <View style={[styles.dot, { backgroundColor: color }]} />
-                <Text style={[styles.fieldName, { color: theme.text }]}>
-                  {t(`nutrition.${key === 'fat' ? 'fats' : key}`)}
-                </Text>
+        <Animated.View entering={FadeInDown.duration(500).delay(160)} style={{ marginTop: 24 }}>
+          <SectionHeader title={t('nutrition.target')} />
+          <View style={styles.fields}>
+            {MACROS.map(({ key, color }) => (
+              <View key={key} style={[styles.field, { backgroundColor: theme.card }]}>
+                <View style={styles.fieldLabel}>
+                  <View style={[styles.dot, { backgroundColor: color }]} />
+                  <Text style={[styles.fieldName, { color: theme.text }]}>
+                    {t(`nutrition.${key === 'fat' ? 'fats' : key}`)}
+                  </Text>
+                </View>
+                <View style={styles.fieldInputWrap}>
+                  <TextInput
+                    style={[styles.fieldInput, { color: theme.text }]}
+                    value={vals[key]}
+                    onChangeText={v => setVals(s => ({ ...s, [key]: v.replace(/[^0-9]/g, '') }))}
+                    keyboardType="number-pad"
+                    placeholder="0"
+                    placeholderTextColor={theme.textMuted}
+                    selectionColor={Colors.electric}
+                  />
+                  <Text style={[styles.fieldUnit, { color: theme.textMuted }]}>
+                    {key === 'calories' ? t('nutrition.kcal') : t('nutrition.g')}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.fieldInputWrap}>
-                <TextInput
-                  style={[styles.fieldInput, { color: theme.text }]}
-                  value={vals[key]}
-                  onChangeText={v => setVals(s => ({ ...s, [key]: v.replace(/[^0-9]/g, '') }))}
-                  keyboardType="number-pad"
-                  placeholder="0"
-                  placeholderTextColor={theme.textMuted}
-                />
-                <Text style={[styles.fieldUnit, { color: theme.textMuted }]}>
-                  {key === 'calories' ? t('nutrition.kcal') : t('nutrition.g')}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        </Animated.View>
 
-        <Pressable onPress={save} style={[styles.saveBtn, { backgroundColor: saved ? Colors.primaryDark : Colors.primary }]}>
-          {saved ? (
-            <View style={styles.saveInner}>
-              <Ionicons name="checkmark-circle" size={20} color="#fff" />
-              <Text style={styles.saveText}>{t('nutrition.targets_updated')}</Text>
-            </View>
-          ) : (
-            <Text style={styles.saveText}>{t('nutrition.save_targets')}</Text>
-          )}
-        </Pressable>
+        <Animated.View entering={FadeInDown.duration(500).delay(240)}>
+          <Button
+            variant="solid"
+            label={saved ? t('nutrition.targets_updated') : t('nutrition.save_targets')}
+            icon={saved ? 'checkmark-circle' : undefined}
+            onPress={save}
+            style={styles.saveBtn}
+          />
+        </Animated.View>
       </ScrollView>
     </View>
   );
@@ -149,26 +187,27 @@ export default function NutritionTargetsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingBottom: 16,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingBottom: 4,
   },
-  headerTitle: { fontSize: 17, fontFamily: 'Rubik_600SemiBold' },
   body: { paddingHorizontal: 20, paddingBottom: 60 },
-  sectionLabel: { fontSize: 15, fontFamily: 'Rubik_600SemiBold', marginBottom: 12 },
+  hero: { alignItems: 'center', gap: 20, marginTop: 4 },
+  heroTitle: { textAlign: 'center' },
+  donutWrap: { width: 168, height: 168, alignItems: 'center', justifyContent: 'center' },
+  donutCenter: { position: 'absolute', alignItems: 'center', gap: 2 },
   goalRow: { flexDirection: 'row', gap: 10 },
   goalCard: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 16, borderRadius: 16, borderWidth: 1 },
-  goalTitle: { fontSize: 14, fontFamily: 'Rubik_600SemiBold' },
-  goalDesc: { fontSize: 10, fontFamily: 'Rubik_400Regular', textAlign: 'center' },
-  recommendedHint: { fontSize: 12, fontFamily: 'Rubik_500Medium', marginTop: 14 },
-  fields: { gap: 10, marginTop: 16 },
+  goalTitle: { fontSize: 14, fontFamily: Fonts.semibold },
+  goalDesc: { fontSize: 10, fontFamily: Fonts.regular, textAlign: 'center' },
+  recommendedRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 14 },
+  recommendedHint: { fontSize: 12, fontFamily: Fonts.medium },
+  fields: { gap: 10 },
   field: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14 },
   fieldLabel: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  fieldName: { fontSize: 15, fontFamily: 'Rubik_500Medium' },
+  fieldName: { fontSize: 15, fontFamily: Fonts.medium },
   fieldInputWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  fieldInput: { fontSize: 18, fontFamily: 'Rubik_700Bold', minWidth: 60, textAlign: 'right' },
-  fieldUnit: { fontSize: 12, fontFamily: 'Rubik_400Regular' },
-  saveBtn: { marginTop: 24, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
-  saveInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  saveText: { color: '#fff', fontSize: 16, fontFamily: 'Rubik_600SemiBold' },
+  fieldInput: { fontFamily: Fonts.monoBold, fontSize: 18, minWidth: 60, textAlign: 'right' },
+  fieldUnit: { fontSize: 12, fontFamily: Fonts.regular },
+  saveBtn: { marginTop: 28 },
 });

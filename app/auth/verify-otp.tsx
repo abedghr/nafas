@@ -10,9 +10,13 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import Colors from '@/constants/colors';
+import { Fonts } from '@/constants/typography';
+import { Display, Button } from '@/components/ui';
 import { useApp } from '@/lib/app-context';
 import { authApi } from '@/src/features/auth/api';
 import { persistSession } from '@/src/features/auth/session';
+
+const DANGER = Colors.semantic.danger;
 
 export default function VerifyOTPScreen() {
   const insets = useSafeAreaInsets();
@@ -108,8 +112,8 @@ export default function VerifyOTPScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 8 : insets.top + 8 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+        <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Ionicons name="chevron-back" size={22} color={theme.text} />
         </Pressable>
         <View style={{ width: 40 }} />
       </View>
@@ -117,14 +121,14 @@ export default function VerifyOTPScreen() {
       <Animated.View entering={FadeInDown.duration(500)} style={styles.content}>
         <View style={styles.iconContainer}>
           <LinearGradient
-            colors={[Colors.primary + '30', Colors.primary + '10']}
+            colors={['#12332A', '#0B1F18']}
             style={styles.iconBg}
           >
-            <Ionicons name="mail" size={40} color={Colors.primary} />
+            <Ionicons name="mail" size={38} color={Colors.electric} />
           </LinearGradient>
         </View>
 
-        <Text style={[styles.title, { color: theme.text }]}>{t('authx.checkYourEmail')}</Text>
+        <Display variant="d1" color={theme.text} style={styles.title}>{t('authx.checkYourEmail')}</Display>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
           {t('authx.sent6DigitCode')}
         </Text>
@@ -139,7 +143,7 @@ export default function VerifyOTPScreen() {
                 styles.otpBox,
                 {
                   backgroundColor: theme.card,
-                  borderColor: digit ? Colors.primary : error ? '#FF4444' : theme.border,
+                  borderColor: digit ? Colors.electric : error ? DANGER : theme.border,
                   color: theme.text,
                 },
               ]}
@@ -165,37 +169,20 @@ export default function VerifyOTPScreen() {
         </Text>
 
         <Pressable onPress={handleResend} disabled={resendTimer > 0} style={styles.resendBtn}>
-          <Text style={[styles.resendText, { color: resendTimer > 0 ? theme.textMuted : Colors.primary }]}>
+          <Text style={[styles.resendText, { color: resendTimer > 0 ? theme.textMuted : Colors.electric }]}>
             {resendTimer > 0 ? t('authx.resendCodeIn', { seconds: resendTimer }) : t('authx.didntGetItResend')}
           </Text>
         </Pressable>
       </Animated.View>
 
       <View style={[styles.footer, { paddingBottom: Platform.OS === 'web' ? 40 : insets.bottom + 24 }]}>
-        <Pressable
+        <Button
+          variant="primary"
+          label={loading ? t('authx.verifying') : t('authx.verifyContinue')}
           onPress={handleVerify}
           disabled={loading || !codeComplete}
-          style={({ pressed }) => [
-            styles.verifyBtn,
-            { opacity: pressed || loading || !codeComplete ? 0.7 : 1 },
-          ]}
-        >
-          <LinearGradient
-            colors={[Colors.primary, Colors.primaryDark]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.verifyBtnGradient}
-          >
-            {loading ? (
-              <Text style={styles.verifyBtnText}>{t('authx.verifying')}</Text>
-            ) : (
-              <>
-                <Text style={styles.verifyBtnText}>{t('authx.verifyContinue')}</Text>
-                <Ionicons name="arrow-forward" size={20} color="#fff" />
-              </>
-            )}
-          </LinearGradient>
-        </Pressable>
+          playIcon="arrow-forward"
+        />
       </View>
     </View>
   );
@@ -207,7 +194,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingBottom: 12,
   },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   content: {
     flex: 1, alignItems: 'center', paddingHorizontal: 24, paddingTop: 40,
   },
@@ -216,23 +203,17 @@ const styles = StyleSheet.create({
     width: 96, height: 96, borderRadius: 48,
     alignItems: 'center', justifyContent: 'center',
   },
-  title: { fontSize: 26, fontFamily: 'Rubik_700Bold', marginBottom: 8, textAlign: 'center' },
-  subtitle: { fontSize: 15, fontFamily: 'Rubik_400Regular', marginBottom: 4, textAlign: 'center' },
-  emailText: { fontSize: 15, fontFamily: 'Rubik_600SemiBold', marginBottom: 40, textAlign: 'center' },
+  title: { marginBottom: 10, textAlign: 'center' },
+  subtitle: { fontSize: 15, fontFamily: Fonts.regular, marginBottom: 4, textAlign: 'center' },
+  emailText: { fontSize: 15, fontFamily: Fonts.semibold, marginBottom: 40, textAlign: 'center' },
   otpContainer: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   otpBox: {
     width: 48, height: 56, borderRadius: 14, borderWidth: 2,
-    textAlign: 'center', fontSize: 22, fontFamily: 'Rubik_700Bold',
+    textAlign: 'center', fontSize: 22, fontFamily: Fonts.monoBold,
   },
-  errorText: { fontSize: 13, fontFamily: 'Rubik_400Regular', color: '#FF4444', marginBottom: 8 },
-  hintText: { fontSize: 12, fontFamily: 'Rubik_400Regular', marginBottom: 20, textAlign: 'center' },
+  errorText: { fontSize: 13, fontFamily: Fonts.regular, color: DANGER, marginBottom: 8 },
+  hintText: { fontSize: 12, fontFamily: Fonts.regular, marginBottom: 20, textAlign: 'center' },
   resendBtn: { paddingVertical: 8 },
-  resendText: { fontSize: 14, fontFamily: 'Rubik_500Medium' },
+  resendText: { fontSize: 14, fontFamily: Fonts.medium },
   footer: { paddingHorizontal: 24 },
-  verifyBtn: { borderRadius: 16, overflow: 'hidden' },
-  verifyBtnGradient: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 16, gap: 8,
-  },
-  verifyBtnText: { fontSize: 16, fontFamily: 'Rubik_600SemiBold', color: '#fff' },
 });

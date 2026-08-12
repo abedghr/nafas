@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Text, TextStyle } from 'react-native';
+import { Text, TextStyle, StyleProp } from 'react-native';
 import { Fonts } from '@/constants/typography';
 import { Duration } from '@/constants/motion';
 
@@ -14,7 +14,7 @@ export function CountUp({
   value: number;
   format?: (n: number) => string;
   duration?: number;
-  style?: TextStyle;
+  style?: StyleProp<TextStyle>;
 }) {
   const [display, setDisplay] = useState(0);
   const raf = useRef<number | null>(null);

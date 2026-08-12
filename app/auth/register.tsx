@@ -4,18 +4,20 @@ import {
   ScrollView, KeyboardAvoidingView, Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import Colors from '@/constants/colors';
+import { Fonts } from '@/constants/typography';
+import { Display, Button, Chip } from '@/components/ui';
 import { useApp } from '@/lib/app-context';
 import type { CoachInfo } from '@/lib/app-context';
 import { authApi, type Country } from '@/src/features/auth/api';
 
 const SPECIALTIES = ['Fitness Coach', 'Nutrition Coach', 'Strength & Conditioning', 'CrossFit', 'Yoga', 'Football', 'Running', 'Swimming'];
+const DANGER = Colors.semantic.danger;
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
@@ -118,10 +120,9 @@ export default function RegisterScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 8 : insets.top + 8 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+        <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Ionicons name="chevron-back" size={22} color={theme.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>{t('authx.createAccount')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -135,10 +136,12 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View entering={FadeInDown.duration(500)}>
+            <Display variant="d1" color={theme.text} style={styles.heroTitle}>{t('authx.createAccount')}</Display>
+
             {isSocial && (
-              <View style={[styles.socialBanner, { backgroundColor: Colors.primary + '20', borderColor: Colors.primary + '40' }]}>
-                <Ionicons name={social === 'apple' ? 'logo-apple' : 'logo-google'} size={18} color={Colors.primary} />
-                <Text style={[styles.socialBannerText, { color: Colors.primary }]}>
+              <View style={[styles.socialBanner, { backgroundColor: Colors.electric + '1F', borderColor: Colors.electric + '40' }]}>
+                <Ionicons name={social === 'apple' ? 'logo-apple' : 'logo-google'} size={18} color={Colors.electric} />
+                <Text style={[styles.socialBannerText, { color: Colors.electric }]}>
                   {t('authx.signingUpWith', { provider: providerName })}
                 </Text>
               </View>
@@ -176,8 +179,8 @@ export default function RegisterScreen() {
               <>
                 <View style={styles.fieldGroup}>
                   <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>{t('authx.password')}</Text>
-                  <View style={[styles.fieldRow, { backgroundColor: theme.card, borderColor: errors.password ? '#FF4444' : theme.border }]}>
-                    <Ionicons name="lock-closed-outline" size={18} color={Colors.primary} />
+                  <View style={[styles.fieldRow, { backgroundColor: theme.card, borderColor: errors.password ? DANGER : password ? Colors.electric : theme.border }]}>
+                    <Ionicons name="lock-closed-outline" size={18} color={Colors.electric} />
                     <TextInput
                       ref={passRef}
                       style={[styles.fieldInput, { color: theme.text }]}
@@ -198,8 +201,8 @@ export default function RegisterScreen() {
 
                 <View style={styles.fieldGroup}>
                   <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>{t('authx.confirmPassword')}</Text>
-                  <View style={[styles.fieldRow, { backgroundColor: theme.card, borderColor: errors.confirmPassword ? '#FF4444' : theme.border }]}>
-                    <Ionicons name="lock-closed-outline" size={18} color={Colors.primary} />
+                  <View style={[styles.fieldRow, { backgroundColor: theme.card, borderColor: errors.confirmPassword ? DANGER : confirmPassword ? Colors.electric : theme.border }]}>
+                    <Ionicons name="lock-closed-outline" size={18} color={Colors.electric} />
                     <TextInput
                       ref={confirmRef}
                       style={[styles.fieldInput, { color: theme.text }]}
@@ -216,7 +219,7 @@ export default function RegisterScreen() {
               </>
             )}
 
-            <View style={styles.sectionDivider} />
+            <View style={[styles.sectionDivider, { backgroundColor: theme.border }]} />
             <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('authx.areYouCoach')}</Text>
             <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
               {t('authx.coachVerifiedInfo')}
@@ -225,12 +228,12 @@ export default function RegisterScreen() {
             <Pressable
               onPress={() => { setIsCoach(p => !p); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
               style={[styles.coachToggle, {
-                backgroundColor: isCoach ? Colors.primary + '15' : theme.card,
-                borderColor: isCoach ? Colors.primary : theme.border,
+                backgroundColor: isCoach ? Colors.electric + '14' : theme.card,
+                borderColor: isCoach ? Colors.electric : theme.border,
               }]}
             >
-              <View style={[styles.coachToggleIcon, { backgroundColor: isCoach ? Colors.primary + '20' : theme.cardAlt }]}>
-                <Ionicons name="school-outline" size={22} color={isCoach ? Colors.primary : theme.textMuted} />
+              <View style={[styles.coachToggleIcon, { backgroundColor: isCoach ? Colors.electric + '22' : theme.cardAlt }]}>
+                <Ionicons name="school-outline" size={22} color={isCoach ? Colors.electric : theme.textMuted} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.coachToggleTitle, { color: theme.text }]}>{t('authx.imACoach')}</Text>
@@ -238,8 +241,8 @@ export default function RegisterScreen() {
                   {t('authx.coachToggleSub')}
                 </Text>
               </View>
-              <View style={[styles.checkbox, { backgroundColor: isCoach ? Colors.primary : 'transparent', borderColor: isCoach ? Colors.primary : theme.border }]}>
-                {isCoach && <Ionicons name="checkmark" size={14} color="#fff" />}
+              <View style={[styles.checkbox, { backgroundColor: isCoach ? Colors.electric : 'transparent', borderColor: isCoach ? Colors.electric : theme.border }]}>
+                {isCoach && <Ionicons name="checkmark" size={14} color="#04120B" />}
               </View>
             </Pressable>
 
@@ -248,16 +251,12 @@ export default function RegisterScreen() {
                 <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>{t('authx.specialty')}</Text>
                 <View style={styles.specialtyGrid}>
                   {SPECIALTIES.map(s => (
-                    <Pressable
+                    <Chip
                       key={s}
+                      label={t(`authx.specialties.${s}`)}
+                      active={specialty === s}
                       onPress={() => { setSpecialty(s); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-                      style={[styles.specialtyChip, {
-                        backgroundColor: specialty === s ? Colors.primary : theme.card,
-                        borderColor: specialty === s ? Colors.primary : theme.border,
-                      }]}
-                    >
-                      <Text style={[styles.specialtyChipText, { color: specialty === s ? '#fff' : theme.textSecondary }]}>{t(`authx.specialties.${s}`)}</Text>
-                    </Pressable>
+                    />
                   ))}
                 </View>
                 {errors.specialty ? <Text style={styles.errorText}>{errors.specialty}</Text> : null}
@@ -274,8 +273,8 @@ export default function RegisterScreen() {
 
                 <View style={styles.fieldGroup}>
                   <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>{t('authx.certifications')}</Text>
-                  <View style={[styles.fieldRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                    <Ionicons name="ribbon-outline" size={18} color={Colors.primary} />
+                  <View style={[styles.fieldRow, { backgroundColor: theme.card, borderColor: certInput ? Colors.electric : theme.border }]}>
+                    <Ionicons name="ribbon-outline" size={18} color={Colors.electric} />
                     <TextInput
                       style={[styles.fieldInput, { color: theme.text }]}
                       value={certInput}
@@ -285,17 +284,17 @@ export default function RegisterScreen() {
                       returnKeyType="done"
                       onSubmitEditing={addCertification}
                     />
-                    <Pressable onPress={addCertification} style={[styles.addBtn, { backgroundColor: Colors.primary + '20' }]}>
-                      <Ionicons name="add" size={18} color={Colors.primary} />
+                    <Pressable onPress={addCertification} style={[styles.addBtn, { backgroundColor: Colors.electric + '22' }]}>
+                      <Ionicons name="add" size={18} color={Colors.electric} />
                     </Pressable>
                   </View>
                   {certifications.length > 0 && (
                     <View style={styles.certsList}>
                       {certifications.map((c, i) => (
-                        <View key={i} style={[styles.certTag, { backgroundColor: Colors.primary + '20' }]}>
-                          <Text style={[styles.certTagText, { color: Colors.primary }]}>{c}</Text>
+                        <View key={i} style={[styles.certTag, { backgroundColor: Colors.electric + '1A' }]}>
+                          <Text style={[styles.certTagText, { color: Colors.electric }]}>{c}</Text>
                           <Pressable onPress={() => removeCert(i)}>
-                            <Ionicons name="close" size={14} color={Colors.primary} />
+                            <Ionicons name="close" size={14} color={Colors.electric} />
                           </Pressable>
                         </View>
                       ))}
@@ -310,57 +309,38 @@ export default function RegisterScreen() {
                 <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>{t('authx.country')}</Text>
                 <View style={styles.countryRow}>
                   {countries.map((c) => (
-                    <Pressable
+                    <Chip
                       key={c.id}
+                      label={`${c.name} (${c.currency})`}
+                      active={countryId === c.id}
                       onPress={() => { setCountryId(c.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-                      style={[styles.countryChip, {
-                        backgroundColor: countryId === c.id ? Colors.primary : theme.card,
-                        borderColor: countryId === c.id ? Colors.primary : theme.border,
-                      }]}
-                    >
-                      <Text style={{ color: countryId === c.id ? '#fff' : theme.textSecondary, fontFamily: 'Rubik_500Medium', fontSize: 13 }}>
-                        {c.name} ({c.currency})
-                      </Text>
-                    </Pressable>
+                    />
                   ))}
                 </View>
               </View>
             )}
 
             {errors.form ? (
-              <View style={[styles.errorBanner, { backgroundColor: '#FF444420', borderColor: '#FF444440' }]}>
-                <Ionicons name="alert-circle-outline" size={16} color="#FF4444" />
+              <View style={[styles.errorBanner, { backgroundColor: DANGER + '1F', borderColor: DANGER + '40' }]}>
+                <Ionicons name="alert-circle-outline" size={16} color={DANGER} />
                 <Text style={styles.errorBannerText}>{errors.form}</Text>
               </View>
             ) : null}
 
-            <Pressable
+            <Button
+              variant="primary"
+              label={loading ? t('authx.creatingAccount') : (isSocial ? t('authx.createAccount') : t('authx.continue'))}
               onPress={handleSubmit}
               disabled={loading}
-              style={({ pressed }) => [styles.submitBtn, { opacity: pressed || loading ? 0.85 : 1 }]}
-            >
-              <LinearGradient
-                colors={[Colors.primary, Colors.primaryDark]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.submitBtnGradient}
-              >
-                {loading ? (
-                  <Text style={styles.submitBtnText}>{t('authx.creatingAccount')}</Text>
-                ) : (
-                  <>
-                    <Text style={styles.submitBtnText}>{isSocial ? t('authx.createAccount') : t('authx.continue')}</Text>
-                    <Ionicons name={isSocial ? 'checkmark' : 'arrow-forward'} size={20} color="#fff" />
-                  </>
-                )}
-              </LinearGradient>
-            </Pressable>
+              playIcon={isSocial ? 'checkmark' : 'arrow-forward'}
+              style={{ marginTop: 24, marginBottom: 8 }}
+            />
 
             {!isSocial && (
               <Pressable onPress={() => router.push('/auth/login')} style={styles.loginLink}>
                 <Text style={[styles.loginLinkText, { color: theme.textMuted }]}>
                   {t('authx.alreadyMember')}{' '}
-                  <Text style={{ fontFamily: 'Rubik_600SemiBold', color: Colors.primary }}>{t('authx.logIn')}</Text>
+                  <Text style={{ fontFamily: Fonts.semibold, color: Colors.electric }}>{t('authx.logIn')}</Text>
                 </Text>
               </Pressable>
             )}
@@ -383,8 +363,8 @@ function Field({
   return (
     <View style={styles.fieldGroup}>
       <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>{label}</Text>
-      <View style={[styles.fieldRow, { backgroundColor: theme.card, borderColor: error ? '#FF4444' : theme.border }]}>
-        <Ionicons name={icon as any} size={18} color={Colors.primary} />
+      <View style={[styles.fieldRow, { backgroundColor: theme.card, borderColor: error ? DANGER : value ? Colors.electric : theme.border }]}>
+        <Ionicons name={icon as any} size={18} color={Colors.electric} />
         <TextInput
           ref={inputRef}
           style={[styles.fieldInput, { color: theme.text }]}
@@ -405,61 +385,50 @@ function Field({
 
 const styles = StyleSheet.create({
   countryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  countryChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
   errorBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
-  errorBannerText: { fontSize: 13, fontFamily: 'Rubik_400Regular', color: '#FF4444', flex: 1 },
+  errorBannerText: { fontSize: 13, fontFamily: Fonts.regular, color: DANGER, flex: 1 },
   container: { flex: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingBottom: 12,
+    paddingHorizontal: 20, paddingBottom: 8,
   },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontFamily: 'Rubik_600SemiBold' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   scroll: { paddingHorizontal: 24, paddingTop: 8 },
+  heroTitle: { marginBottom: 20 },
   socialBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12,
     borderWidth: 1, marginBottom: 24,
   },
-  socialBannerText: { fontSize: 14, fontFamily: 'Rubik_500Medium' },
-  sectionTitle: { fontSize: 20, fontFamily: 'Rubik_700Bold', marginBottom: 4, marginTop: 8 },
-  sectionSubtitle: { fontSize: 13, fontFamily: 'Rubik_400Regular', marginBottom: 16, lineHeight: 18 },
-  sectionDivider: { height: 1, backgroundColor: '#2A2A3E', marginVertical: 24 },
+  socialBannerText: { fontSize: 14, fontFamily: Fonts.medium },
+  sectionTitle: { fontSize: 18, fontFamily: Fonts.bold, marginBottom: 4, marginTop: 8 },
+  sectionSubtitle: { fontSize: 13, fontFamily: Fonts.regular, marginBottom: 16, lineHeight: 18 },
+  sectionDivider: { height: 1, marginVertical: 24 },
   fieldGroup: { marginBottom: 16 },
-  fieldLabel: { fontSize: 13, fontFamily: 'Rubik_500Medium', marginBottom: 7 },
+  fieldLabel: { fontSize: 13, fontFamily: Fonts.medium, marginBottom: 7 },
   fieldRow: {
     flexDirection: 'row', alignItems: 'center', borderRadius: 14,
     borderWidth: 1, paddingHorizontal: 14, height: 52, gap: 10,
   },
-  fieldInput: { flex: 1, fontSize: 15, fontFamily: 'Rubik_400Regular' },
-  errorText: { fontSize: 12, fontFamily: 'Rubik_400Regular', color: '#FF4444', marginTop: 5 },
+  fieldInput: { flex: 1, fontSize: 15, fontFamily: Fonts.regular },
+  errorText: { fontSize: 12, fontFamily: Fonts.regular, color: DANGER, marginTop: 5 },
   coachToggle: {
     flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16,
     borderRadius: 16, borderWidth: 2, marginBottom: 16,
   },
   coachToggleIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  coachToggleTitle: { fontSize: 15, fontFamily: 'Rubik_600SemiBold', marginBottom: 2 },
-  coachToggleSub: { fontSize: 12, fontFamily: 'Rubik_400Regular' },
+  coachToggleTitle: { fontSize: 15, fontFamily: Fonts.semibold, marginBottom: 2 },
+  coachToggleSub: { fontSize: 12, fontFamily: Fonts.regular },
   checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   coachSection: { gap: 4, marginBottom: 8 },
   specialtyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  specialtyChip: {
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10, borderWidth: 1,
-  },
-  specialtyChipText: { fontSize: 13, fontFamily: 'Rubik_500Medium' },
   addBtn: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   certsList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   certTag: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
   },
-  certTagText: { fontSize: 12, fontFamily: 'Rubik_500Medium' },
-  submitBtn: { borderRadius: 16, overflow: 'hidden', marginTop: 24, marginBottom: 8 },
-  submitBtnGradient: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 16, gap: 8,
-  },
-  submitBtnText: { fontSize: 16, fontFamily: 'Rubik_600SemiBold', color: '#fff' },
+  certTagText: { fontSize: 12, fontFamily: Fonts.medium },
   loginLink: { alignItems: 'center', paddingVertical: 12 },
-  loginLinkText: { fontSize: 14, fontFamily: 'Rubik_400Regular' },
+  loginLinkText: { fontSize: 14, fontFamily: Fonts.regular },
 });

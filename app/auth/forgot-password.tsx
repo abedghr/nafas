@@ -4,17 +4,20 @@ import {
   ScrollView, KeyboardAvoidingView,
 } from 'react-native';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import Colors from '@/constants/colors';
+import { Fonts } from '@/constants/typography';
+import { Display, Button } from '@/components/ui';
 import { useApp } from '@/lib/app-context';
 import { authApi } from '@/src/features/auth/api';
 
 type Step = 'email' | 'otp' | 'password';
+
+const DANGER = Colors.semantic.danger;
 
 export default function ForgotPasswordScreen() {
   const insets = useSafeAreaInsets();
@@ -125,18 +128,18 @@ export default function ForgotPasswordScreen() {
       {(['email', 'otp', 'password'] as Step[]).map((s, i) => (
         <View key={s} style={styles.stepRow}>
           <View style={[styles.stepDot, {
-            backgroundColor: step === s ? Colors.primary : (
+            backgroundColor: step === s ? Colors.electric : (
               (step === 'otp' && i === 0) || (step === 'password' && i <= 1)
-                ? Colors.primary + '60' : theme.border
+                ? Colors.electric + '60' : theme.border
             ),
           }]}>
             {((step === 'otp' && i === 0) || (step === 'password' && i <= 1)) ? (
-              <Ionicons name="checkmark" size={12} color="#fff" />
+              <Ionicons name="checkmark" size={12} color="#04120B" />
             ) : (
-              <Text style={[styles.stepDotText, { color: step === s ? '#fff' : theme.textMuted }]}>{i + 1}</Text>
+              <Text style={[styles.stepDotText, { color: step === s ? '#04120B' : theme.textMuted }]}>{i + 1}</Text>
             )}
           </View>
-          {i < 2 && <View style={[styles.stepLine, { backgroundColor: (step === 'otp' && i === 0) || (step === 'password' && i <= 1) ? Colors.primary + '60' : theme.border }]} />}
+          {i < 2 && <View style={[styles.stepLine, { backgroundColor: (step === 'otp' && i === 0) || (step === 'password' && i <= 1) ? Colors.electric + '60' : theme.border }]} />}
         </View>
       ))}
     </View>
@@ -145,10 +148,10 @@ export default function ForgotPasswordScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 8 : insets.top + 8 }]}>
-        <Pressable onPress={() => step === 'email' ? router.back() : setStep(step === 'password' ? 'otp' : 'email')} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+        <Pressable onPress={() => step === 'email' ? router.back() : setStep(step === 'password' ? 'otp' : 'email')} style={[styles.backBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Ionicons name="chevron-back" size={22} color={theme.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>{t('authx.resetPassword')}</Text>
+        <Display variant="d3" color={theme.text} style={styles.headerTitle}>{t('authx.resetPassword')}</Display>
         <View style={{ width: 40 }} />
       </View>
 
@@ -163,18 +166,18 @@ export default function ForgotPasswordScreen() {
           {step === 'email' && (
             <Animated.View entering={FadeInDown.duration(400)}>
               <View style={styles.stepHeader}>
-                <View style={[styles.stepIcon, { backgroundColor: Colors.primary + '20' }]}>
-                  <Ionicons name="mail-outline" size={28} color={Colors.primary} />
+                <View style={[styles.stepIcon, { backgroundColor: Colors.electric + '1F' }]}>
+                  <Ionicons name="mail-outline" size={28} color={Colors.electric} />
                 </View>
-                <Text style={[styles.stepTitle, { color: theme.text }]}>{t('authx.enterYourEmail')}</Text>
+                <Display variant="d2" color={theme.text} style={styles.stepTitle}>{t('authx.enterYourEmail')}</Display>
                 <Text style={[styles.stepSub, { color: theme.textSecondary }]}>
                   {t('authx.resetCodeInfo')}
                 </Text>
               </View>
               <View style={styles.fieldGroup}>
                 <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>{t('authx.emailAddress')}</Text>
-                <View style={[styles.fieldRow, { backgroundColor: theme.card, borderColor: error ? '#FF4444' : theme.border }]}>
-                  <Ionicons name="mail-outline" size={18} color={Colors.primary} />
+                <View style={[styles.fieldRow, { backgroundColor: theme.card, borderColor: error ? DANGER : email ? Colors.electric : theme.border }]}>
+                  <Ionicons name="mail-outline" size={18} color={Colors.electric} />
                   <TextInput
                     style={[styles.fieldInput, { color: theme.text }]}
                     value={email}
@@ -197,12 +200,12 @@ export default function ForgotPasswordScreen() {
           {step === 'otp' && (
             <Animated.View entering={FadeInDown.duration(400)}>
               <View style={styles.stepHeader}>
-                <View style={[styles.stepIcon, { backgroundColor: Colors.primary + '20' }]}>
-                  <Ionicons name="keypad-outline" size={28} color={Colors.primary} />
+                <View style={[styles.stepIcon, { backgroundColor: Colors.electric + '1F' }]}>
+                  <Ionicons name="keypad-outline" size={28} color={Colors.electric} />
                 </View>
-                <Text style={[styles.stepTitle, { color: theme.text }]}>{t('authx.enterTheCode')}</Text>
+                <Display variant="d2" color={theme.text} style={styles.stepTitle}>{t('authx.enterTheCode')}</Display>
                 <Text style={[styles.stepSub, { color: theme.textSecondary }]}>
-                  {t('authx.sent6DigitCode')}{'\n'}<Text style={{ fontFamily: 'Rubik_600SemiBold', color: theme.text }}>{email}</Text>
+                  {t('authx.sent6DigitCode')}{'\n'}<Text style={{ fontFamily: Fonts.semibold, color: theme.text }}>{email}</Text>
                 </Text>
               </View>
               <View style={styles.otpContainer}>
@@ -210,7 +213,7 @@ export default function ForgotPasswordScreen() {
                   <TextInput
                     key={i}
                     ref={otpRefs[i]}
-                    style={[styles.otpBox, { backgroundColor: theme.card, borderColor: d ? Colors.primary : error ? '#FF4444' : theme.border, color: theme.text }]}
+                    style={[styles.otpBox, { backgroundColor: theme.card, borderColor: d ? Colors.electric : error ? DANGER : theme.border, color: theme.text }]}
                     value={d}
                     onChangeText={v => handleOtpChange(v, i)}
                     onKeyPress={({ nativeEvent }) => handleOtpKey(nativeEvent.key, i)}
@@ -223,7 +226,7 @@ export default function ForgotPasswordScreen() {
               </View>
               {error ? <Text style={[styles.errorText, { textAlign: 'center' }]}>{error}</Text> : null}
               <Pressable onPress={() => resendTimer === 0 && handleSendCode()} style={styles.resendBtn}>
-                <Text style={[styles.resendText, { color: resendTimer > 0 ? theme.textMuted : Colors.primary }]}>
+                <Text style={[styles.resendText, { color: resendTimer > 0 ? theme.textMuted : Colors.electric }]}>
                   {resendTimer > 0 ? t('authx.resendIn', { seconds: resendTimer }) : t('authx.resendCode')}
                 </Text>
               </Pressable>
@@ -234,18 +237,18 @@ export default function ForgotPasswordScreen() {
           {step === 'password' && (
             <Animated.View entering={FadeInDown.duration(400)}>
               <View style={styles.stepHeader}>
-                <View style={[styles.stepIcon, { backgroundColor: Colors.primary + '20' }]}>
-                  <Ionicons name="lock-closed-outline" size={28} color={Colors.primary} />
+                <View style={[styles.stepIcon, { backgroundColor: Colors.electric + '1F' }]}>
+                  <Ionicons name="lock-closed-outline" size={28} color={Colors.electric} />
                 </View>
-                <Text style={[styles.stepTitle, { color: theme.text }]}>{t('authx.newPasswordTitle')}</Text>
+                <Display variant="d2" color={theme.text} style={styles.stepTitle}>{t('authx.newPasswordTitle')}</Display>
                 <Text style={[styles.stepSub, { color: theme.textSecondary }]}>
                   {t('authx.newPasswordInfo')}
                 </Text>
               </View>
               <View style={styles.fieldGroup}>
                 <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>{t('authx.newPassword')}</Text>
-                <View style={[styles.fieldRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                  <Ionicons name="lock-closed-outline" size={18} color={Colors.primary} />
+                <View style={[styles.fieldRow, { backgroundColor: theme.card, borderColor: newPassword ? Colors.electric : theme.border }]}>
+                  <Ionicons name="lock-closed-outline" size={18} color={Colors.electric} />
                   <TextInput
                     style={[styles.fieldInput, { color: theme.text }]}
                     value={newPassword}
@@ -262,8 +265,8 @@ export default function ForgotPasswordScreen() {
               </View>
               <View style={styles.fieldGroup}>
                 <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>{t('authx.confirmPassword')}</Text>
-                <View style={[styles.fieldRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                  <Ionicons name="lock-closed-outline" size={18} color={Colors.primary} />
+                <View style={[styles.fieldRow, { backgroundColor: theme.card, borderColor: confirmPassword ? Colors.electric : theme.border }]}>
+                  <Ionicons name="lock-closed-outline" size={18} color={Colors.electric} />
                   <TextInput
                     style={[styles.fieldInput, { color: theme.text }]}
                     value={confirmPassword}
@@ -286,20 +289,14 @@ export default function ForgotPasswordScreen() {
 
 function ActionBtn({ label, onPress, loading, disabled }: { label: string; onPress: () => void; loading?: boolean; disabled?: boolean }) {
   return (
-    <Pressable
+    <Button
+      variant="primary"
+      label={label}
       onPress={onPress}
       disabled={loading || disabled}
-      style={({ pressed }) => [styles.actionBtn, { opacity: pressed || loading || disabled ? 0.75 : 1 }]}
-    >
-      <LinearGradient
-        colors={[Colors.primary, Colors.primaryDark]}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-        style={styles.actionBtnGradient}
-      >
-        <Text style={styles.actionBtnText}>{label}</Text>
-        {!loading && <Ionicons name="arrow-forward" size={20} color="#fff" />}
-      </LinearGradient>
-    </Pressable>
+      playIcon="arrow-forward"
+      style={{ marginTop: 8 }}
+    />
   );
 }
 
@@ -309,40 +306,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingBottom: 4,
   },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontFamily: 'Rubik_600SemiBold' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  headerTitle: { flex: 1, textAlign: 'center' },
   scroll: { paddingHorizontal: 24, paddingTop: 16 },
   stepIndicator: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 32 },
   stepRow: { flexDirection: 'row', alignItems: 'center' },
   stepDot: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  stepDotText: { fontSize: 12, fontFamily: 'Rubik_600SemiBold' },
+  stepDotText: { fontSize: 12, fontFamily: Fonts.semibold },
   stepLine: { width: 40, height: 2, marginHorizontal: 4 },
   stepHeader: { alignItems: 'center', marginBottom: 32 },
   stepIcon: {
     width: 72, height: 72, borderRadius: 36,
     alignItems: 'center', justifyContent: 'center', marginBottom: 16,
   },
-  stepTitle: { fontSize: 22, fontFamily: 'Rubik_700Bold', marginBottom: 8, textAlign: 'center' },
-  stepSub: { fontSize: 14, fontFamily: 'Rubik_400Regular', textAlign: 'center', lineHeight: 20 },
+  stepTitle: { marginBottom: 8, textAlign: 'center' },
+  stepSub: { fontSize: 14, fontFamily: Fonts.regular, textAlign: 'center', lineHeight: 20 },
   fieldGroup: { marginBottom: 16 },
-  fieldLabel: { fontSize: 13, fontFamily: 'Rubik_500Medium', marginBottom: 7 },
+  fieldLabel: { fontSize: 13, fontFamily: Fonts.medium, marginBottom: 7 },
   fieldRow: {
     flexDirection: 'row', alignItems: 'center', borderRadius: 14,
     borderWidth: 1, paddingHorizontal: 14, height: 52, gap: 10,
   },
-  fieldInput: { flex: 1, fontSize: 15, fontFamily: 'Rubik_400Regular' },
-  errorText: { fontSize: 12, fontFamily: 'Rubik_400Regular', color: '#FF4444', marginTop: 5 },
+  fieldInput: { flex: 1, fontSize: 15, fontFamily: Fonts.regular },
+  errorText: { fontSize: 12, fontFamily: Fonts.regular, color: DANGER, marginTop: 5 },
   otpContainer: { flexDirection: 'row', gap: 10, justifyContent: 'center', marginBottom: 12 },
   otpBox: {
     width: 46, height: 54, borderRadius: 12, borderWidth: 2,
-    textAlign: 'center', fontSize: 20, fontFamily: 'Rubik_700Bold',
+    textAlign: 'center', fontSize: 20, fontFamily: Fonts.monoBold,
   },
   resendBtn: { alignItems: 'center', paddingVertical: 10, marginBottom: 16 },
-  resendText: { fontSize: 14, fontFamily: 'Rubik_500Medium' },
-  actionBtn: { borderRadius: 16, overflow: 'hidden', marginTop: 8 },
-  actionBtnGradient: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 16, gap: 8,
-  },
-  actionBtnText: { fontSize: 16, fontFamily: 'Rubik_600SemiBold', color: '#fff' },
+  resendText: { fontSize: 14, fontFamily: Fonts.medium },
 });

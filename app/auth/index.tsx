@@ -10,6 +10,8 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import Colors from '@/constants/colors';
+import { Fonts } from '@/constants/typography';
+import { Display, Button } from '@/components/ui';
 
 const NAFAS_LOGO = require('../../assets/images/icon.png');
 
@@ -40,12 +42,19 @@ export default function AuthWelcome() {
 
   return (
     <View style={styles.container}>
+      {/* Branded gradient hero backdrop */}
       <LinearGradient
-        colors={['#00C89620', '#00C89608', 'transparent']}
+        colors={['#12332A', '#0B1F18', '#07070B']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <LinearGradient
+        colors={[Colors.electric + '2E', 'transparent']}
         style={styles.topGradient}
       />
       <LinearGradient
-        colors={['transparent', '#0A0A0F90', '#0A0A0F']}
+        colors={['transparent', '#07070Bcc', '#07070B']}
         style={styles.bottomGradient}
       />
 
@@ -55,7 +64,7 @@ export default function AuthWelcome() {
             <Image source={NAFAS_LOGO} style={styles.logoImage} resizeMode="cover" />
           </View>
           <Text style={styles.logoText}>نَفَس</Text>
-          <Text style={styles.logoEn}>NAFAS</Text>
+          <Display variant="d1" color="#fff" style={styles.wordmark}>NAFAS</Display>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(700).delay(300)} style={styles.taglineContainer}>
@@ -70,25 +79,19 @@ export default function AuthWelcome() {
       >
         <Pressable
           onPress={handleGoogle}
-          style={({ pressed }) => [styles.socialBtn, styles.googleBtn, { opacity: pressed ? 0.85 : 1 }]}
+          style={({ pressed }) => [styles.socialBtn, { opacity: pressed ? 0.75 : 1 }]}
         >
-          <View style={styles.socialBtnInner}>
-            <View style={styles.googleIcon}>
-              <Text style={styles.googleIconText}>G</Text>
-            </View>
-            <Text style={styles.socialBtnText}>{t('authx.continueWithGoogle')}</Text>
-          </View>
+          <Ionicons name="logo-google" size={18} color="#fff" />
+          <Text style={styles.socialBtnText}>{t('authx.continueWithGoogle')}</Text>
         </Pressable>
 
         {Platform.OS === 'ios' && (
           <Pressable
             onPress={handleApple}
-            style={({ pressed }) => [styles.socialBtn, styles.appleBtn, { opacity: pressed ? 0.85 : 1 }]}
+            style={({ pressed }) => [styles.socialBtn, { opacity: pressed ? 0.75 : 1 }]}
           >
-            <View style={styles.socialBtnInner}>
-              <Ionicons name="logo-apple" size={20} color="#fff" />
-              <Text style={[styles.socialBtnText, { color: '#fff' }]}>{t('authx.continueWithApple')}</Text>
-            </View>
+            <Ionicons name="logo-apple" size={20} color="#fff" />
+            <Text style={styles.socialBtnText}>{t('authx.continueWithApple')}</Text>
           </Pressable>
         )}
 
@@ -98,20 +101,12 @@ export default function AuthWelcome() {
           <View style={styles.dividerLine} />
         </View>
 
-        <Pressable
+        <Button
+          variant="primary"
+          label={t('authx.signUpWithEmail')}
           onPress={handleEmail}
-          style={({ pressed }) => [styles.emailBtn, { opacity: pressed ? 0.9 : 1 }]}
-        >
-          <LinearGradient
-            colors={[Colors.primary, Colors.primaryDark]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.emailBtnGradient}
-          >
-            <Ionicons name="mail-outline" size={20} color="#fff" />
-            <Text style={styles.emailBtnText}>{t('authx.signUpWithEmail')}</Text>
-          </LinearGradient>
-        </Pressable>
+          playIcon="arrow-forward"
+        />
 
         <Pressable onPress={handleLogin} style={styles.loginLink}>
           <Text style={styles.loginLinkText}>
@@ -127,14 +122,14 @@ export default function AuthWelcome() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0F',
+    backgroundColor: '#07070B',
     justifyContent: 'space-between',
   },
   topGradient: {
-    position: 'absolute', top: 0, left: 0, right: 0, height: 400,
+    position: 'absolute', top: 0, left: 0, right: 0, height: 420,
   },
   bottomGradient: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: 350,
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: 360,
   },
   hero: {
     alignItems: 'center',
@@ -148,10 +143,10 @@ const styles = StyleSheet.create({
   logoCircle: {
     borderRadius: 36,
     overflow: 'hidden',
-    shadowColor: Colors.primary,
+    shadowColor: Colors.electric,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
     elevation: 12,
   },
   logoImage: {
@@ -159,16 +154,13 @@ const styles = StyleSheet.create({
     height: 88,
   },
   logoText: {
-    fontSize: 44,
-    fontFamily: 'Rubik_700Bold',
+    fontSize: 40,
+    fontFamily: Fonts.bold,
     color: '#fff',
     letterSpacing: 2,
   },
-  logoEn: {
-    fontSize: 13,
-    fontFamily: 'Rubik_500Medium',
-    color: Colors.primary,
-    letterSpacing: 6,
+  wordmark: {
+    marginTop: 2,
   },
   taglineContainer: {
     alignItems: 'center',
@@ -176,14 +168,14 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontSize: 18,
-    fontFamily: 'Rubik_400Regular',
-    color: '#FFFFFF99',
+    fontFamily: Fonts.regular,
+    color: '#FFFFFFAA',
     textAlign: 'center',
   },
   taglineAr: {
     fontSize: 15,
-    fontFamily: 'Rubik_400Regular',
-    color: '#FFFFFF55',
+    fontFamily: Fonts.regular,
+    color: '#FFFFFF66',
     textAlign: 'center',
   },
   actions: {
@@ -191,41 +183,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   socialBtn: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  socialBtnInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    paddingVertical: 15,
-  },
-  googleBtn: {
-    backgroundColor: '#ffffff',
-  },
-  appleBtn: {
-    backgroundColor: '#000000',
+    height: 48,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#333',
-  },
-  googleIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#4285F4',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  googleIconText: {
-    fontSize: 13,
-    fontFamily: 'Rubik_700Bold',
-    color: '#fff',
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
   },
   socialBtnText: {
-    fontSize: 15,
-    fontFamily: 'Rubik_600SemiBold',
-    color: '#111',
+    fontSize: 14,
+    fontFamily: Fonts.semibold,
+    color: '#fff',
   },
   divider: {
     flexDirection: 'row',
@@ -236,28 +207,12 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#2A2A3E',
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   dividerText: {
     fontSize: 13,
-    fontFamily: 'Rubik_400Regular',
-    color: '#5C5C72',
-  },
-  emailBtn: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  emailBtnGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 16,
-  },
-  emailBtnText: {
-    fontSize: 16,
-    fontFamily: 'Rubik_600SemiBold',
-    color: '#fff',
+    fontFamily: Fonts.regular,
+    color: '#FFFFFF66',
   },
   loginLink: {
     alignItems: 'center',
@@ -265,11 +220,11 @@ const styles = StyleSheet.create({
   },
   loginLinkText: {
     fontSize: 14,
-    fontFamily: 'Rubik_400Regular',
-    color: '#5C5C72',
+    fontFamily: Fonts.regular,
+    color: '#FFFFFF80',
   },
   loginLinkBold: {
-    fontFamily: 'Rubik_600SemiBold',
-    color: Colors.primary,
+    fontFamily: Fonts.semibold,
+    color: Colors.electric,
   },
 });

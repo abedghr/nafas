@@ -13,6 +13,8 @@ import i18n from '@/lib/i18n';
 import { useApp } from '@/lib/app-context';
 import { confirmDialog, alertDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
+import { Display } from '@/components/ui';
+import { Type } from '@/constants/typography';
 import { ranks, sportInterests } from '@/lib/mock-data';
 import { toDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
 import { gymsApi } from '@/src/features/gyms/api';
@@ -48,8 +50,8 @@ function SettingsItem({ icon, label, right, onPress, isDark }: any) {
         { backgroundColor: theme.card, opacity: pressed ? 0.9 : 1 },
       ]}
     >
-      <View style={[styles.settingsIconBg, { backgroundColor: Colors.primary + '15' }]}>
-        <Ionicons name={icon} size={18} color={Colors.primary} />
+      <View style={[styles.settingsIconBg, { backgroundColor: Colors.electric + '15' }]}>
+        <Ionicons name={icon} size={18} color={Colors.electric} />
       </View>
       <Text style={[styles.settingsLabel, { color: theme.text }]}>{label}</Text>
       <View style={{ flex: 1 }} />
@@ -110,22 +112,22 @@ export default function ProfileScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         <LinearGradient
-          colors={[Colors.primary + '30', 'transparent']}
+          colors={[Colors.electric + '30', 'transparent']}
           style={[styles.headerGradient, { paddingTop: Platform.OS === 'web' ? 67 + 24 : insets.top + 24 }]}
         >
           <View style={styles.profileHeader}>
-            <View style={[styles.avatarLarge, { backgroundColor: theme.card, borderColor: Colors.primary }]}>
-              <Text style={[styles.avatarLargeText, { color: Colors.primary }]}>
+            <View style={[styles.avatarLarge, { backgroundColor: theme.card, borderColor: Colors.electric }]}>
+              <Text style={[styles.avatarLargeText, { color: Colors.electric }]}>
                 {user?.name?.charAt(0) || 'N'}
               </Text>
             </View>
-            <Text style={[styles.profileName, { color: theme.text }]}>{user?.name || 'Nafas User'}</Text>
+            <Display variant="d2" color={theme.text} style={{ marginTop: 4 }}>{user?.name || 'Nafas User'}</Display>
             <Text style={[styles.profileUsername, { color: theme.textSecondary }]}>@{user?.username || 'nafas_user'}</Text>
 
             <View style={styles.badgeRow}>
-              <View style={[styles.typeBadge, { backgroundColor: (isCoach ? Colors.accent : Colors.primary) + '20' }]}>
-                <Ionicons name={isCoach ? 'ribbon' : 'barbell'} size={13} color={isCoach ? Colors.accent : Colors.primary} />
-                <Text style={[styles.typeText, { color: isCoach ? Colors.accent : Colors.primary }]}>
+              <View style={[styles.typeBadge, { backgroundColor: (isCoach ? Colors.accent : Colors.electric) + '20' }]}>
+                <Ionicons name={isCoach ? 'ribbon' : 'barbell'} size={13} color={isCoach ? Colors.accent : Colors.electric} />
+                <Text style={[styles.typeText, { color: isCoach ? Colors.accent : Colors.electric }]}>
                   {isCoach ? t('profile.coach') : t('profile.athlete')}
                 </Text>
               </View>
@@ -156,8 +158,8 @@ export default function ProfileScreen() {
             <View style={styles.physHeader}>
               <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>{t('discover.my_profile')}</Text>
               <Pressable onPress={() => router.push('/edit-profile' as any)} style={styles.editLink}>
-                <Ionicons name="create-outline" size={15} color={Colors.primary} />
-                <Text style={[styles.editLinkText, { color: Colors.primary }]}>{t('discover.edit_profile')}</Text>
+                <Ionicons name="create-outline" size={15} color={Colors.electric} />
+                <Text style={[styles.editLinkText, { color: Colors.electric }]}>{t('discover.edit_profile')}</Text>
               </Pressable>
             </View>
             <View style={styles.physRow}>
@@ -176,7 +178,7 @@ export default function ProfileScreen() {
               <View style={styles.interestTags}>
                 {user.interests.map(interest => {
                   const sport = sportInterests.find(s => s.id === interest);
-                  const sportColor = (Colors.sport as any)[interest] || Colors.primary;
+                  const sportColor = (Colors.sport as any)[interest] || Colors.electric;
                   return (
                     <View key={interest} style={[styles.interestTag, { backgroundColor: sportColor + '15' }]}>
                       <Ionicons name={(sport?.icon || 'fitness-outline') as any} size={14} color={sportColor} />
@@ -222,10 +224,10 @@ export default function ProfileScreen() {
               right={
                 <Pressable
                   onPress={toggleTheme}
-                  style={[styles.themeTrack, { backgroundColor: isDark ? Colors.primary : theme.border, justifyContent: isDark ? 'flex-end' : 'flex-start' }]}
+                  style={[styles.themeTrack, { backgroundColor: isDark ? Colors.electric : theme.border, justifyContent: isDark ? 'flex-end' : 'flex-start' }]}
                 >
                   <View style={styles.themeKnob}>
-                    <Ionicons name={isDark ? 'moon' : 'sunny'} size={13} color={isDark ? Colors.primary : '#F5A623'} />
+                    <Ionicons name={isDark ? 'moon' : 'sunny'} size={13} color={isDark ? Colors.electric : '#F5A623'} />
                   </View>
                 </Pressable>
               }
@@ -236,8 +238,8 @@ export default function ProfileScreen() {
               isDark={isDark}
               onPress={toggleLanguage}
               right={
-                <View style={[styles.langBadge, { backgroundColor: Colors.primary + '15' }]}>
-                  <Text style={[styles.langText, { color: Colors.primary }]}>
+                <View style={[styles.langBadge, { backgroundColor: Colors.electric + '15' }]}>
+                  <Text style={[styles.langText, { color: Colors.electric }]}>
                     {language === 'en' ? 'EN' : 'AR'}
                   </Text>
                 </View>
@@ -259,7 +261,7 @@ export default function ProfileScreen() {
                       }}
                       style={[
                         styles.unitChip,
-                        { backgroundColor: weightUnit === u ? Colors.primary : theme.surface },
+                        { backgroundColor: weightUnit === u ? Colors.electric : theme.surface },
                       ]}
                     >
                       <Text style={[styles.unitChipText, { color: weightUnit === u ? '#fff' : theme.textSecondary }]}>
@@ -332,7 +334,7 @@ const styles = StyleSheet.create({
   physStat: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: 'rgba(128,128,128,0.08)' },
   physValue: { fontSize: 15, fontFamily: 'Rubik_700Bold' },
   physLabel: { fontSize: 11, fontFamily: 'Rubik_400Regular', marginTop: 2 },
-  sectionTitle: { fontSize: 17, fontFamily: 'Rubik_600SemiBold', marginBottom: 12 },
+  sectionTitle: { fontSize: 12, fontFamily: 'Rubik_600SemiBold', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 },
   interestTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   interestTag: {
     flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12,

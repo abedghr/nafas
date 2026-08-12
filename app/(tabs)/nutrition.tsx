@@ -10,6 +10,8 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
+import { Display, ProgressRing, CountUp } from '@/components/ui';
+import { Fonts, Type } from '@/constants/typography';
 import Colors from '@/constants/colors';
 import InBodySection from '@/components/InBodySection';
 
@@ -48,8 +50,8 @@ function MealSection({ type, items, isDark, onAdd, onRemove, foodNames }: any) {
     <View style={[styles.mealCard, { backgroundColor: theme.card }]}>
       <View style={styles.mealHeader}>
         <View style={styles.mealHeaderLeft}>
-          <View style={[styles.mealIconBg, { backgroundColor: Colors.primary + '15' }]}>
-            <Ionicons name={mealIcons[type] || 'restaurant-outline'} size={18} color={Colors.primary} />
+          <View style={[styles.mealIconBg, { backgroundColor: Colors.electric + '15' }]}>
+            <Ionicons name={mealIcons[type] || 'restaurant-outline'} size={18} color={Colors.electric} />
           </View>
           <Text style={[styles.mealTitle, { color: theme.text }]}>{mealNames[type] || type}</Text>
         </View>
@@ -59,9 +61,9 @@ function MealSection({ type, items, isDark, onAdd, onRemove, foodNames }: any) {
           )}
           <Pressable
             onPress={() => { onAdd(type); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-            style={[styles.addMealBtn, { backgroundColor: Colors.primary + '15' }]}
+            style={[styles.addMealBtn, { backgroundColor: Colors.electric + '15' }]}
           >
-            <Ionicons name="add" size={18} color={Colors.primary} />
+            <Ionicons name="add" size={18} color={Colors.electric} />
           </Pressable>
         </View>
       </View>
@@ -127,7 +129,7 @@ export default function NutritionScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         <View style={{ paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 12 }}>
           <View style={styles.screenHeader}>
-            <Text style={[styles.screenTitle, { color: theme.text }]}>{t('nutrition.title')}</Text>
+            <Display variant="d2" color={theme.text}>{t('nutrition.title')}</Display>
           </View>
 
           <View style={styles.tabRow}>
@@ -138,10 +140,10 @@ export default function NutritionScreen() {
               <Pressable
                 key={tab.id}
                 onPress={() => { setActiveTab(tab.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-                style={[styles.tab, activeTab === tab.id && { backgroundColor: Colors.primary + '18' }]}
+                style={[styles.tab, activeTab === tab.id && { backgroundColor: Colors.electric + '18' }]}
               >
-                <Ionicons name={tab.icon} size={16} color={activeTab === tab.id ? Colors.primary : theme.textMuted} />
-                <Text style={[styles.tabText, { color: activeTab === tab.id ? Colors.primary : theme.textMuted }]}>{tab.label}</Text>
+                <Ionicons name={tab.icon} size={16} color={activeTab === tab.id ? Colors.electric : theme.textMuted} />
+                <Text style={[styles.tabText, { color: activeTab === tab.id ? Colors.electric : theme.textMuted }]}>{tab.label}</Text>
               </Pressable>
             ))}
           </View>
@@ -155,45 +157,40 @@ export default function NutritionScreen() {
               <View style={styles.caloriesHeader}>
                 <Text style={[styles.caloriesTitle, { color: theme.text }]}>{t('nutrition.daily_intake')}</Text>
                 <View style={styles.caloriesHeaderRight}>
-                  <View style={[styles.calBadge, { backgroundColor: calPct >= 80 ? Colors.primary + '20' : Colors.accent + '20' }]}>
-                    <Text style={[styles.calBadgeText, { color: calPct >= 80 ? Colors.primary : Colors.accent }]}>
+                  <View style={[styles.calBadge, { backgroundColor: calPct >= 80 ? Colors.electric + '20' : Colors.accent + '20' }]}>
+                    <Text style={[styles.calBadgeText, { color: calPct >= 80 ? Colors.electric : Colors.accent }]}>
                       {calPct}%
                     </Text>
                   </View>
                   <Pressable
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/nutrition-targets'); }}
-                    style={[styles.editTargetsBtn, { backgroundColor: Colors.primary + '15' }]}
+                    style={[styles.editTargetsBtn, { backgroundColor: Colors.electric + '15' }]}
                   >
-                    <Ionicons name="options-outline" size={16} color={Colors.primary} />
+                    <Ionicons name="options-outline" size={16} color={Colors.electric} />
                   </Pressable>
                 </View>
               </View>
-              <View style={styles.caloriesMain}>
-                <Text style={[styles.caloriesBig, { color: theme.text }]}>{Math.round(consumed.calories)}</Text>
-                <Text style={[styles.caloriesOf, { color: theme.textMuted }]}>
-                  / {todayNutrition.targets.calories} {t('nutrition.kcal')}
-                </Text>
-              </View>
-              <View style={styles.progressBar}>
-                <LinearGradient
-                  colors={[Colors.primary, Colors.primaryDark]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[styles.progressFill, { width: `${Math.min(calPct, 100)}%` }]}
-                />
+              <View style={styles.caloriesMainRow}>
+                <View style={{ flex: 1 }}>
+                  <CountUp value={consumed.calories} style={[Type.stat, { color: theme.text, fontSize: 40, lineHeight: 42 }]} />
+                  <Text style={[styles.caloriesOf, { color: theme.textMuted }]}>
+                    / {todayNutrition.targets.calories} {t('nutrition.kcal')}
+                  </Text>
+                </View>
+                <ProgressRing value={Math.min(calPct, 100) / 100} size={76} stroke={7} color={Colors.electric} label={`${calPct}%`} />
               </View>
             </View>
           </Animated.View>
 
           <Animated.View entering={FadeInDown.duration(500).delay(150)}>
             <View style={styles.macrosRow}>
-              <MacroBar label={t('nutrition.protein')} current={consumed.protein} target={todayNutrition.targets.protein} color={Colors.macro.protein} unit="g" isDark={isDark} />
-              <MacroBar label={t('nutrition.carbs')} current={consumed.carbs} target={todayNutrition.targets.carbs} color={Colors.macro.carbs} unit="g" isDark={isDark} />
-              <MacroBar label={t('nutrition.fats')} current={consumed.fat} target={todayNutrition.targets.fat} color={Colors.macro.fat} unit="g" isDark={isDark} />
+              <MacroBar label={t('nutrition.protein')} current={consumed.protein} target={todayNutrition.targets.protein} color={Colors.ring.green} unit="g" isDark={isDark} />
+              <MacroBar label={t('nutrition.carbs')} current={consumed.carbs} target={todayNutrition.targets.carbs} color={Colors.ring.amber} unit="g" isDark={isDark} />
+              <MacroBar label={t('nutrition.fats')} current={consumed.fat} target={todayNutrition.targets.fat} color={Colors.ring.blue} unit="g" isDark={isDark} />
             </View>
           </Animated.View>
 
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('nutrition.meals')}</Text>
+          <Text style={[Type.overline, { color: theme.textSecondary, paddingHorizontal: 20, marginBottom: 12, marginTop: 8 }]}>{t('nutrition.meals')}</Text>
 
           {todayNutrition.meals.map((meal, i) => (
             <Animated.View key={meal.type} entering={FadeInDown.duration(400).delay(200 + i * 80)}>
@@ -229,6 +226,7 @@ const styles = StyleSheet.create({
   calBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   calBadgeText: { fontSize: 13, fontFamily: 'Rubik_700Bold' },
   caloriesMain: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginBottom: 16 },
+  caloriesMainRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
   caloriesBig: { fontSize: 36, fontFamily: 'Rubik_700Bold' },
   caloriesOf: { fontSize: 16, fontFamily: 'Rubik_400Regular' },
   progressBar: { height: 8, borderRadius: 4, backgroundColor: 'rgba(0,200,150,0.15)', overflow: 'hidden' },
