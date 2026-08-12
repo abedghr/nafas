@@ -1622,22 +1622,25 @@ export default function PrepareWorkoutScreen() {
         </Pressable>
 
         <View style={s.bottomRow}>
+          {/* program mode = authoring a program day → only Save to Program, no live start */}
           <Pressable
             onPress={inProgram ? handleSaveToProgram : handleSaveTemplate}
             disabled={!inProgram && alreadySaved && !editingId}
-            style={({ pressed }) => [s.templateBtn, { opacity: (!inProgram && alreadySaved && !editingId) ? 0.6 : pressed ? 0.9 : 1, backgroundColor: theme.card, borderColor: (inProgram || editingId || alreadySaved) ? Colors.primary : theme.border }]}
+            style={({ pressed }) => [s.templateBtn, inProgram && { flex: 1 }, { opacity: (!inProgram && alreadySaved && !editingId) ? 0.6 : pressed ? 0.9 : 1, backgroundColor: inProgram ? Colors.electric : theme.card, borderColor: inProgram ? Colors.electric : (editingId || alreadySaved) ? Colors.primary : theme.border }]}
           >
-            <Ionicons name={inProgram ? 'calendar-outline' : editingId ? 'save-outline' : alreadySaved ? 'checkmark-circle' : 'bookmark-outline'} size={16} color={Colors.primary} />
-            <Text style={[s.templateBtnText, { color: (inProgram || editingId || alreadySaved) ? Colors.primary : theme.text }]}>{inProgram ? t('programs.saveToProgram', { defaultValue: 'Save to Program' }) : editingId ? t('workoutPrep.update', { defaultValue: 'Update' }) : alreadySaved ? t('workoutPrep.saved') : t('workoutPrep.save')}</Text>
+            <Ionicons name={inProgram ? 'calendar-outline' : editingId ? 'save-outline' : alreadySaved ? 'checkmark-circle' : 'bookmark-outline'} size={16} color={inProgram ? '#04120B' : Colors.primary} />
+            <Text style={[s.templateBtnText, { color: inProgram ? '#04120B' : (editingId || alreadySaved) ? Colors.primary : theme.text }]}>{inProgram ? t('programs.saveToProgram', { defaultValue: 'Save to Program' }) : editingId ? t('workoutPrep.update', { defaultValue: 'Update' }) : alreadySaved ? t('workoutPrep.saved') : t('workoutPrep.save')}</Text>
           </Pressable>
 
-          <UIButton
-            variant="solid"
-            icon="flash"
-            label={t('workoutPrep.startWorkout')}
-            onPress={handleStartWorkout}
-            style={{ flex: 1 }}
-          />
+          {!inProgram && (
+            <UIButton
+              variant="solid"
+              icon="flash"
+              label={t('workoutPrep.startWorkout')}
+              onPress={handleStartWorkout}
+              style={{ flex: 1 }}
+            />
+          )}
         </View>
       </View>
 

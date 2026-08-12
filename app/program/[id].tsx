@@ -370,38 +370,47 @@ export default function ProgramBuilderScreen() {
               } else {
                 stateText = '—';
               }
+              const title = day?.restDay
+                ? t('programs.restDay')
+                : tmplName || (inlineCount > 0 ? (day?.name || t('programs.buildWorkout')) : (day?.label || t('programs.addWorkout', { defaultValue: 'Add workout' })));
+              const empty = !day?.restDay && !planned && !day?.label;
               return (
                 <Pressable
                   key={dk}
                   onPress={() => openDay(w, dIdx)}
                   style={({ pressed }) => [
-                    s.dayRow,
-                    dIdx > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
-                    { opacity: pressed ? 0.7 : 1 },
+                    s.dayRow2,
+                    { backgroundColor: pressed ? theme.cardAlt : 'transparent', borderColor: theme.border },
+                    planned && { borderColor: Colors.electric + '55' },
                   ]}
                 >
-                  <Text style={[s.dayName, { color: theme.textMuted }]} numberOfLines={1}>
-                    {t(`workoutTab.${dk}`)}
-                  </Text>
-                  {day?.restDay ? (
-                    <View style={[s.restChip, { backgroundColor: theme.surface }]}>
-                      <Ionicons name="moon-outline" size={12} color={theme.textSecondary} />
-                      <Text style={[s.restChipText, { color: theme.textSecondary }]}>{stateText}</Text>
-                    </View>
-                  ) : (
-                    <Text style={[s.dayState, { color: stateColor }]} numberOfLines={1}>{stateText}</Text>
-                  )}
-                  {planned && (
+                  <View style={[s.dayBadge, {
+                    backgroundColor: planned ? Colors.electric : theme.cardAlt,
+                    borderColor: day?.restDay ? theme.border : 'transparent',
+                    borderWidth: day?.restDay ? 1 : 0,
+                  }]}>
+                    <Text style={[s.dayBadgeText, { color: planned ? '#04120B' : theme.textMuted }]}>{t(`workoutTab.${dk}`)}</Text>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={[s.dayTitle, { color: empty ? theme.textMuted : day?.restDay ? theme.textSecondary : theme.text }]} numberOfLines={1}>{title}</Text>
+                    {planned && inlineCount > 0 && (
+                      <Text style={[s.daySub, { color: theme.textMuted }]} numberOfLines={1}>{t('programs.exercisesN', { n: inlineCount })}</Text>
+                    )}
+                  </View>
+                  {planned ? (
                     <Pressable
                       onPress={() => startDay(day!)}
                       hitSlop={8}
-                      style={({ pressed }) => [s.startBtn, { backgroundColor: Colors.primary, opacity: pressed ? 0.85 : 1 }]}
+                      style={({ pressed }) => [s.startBtn, { backgroundColor: Colors.electric, opacity: pressed ? 0.85 : 1 }]}
                     >
-                      <Ionicons name="play" size={11} color="#fff" />
-                      <Text style={s.startBtnText}>{t('programs.startDay')}</Text>
+                      <Ionicons name="play" size={11} color="#04120B" />
+                      <Text style={[s.startBtnText, { color: '#04120B' }]}>{t('programs.startDay')}</Text>
                     </Pressable>
+                  ) : day?.restDay ? (
+                    <Ionicons name="moon" size={15} color={theme.textSecondary} />
+                  ) : (
+                    <Ionicons name="add-circle-outline" size={18} color={Colors.electric} />
                   )}
-                  <Ionicons name="chevron-forward" size={15} color={theme.textMuted} />
                 </Pressable>
               );
             })}
@@ -838,6 +847,11 @@ const s = StyleSheet.create({
   stepVal: { fontSize: 16, fontWeight: '700', minWidth: 28, textAlign: 'center' },
   weekCard: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12 },
   weekTitle: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, marginTop: 2 },
+  dayRow2: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 10, borderRadius: 12, borderWidth: 1, marginBottom: 6 },
+  dayBadge: { width: 46, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  dayBadgeText: { fontSize: 12, fontWeight: '800' },
+  dayTitle: { fontSize: 14, fontWeight: '600' },
+  daySub: { fontSize: 11.5, fontWeight: '500', marginTop: 2 },
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11 },
   dayName: { fontSize: 12, fontWeight: '600', minWidth: 44, maxWidth: 70 },
   dayState: { flex: 1, fontSize: 13, fontWeight: '500' },
