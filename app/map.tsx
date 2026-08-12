@@ -9,6 +9,8 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
+import { Fonts, Type } from '@/constants/typography';
+import { Display } from '@/components/ui';
 import { gyms, restaurants, tournaments, readyToTrainUsers, users } from '@/lib/mock-data';
 import NativeMap from '@/components/NativeMap';
 
@@ -31,7 +33,7 @@ const FILTER_ICONS: Record<FilterType, string> = {
 };
 
 const FILTER_COLORS: Record<FilterType, string> = {
-  All: Colors.primary,
+  All: Colors.electric,
   Gyms: '#4ECDC4',
   Restaurants: '#FF6B35',
   Events: '#FFD93D',
@@ -146,7 +148,7 @@ export default function MapScreen() {
       ) : (
         <ScrollView
           style={styles.webMapFallback}
-          contentContainerStyle={[styles.webMapContent, { paddingTop: 140, paddingBottom: 100 }]}
+          contentContainerStyle={[styles.webMapContent, { paddingTop: 148, paddingBottom: 100 }]}
           showsVerticalScrollIndicator={false}
         >
           {markers.map((marker) => (
@@ -187,17 +189,17 @@ export default function MapScreen() {
       <View style={[styles.headerOverlay, { paddingTop: topPadding }]}>
         <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.headerRow}>
           <Pressable
-            style={[styles.backBtn, { backgroundColor: theme.card }]}
+            style={[styles.backBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.back();
             }}
           >
-            <Ionicons name="arrow-back" size={22} color={theme.text} />
+            <Ionicons name="chevron-back" size={22} color={theme.text} />
           </Pressable>
-          <View style={[styles.titleContainer, { backgroundColor: theme.card }]}>
-            <Ionicons name="map" size={18} color={Colors.primary} />
-            <Text style={[styles.headerTitle, { color: theme.text }]}>Explore Map</Text>
+          <View style={[styles.titleContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Ionicons name="map" size={18} color={Colors.electric} />
+            <Display variant="d3" color={theme.text} style={styles.headerTitle}>Explore Map</Display>
           </View>
         </Animated.View>
 
@@ -209,14 +211,15 @@ export default function MapScreen() {
           >
             {FILTERS.map(filter => {
               const isActive = activeFilter === filter;
+              const activeColor = FILTER_COLORS[filter];
               return (
                 <Pressable
                   key={filter}
                   style={[
                     styles.filterChip,
                     {
-                      backgroundColor: isActive ? FILTER_COLORS[filter] : theme.card,
-                      borderColor: isActive ? FILTER_COLORS[filter] : theme.border,
+                      backgroundColor: isActive ? activeColor : theme.card,
+                      borderColor: isActive ? activeColor : theme.border,
                     },
                   ]}
                   onPress={() => {
@@ -228,11 +231,11 @@ export default function MapScreen() {
                   <Ionicons
                     name={FILTER_ICONS[filter] as any}
                     size={14}
-                    color={isActive ? '#FFFFFF' : theme.textSecondary}
+                    color={isActive ? '#04120B' : theme.textSecondary}
                   />
                   <Text style={[
                     styles.filterText,
-                    { color: isActive ? '#FFFFFF' : theme.textSecondary },
+                    { color: isActive ? '#04120B' : theme.textSecondary },
                   ]}>{filter}</Text>
                 </Pressable>
               );
@@ -242,7 +245,7 @@ export default function MapScreen() {
       </View>
 
       {!isWeb && (
-        <View style={[styles.legendContainer, { bottom: selectedMarker ? 200 : (insets.bottom + 16) }]}>
+        <View style={[styles.legendContainer, { bottom: selectedMarker ? 220 : (insets.bottom + 16) }]}>
           <View style={[styles.legendCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             {(['Gyms', 'Restaurants', 'Events', 'Partners'] as const).map(label => (
               <View key={label} style={styles.legendRow}>
@@ -263,27 +266,30 @@ export default function MapScreen() {
             style={[styles.selectedCard, { backgroundColor: theme.card, borderColor: theme.border }]}
             onPress={handleCardPress}
           >
-            <View style={[styles.selectedIconCircle, { backgroundColor: `${selectedMarker.color}20` }]}>
-              <Ionicons name={getMarkerIcon(selectedMarker.type) as any} size={24} color={selectedMarker.color} />
-            </View>
-            <View style={styles.selectedInfo}>
-              <Text style={[styles.selectedTitle, { color: theme.text }]} numberOfLines={1}>
-                {selectedMarker.title}
-              </Text>
-              <Text style={[styles.selectedSubtitle, { color: theme.textSecondary }]} numberOfLines={1}>
-                {selectedMarker.subtitle}
-              </Text>
-              <View style={[styles.typeBadge, { backgroundColor: `${selectedMarker.color}20` }]}>
-                <Text style={[styles.typeText, { color: selectedMarker.color }]}>
-                  {selectedMarker.type.charAt(0).toUpperCase() + selectedMarker.type.slice(1)}
+            <View style={[styles.sheetHandle, { backgroundColor: theme.border }]} />
+            <View style={styles.selectedRow}>
+              <View style={[styles.selectedIconCircle, { backgroundColor: `${selectedMarker.color}20` }]}>
+                <Ionicons name={getMarkerIcon(selectedMarker.type) as any} size={24} color={selectedMarker.color} />
+              </View>
+              <View style={styles.selectedInfo}>
+                <Display variant="d3" color={theme.text} numberOfLines={1}>
+                  {selectedMarker.title}
+                </Display>
+                <Text style={[styles.selectedSubtitle, { color: theme.textSecondary }]} numberOfLines={1}>
+                  {selectedMarker.subtitle}
                 </Text>
+                <View style={[styles.typeBadge, { backgroundColor: `${selectedMarker.color}20` }]}>
+                  <Text style={[styles.typeText, { color: selectedMarker.color }]}>
+                    {selectedMarker.type.charAt(0).toUpperCase() + selectedMarker.type.slice(1)}
+                  </Text>
+                </View>
               </View>
+              {selectedMarker.onPress && (
+                <View style={[styles.goBtn, { backgroundColor: selectedMarker.color }]}>
+                  <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+                </View>
+              )}
             </View>
-            {selectedMarker.onPress && (
-              <View style={[styles.goBtn, { backgroundColor: selectedMarker.color }]}>
-                <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
-              </View>
-            )}
           </Pressable>
         </Animated.View>
       )}
@@ -306,7 +312,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     gap: 12,
   },
@@ -318,21 +324,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   webMarkerTitle: {
-    fontFamily: 'Rubik_600SemiBold',
+    fontFamily: Fonts.semibold,
     fontSize: 14,
   },
   webMarkerSub: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: Fonts.regular,
     fontSize: 12,
     marginTop: 2,
   },
   webTypeBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 999,
   },
   webTypeText: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: Fonts.semibold,
     fontSize: 10,
   },
   webMapNote: {
@@ -343,7 +349,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   webMapNoteText: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: Fonts.regular,
     fontSize: 12,
   },
   headerOverlay: {
@@ -353,7 +359,7 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
     paddingHorizontal: 16,
-    gap: 10,
+    gap: 12,
   },
   headerRow: {
     flexDirection: 'row',
@@ -361,15 +367,16 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   backBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowRadius: 6,
     elevation: 4,
   },
   titleContainer: {
@@ -377,17 +384,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 21,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowRadius: 6,
     elevation: 4,
   },
   headerTitle: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 16,
+    marginTop: 2,
   },
   filterScroll: {
     gap: 8,
@@ -398,8 +405,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    height: 34,
+    borderRadius: 999,
     borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -408,7 +415,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   filterText: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: Fonts.semibold,
     fontSize: 13,
   },
   legendContainer: {
@@ -418,10 +425,10 @@ const styles = StyleSheet.create({
   },
   legendCard: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingVertical: 10,
+    borderRadius: 16,
     borderWidth: 1,
-    gap: 4,
+    gap: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -439,8 +446,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   legendText: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 11,
+    ...Type.caption,
   },
   selectedCardContainer: {
     position: 'absolute',
@@ -451,52 +457,59 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   selectedCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    marginBottom: 14,
+  },
+  selectedRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
     gap: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
   },
   selectedIconCircle: {
     width: 50,
     height: 50,
-    borderRadius: 25,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   selectedInfo: {
     flex: 1,
-    gap: 2,
-  },
-  selectedTitle: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 16,
+    gap: 3,
   },
   selectedSubtitle: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: Fonts.regular,
     fontSize: 13,
   },
   typeBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
     marginTop: 4,
   },
   typeText: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: Fonts.semibold,
     fontSize: 11,
   },
   goBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },

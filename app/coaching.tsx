@@ -6,9 +6,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
+import { Fonts, Type } from '@/constants/typography';
+import { Button, Chip, EmptyState } from '@/components/ui';
 import { coachPlansApi, coachesApi, coachTransformationsApi, type CoachPlan, type CoachLead, type Transformation } from '@/src/features/coaches/api';
 import { classesApi, type ClassRequest } from '@/src/features/gyms/api';
 import { Linking, Image } from 'react-native';
@@ -87,123 +90,132 @@ export default function CoachingScreen() {
   };
   const remove = async (id: string) => { await coachPlansApi.remove(id).catch(() => {}); load(); };
 
+  const segLabel = (tb: 'plans' | 'leads' | 'results' | 'classes') =>
+    `${t(tb === 'plans' ? 'discover.manage_plans' : tb === 'leads' ? 'discover.leads' : tb === 'results' ? 'discover.results' : 'discover.classes')}${tb === 'leads' && leads.length ? ` (${leads.length})` : ''}${tb === 'results' && results.length ? ` (${results.length})` : ''}${tb === 'classes' && pendingClassReqs ? ` (${pendingClassReqs})` : ''}`;
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 8 }]}>
-        <Pressable onPress={back} style={styles.backBtn}><Ionicons name="chevron-back" size={24} color={theme.text} /></Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>{t('discover.my_coaching')}</Text>
+        <Button variant="icon" icon="chevron-back" onPress={back} />
+        <Text style={[Type.h2, { color: theme.text, flex: 1, textAlign: 'center' }]}>{t('discover.my_coaching')}</Text>
         {tab === 'plans'
-          ? <Pressable onPress={openNew} style={styles.backBtn}><Ionicons name="add" size={26} color={Colors.primary} /></Pressable>
+          ? <Pressable onPress={openNew} style={styles.addBtn}><Ionicons name="add" size={26} color={Colors.electric} /></Pressable>
           : tab === 'results'
-          ? <Pressable onPress={() => setTrEditing({})} style={styles.backBtn}><Ionicons name="add" size={26} color={Colors.primary} /></Pressable>
-          : <View style={styles.backBtn} />}
+          ? <Pressable onPress={() => setTrEditing({})} style={styles.addBtn}><Ionicons name="add" size={26} color={Colors.electric} /></Pressable>
+          : <View style={styles.addBtn} />}
       </View>
 
-      <View style={[styles.segment, { backgroundColor: theme.card }]}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.segment}>
         {(['plans', 'leads', 'results', 'classes'] as const).map(tb => (
-          <Pressable key={tb} onPress={() => setTab(tb)} style={[styles.segBtn, tab === tb && { backgroundColor: Colors.primary }]}>
-            <Text style={[styles.segText, { color: tab === tb ? '#fff' : theme.textMuted }]} numberOfLines={1}>{t(tb === 'plans' ? 'discover.manage_plans' : tb === 'leads' ? 'discover.leads' : tb === 'results' ? 'discover.results' : 'discover.classes')}{tb === 'leads' && leads.length ? ` (${leads.length})` : ''}{tb === 'results' && results.length ? ` (${results.length})` : ''}{tb === 'classes' && pendingClassReqs ? ` (${pendingClassReqs})` : ''}</Text>
-          </Pressable>
+          <Chip key={tb} label={segLabel(tb)} active={tab === tb} onPress={() => setTab(tb)} />
         ))}
-      </View>
+      </ScrollView>
 
       {tab === 'leads' ? (
         <ScrollView contentContainerStyle={styles.list}>
-          {leads.length === 0 && <Text style={[styles.empty, { color: theme.textMuted }]}>{t('discover.no_leads')}</Text>}
-          {leads.map((l) => (
-            <View key={l.id} style={[styles.card, { backgroundColor: theme.card }]}>
-              <View style={styles.cardHead}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.name, { color: theme.text }]}>{l.clientName}</Text>
-                  {!!l.planName && <Text style={[styles.duration, { color: theme.textMuted }]}>{t('discover.interested_in')}: {l.planName}</Text>}
+          {leads.length === 0 && <EmptyState icon="people-outline" title={t('discover.no_leads')} />}
+          {leads.map((l, i) => (
+            <Animated.View key={l.id} entering={FadeInDown.duration(400).delay(i * 60)}>
+              <View style={[styles.card, { backgroundColor: theme.card }]}>
+                <View style={styles.cardHead}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[Type.h2, { color: theme.text }]}>{l.clientName}</Text>
+                    {!!l.planName && <Text style={[styles.duration, { color: theme.textMuted }]}>{t('discover.interested_in')}: {l.planName}</Text>}
+                  </View>
+                  <View style={[styles.statusChip, { backgroundColor: l.status === 'contacted' ? Colors.electric + '20' : l.status === 'closed' ? theme.cardAlt : Colors.semantic.warn + '20' }]}>
+                    <Text style={[styles.statusText, { color: l.status === 'contacted' ? Colors.electric : l.status === 'closed' ? theme.textMuted : Colors.semantic.warn }]}>{t(`discover.${l.status === 'pending' ? 'new_lead' : l.status}`)}</Text>
+                  </View>
                 </View>
-                <View style={[styles.statusChip, { backgroundColor: l.status === 'contacted' ? Colors.primary + '20' : l.status === 'closed' ? theme.background : '#FFD93D20' }]}>
-                  <Text style={[styles.statusText, { color: l.status === 'contacted' ? Colors.primary : theme.textMuted }]}>{t(`discover.${l.status === 'pending' ? 'new_lead' : l.status}`)}</Text>
+                <View style={styles.leadActions}>
+                  {!!l.clientPhone && <Pressable onPress={() => Linking.openURL(`tel:${l.clientPhone}`)} style={[styles.leadBtn, { borderColor: theme.border }]}><Ionicons name="call-outline" size={14} color={theme.text} /><Text style={[styles.leadBtnText, { color: theme.text }]}>{t('discover.call')}</Text></Pressable>}
+                  {!!l.clientPhone && <Pressable onPress={() => Linking.openURL(`https://wa.me/${l.clientPhone!.replace(/[^0-9]/g, '')}`)} style={[styles.leadBtn, { borderColor: '#25D36680' }]}><Ionicons name="logo-whatsapp" size={14} color="#25D366" /><Text style={[styles.leadBtnText, { color: '#25D366' }]}>{t('discover.whatsapp')}</Text></Pressable>}
+                  {l.status !== 'contacted' && <Pressable onPress={() => setLeadStatus(l.id, 'contacted')} style={[styles.leadBtn, { borderColor: Colors.electric }]}><Text style={[styles.leadBtnText, { color: Colors.electric }]}>{t('discover.mark_contacted')}</Text></Pressable>}
+                  {l.status !== 'closed' && <Pressable onPress={() => setLeadStatus(l.id, 'closed')} style={[styles.leadBtn, { borderColor: theme.border }]}><Text style={[styles.leadBtnText, { color: theme.textMuted }]}>{t('discover.mark_closed')}</Text></Pressable>}
                 </View>
               </View>
-              <View style={styles.leadActions}>
-                {!!l.clientPhone && <Pressable onPress={() => Linking.openURL(`tel:${l.clientPhone}`)} style={[styles.leadBtn, { borderColor: theme.border }]}><Ionicons name="call-outline" size={14} color={theme.text} /><Text style={[styles.leadBtnText, { color: theme.text }]}>{t('discover.call')}</Text></Pressable>}
-                {!!l.clientPhone && <Pressable onPress={() => Linking.openURL(`https://wa.me/${l.clientPhone!.replace(/[^0-9]/g, '')}`)} style={[styles.leadBtn, { borderColor: '#25D36680' }]}><Ionicons name="logo-whatsapp" size={14} color="#25D366" /><Text style={[styles.leadBtnText, { color: '#25D366' }]}>{t('discover.whatsapp')}</Text></Pressable>}
-                {l.status !== 'contacted' && <Pressable onPress={() => setLeadStatus(l.id, 'contacted')} style={[styles.leadBtn, { borderColor: Colors.primary }]}><Text style={[styles.leadBtnText, { color: Colors.primary }]}>{t('discover.mark_contacted')}</Text></Pressable>}
-                {l.status !== 'closed' && <Pressable onPress={() => setLeadStatus(l.id, 'closed')} style={[styles.leadBtn, { borderColor: theme.border }]}><Text style={[styles.leadBtnText, { color: theme.textMuted }]}>{t('discover.mark_closed')}</Text></Pressable>}
-              </View>
-            </View>
+            </Animated.View>
           ))}
         </ScrollView>
       ) : tab === 'classes' ? (
         <ScrollView contentContainerStyle={styles.list}>
-          {classReqs.length === 0 && <Text style={[styles.empty, { color: theme.textMuted }]}>{t('discover.no_class_requests')}</Text>}
-          {classReqs.map((r) => (
-            <View key={r.id} style={[styles.card, { backgroundColor: theme.card }]}>
-              <View style={styles.cardHead}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.name, { color: theme.text }]}>{r.userName}</Text>
-                  {!!r.className && <Text style={[styles.duration, { color: theme.textMuted }]}>{r.className}</Text>}
+          {classReqs.length === 0 && <EmptyState icon="calendar-outline" title={t('discover.no_class_requests')} />}
+          {classReqs.map((r, i) => (
+            <Animated.View key={r.id} entering={FadeInDown.duration(400).delay(i * 60)}>
+              <View style={[styles.card, { backgroundColor: theme.card }]}>
+                <View style={styles.cardHead}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[Type.h2, { color: theme.text }]}>{r.userName}</Text>
+                    {!!r.className && <Text style={[styles.duration, { color: theme.textMuted }]}>{r.className}</Text>}
+                  </View>
+                  <View style={[styles.statusChip, { backgroundColor: r.status === 'enrolled' ? Colors.electric + '20' : r.status === 'rejected' ? theme.cardAlt : Colors.semantic.warn + '20' }]}>
+                    <Text style={[styles.statusText, { color: r.status === 'enrolled' ? Colors.electric : r.status === 'rejected' ? theme.textMuted : Colors.semantic.warn }]}>{t(r.status === 'enrolled' ? 'discover.enrolled' : r.status === 'rejected' ? 'discover.rejected' : 'discover.pending_approval')}</Text>
+                  </View>
                 </View>
-                <View style={[styles.statusChip, { backgroundColor: r.status === 'enrolled' ? Colors.primary + '20' : r.status === 'rejected' ? theme.background : '#FFD93D20' }]}>
-                  <Text style={[styles.statusText, { color: r.status === 'enrolled' ? Colors.primary : theme.textMuted }]}>{t(r.status === 'enrolled' ? 'discover.enrolled' : r.status === 'rejected' ? 'discover.rejected' : 'discover.pending_approval')}</Text>
-                </View>
+                {r.status === 'pending' && (
+                  <View style={styles.leadActions}>
+                    <Pressable onPress={() => setClassReqStatus(r.id, 'enrolled')} style={[styles.leadBtn, { borderColor: Colors.electric }]}><Ionicons name="checkmark" size={14} color={Colors.electric} /><Text style={[styles.leadBtnText, { color: Colors.electric }]}>{t('discover.approve')}</Text></Pressable>
+                    <Pressable onPress={() => setClassReqStatus(r.id, 'rejected')} style={[styles.leadBtn, { borderColor: theme.border }]}><Ionicons name="close" size={14} color={theme.textMuted} /><Text style={[styles.leadBtnText, { color: theme.textMuted }]}>{t('discover.reject')}</Text></Pressable>
+                    {!!r.userPhone && <Pressable onPress={() => Linking.openURL(`tel:${r.userPhone}`)} style={[styles.leadBtn, { borderColor: theme.border }]}><Ionicons name="call-outline" size={14} color={theme.text} /><Text style={[styles.leadBtnText, { color: theme.text }]}>{t('discover.call')}</Text></Pressable>}
+                  </View>
+                )}
               </View>
-              {r.status === 'pending' && (
-                <View style={styles.leadActions}>
-                  <Pressable onPress={() => setClassReqStatus(r.id, 'enrolled')} style={[styles.leadBtn, { borderColor: Colors.primary }]}><Ionicons name="checkmark" size={14} color={Colors.primary} /><Text style={[styles.leadBtnText, { color: Colors.primary }]}>{t('discover.approve')}</Text></Pressable>
-                  <Pressable onPress={() => setClassReqStatus(r.id, 'rejected')} style={[styles.leadBtn, { borderColor: theme.border }]}><Ionicons name="close" size={14} color={theme.textMuted} /><Text style={[styles.leadBtnText, { color: theme.textMuted }]}>{t('discover.reject')}</Text></Pressable>
-                  {!!r.userPhone && <Pressable onPress={() => Linking.openURL(`tel:${r.userPhone}`)} style={[styles.leadBtn, { borderColor: theme.border }]}><Ionicons name="call-outline" size={14} color={theme.text} /><Text style={[styles.leadBtnText, { color: theme.text }]}>{t('discover.call')}</Text></Pressable>}
-                </View>
-              )}
-            </View>
+            </Animated.View>
           ))}
         </ScrollView>
       ) : tab === 'results' ? (
         <ScrollView contentContainerStyle={styles.list}>
-          {results.length === 0 && <Text style={[styles.empty, { color: theme.textMuted }]}>{t('discover.no_results')}</Text>}
-          {results.map((tr) => (
-            <View key={tr.id} style={[styles.card, { backgroundColor: theme.card }]}>
-              <View style={styles.baRow}>
-                <View style={styles.baCol}><Text style={[styles.baTag, { color: theme.textMuted }]}>{t('discover.before')}</Text>{tr.beforeImage ? <Image source={{ uri: tr.beforeImage }} style={styles.baImg} /> : <View style={[styles.baImg, { backgroundColor: theme.background }]} />}</View>
-                <Ionicons name="arrow-forward" size={22} color={Colors.primary} style={styles.baArrow} />
-                <View style={styles.baCol}><Text style={[styles.baTag, { color: theme.textMuted }]}>{t('discover.after')}</Text>{tr.afterImage ? <Image source={{ uri: tr.afterImage }} style={styles.baImg} /> : <View style={[styles.baImg, { backgroundColor: theme.background }]} />}</View>
-              </View>
-              {(!!tr.clientName || !!tr.target || !!tr.duration) && (
-                <View style={styles.baMeta}>
-                  {!!tr.clientName && <Text style={[styles.name, { color: theme.text }]}>{tr.clientName}</Text>}
-                  <View style={styles.baMetaRow}>
-                    {!!tr.target && <View style={[styles.baChip, { backgroundColor: Colors.primary + '20' }]}><Text style={[styles.incText, { color: Colors.primary }]}>{tr.target}</Text></View>}
-                    {!!tr.duration && <View style={[styles.baChip, { backgroundColor: theme.background }]}><Text style={[styles.incText, { color: theme.textMuted }]}>{tr.duration}</Text></View>}
-                  </View>
+          {results.length === 0 && <EmptyState icon="images-outline" title={t('discover.no_results')} />}
+          {results.map((tr, i) => (
+            <Animated.View key={tr.id} entering={FadeInDown.duration(400).delay(i * 60)}>
+              <View style={[styles.card, { backgroundColor: theme.card }]}>
+                <View style={styles.baRow}>
+                  <View style={styles.baCol}><Text style={[styles.baTag, { color: theme.textMuted }]}>{t('discover.before')}</Text>{tr.beforeImage ? <Image source={{ uri: tr.beforeImage }} style={styles.baImg} /> : <View style={[styles.baImg, { backgroundColor: theme.cardAlt }]} />}</View>
+                  <Ionicons name="arrow-forward" size={22} color={Colors.electric} style={styles.baArrow} />
+                  <View style={styles.baCol}><Text style={[styles.baTag, { color: theme.textMuted }]}>{t('discover.after')}</Text>{tr.afterImage ? <Image source={{ uri: tr.afterImage }} style={styles.baImg} /> : <View style={[styles.baImg, { backgroundColor: theme.cardAlt }]} />}</View>
                 </View>
-              )}
-              <View style={styles.cardActions}>
-                <Pressable onPress={() => setTrEditing(tr)} style={styles.actionBtn}><Ionicons name="pencil" size={15} color={theme.textSecondary} /></Pressable>
-                <Pressable onPress={() => removeTr(tr.id)} style={styles.actionBtn}><Ionicons name="trash-outline" size={15} color={Colors.accent} /></Pressable>
+                {(!!tr.clientName || !!tr.target || !!tr.duration) && (
+                  <View style={styles.baMeta}>
+                    {!!tr.clientName && <Text style={[Type.h2, { color: theme.text }]}>{tr.clientName}</Text>}
+                    <View style={styles.baMetaRow}>
+                      {!!tr.target && <View style={[styles.baChip, { backgroundColor: Colors.electric + '20' }]}><Text style={[styles.incText, { color: Colors.electric }]}>{tr.target}</Text></View>}
+                      {!!tr.duration && <View style={[styles.baChip, { backgroundColor: theme.cardAlt }]}><Text style={[styles.incText, { color: theme.textMuted }]}>{tr.duration}</Text></View>}
+                    </View>
+                  </View>
+                )}
+                <View style={styles.cardActions}>
+                  <Pressable onPress={() => setTrEditing(tr)} style={styles.actionBtn}><Ionicons name="pencil" size={15} color={theme.textSecondary} /></Pressable>
+                  <Pressable onPress={() => removeTr(tr.id)} style={styles.actionBtn}><Ionicons name="trash-outline" size={15} color={Colors.semantic.danger} /></Pressable>
+                </View>
               </View>
-            </View>
+            </Animated.View>
           ))}
         </ScrollView>
       ) : (
       <ScrollView contentContainerStyle={styles.list}>
-        {plans.length === 0 && <Text style={[styles.empty, { color: theme.textMuted }]}>{t('discover.no_plans')}</Text>}
-        {plans.map((p) => (
-          <View key={p.id} style={[styles.card, { backgroundColor: theme.card }]}>
-            <View style={styles.cardHead}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.name, { color: theme.text }]}>{p.name}</Text>
-                {!!p.duration && <Text style={[styles.duration, { color: theme.textMuted }]}>{p.duration}</Text>}
+        {plans.length === 0 && <EmptyState icon="clipboard-outline" title={t('discover.no_plans')} />}
+        {plans.map((p, i) => (
+          <Animated.View key={p.id} entering={FadeInDown.duration(400).delay(i * 60)}>
+            <View style={[styles.card, { backgroundColor: theme.card }]}>
+              <View style={styles.cardHead}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[Type.h2, { color: theme.text }]}>{p.name}</Text>
+                  {!!p.duration && <Text style={[styles.duration, { color: theme.textMuted }]}>{p.duration}</Text>}
+                </View>
+                {p.price && <Text style={styles.price}>{p.price.amount} {p.price.currency}</Text>}
               </View>
-              {p.price && <Text style={[styles.price, { color: Colors.primary }]}>{p.price.amount} {p.price.currency}</Text>}
-            </View>
-            {p.includes.length > 0 && (
-              <View style={styles.includes}>
-                {p.includes.map((inc, i) => (
-                  <View key={i} style={styles.incRow}><Ionicons name="checkmark-circle" size={13} color={Colors.primary} /><Text style={[styles.incText, { color: theme.textSecondary }]}>{inc}</Text></View>
-                ))}
+              {p.includes.length > 0 && (
+                <View style={styles.includes}>
+                  {p.includes.map((inc, idx) => (
+                    <View key={idx} style={styles.incRow}><Ionicons name="checkmark-circle" size={14} color={Colors.electric} /><Text style={[styles.incText, { color: theme.textSecondary }]}>{inc}</Text></View>
+                  ))}
+                </View>
+              )}
+              <View style={styles.cardActions}>
+                <Pressable onPress={() => openEdit(p)} style={styles.actionBtn}><Ionicons name="pencil" size={15} color={theme.textSecondary} /></Pressable>
+                <Pressable onPress={() => remove(p.id)} style={styles.actionBtn}><Ionicons name="trash-outline" size={15} color={Colors.semantic.danger} /></Pressable>
               </View>
-            )}
-            <View style={styles.cardActions}>
-              <Pressable onPress={() => openEdit(p)} style={styles.actionBtn}><Ionicons name="pencil" size={15} color={theme.textSecondary} /></Pressable>
-              <Pressable onPress={() => remove(p.id)} style={styles.actionBtn}><Ionicons name="trash-outline" size={15} color={Colors.accent} /></Pressable>
             </View>
-          </View>
+          </Animated.View>
         ))}
       </ScrollView>
       )}
@@ -212,7 +224,7 @@ export default function CoachingScreen() {
         <View style={styles.modalWrap}>
           <View style={[styles.modal, { backgroundColor: theme.background }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>{editing?.id ? t('discover.edit_plan') : t('discover.add_plan')}</Text>
+              <Text style={[Type.h1, { color: theme.text }]}>{editing?.id ? t('discover.edit_plan') : t('discover.add_plan')}</Text>
               <Pressable onPress={() => setEditing(null)}><Ionicons name="close" size={24} color={theme.text} /></Pressable>
             </View>
             {editing && (
@@ -224,9 +236,7 @@ export default function CoachingScreen() {
                   <View style={{ width: 90 }}><Field label={t('discover.plan_currency')} value={editing.currency} onChange={(v: string) => setEditing({ ...editing, currency: v })} theme={theme} /></View>
                 </View>
                 <Field label={t('discover.plan_includes')} value={editing.includes} onChange={(v: string) => setEditing({ ...editing, includes: v })} theme={theme} multiline />
-                <Pressable onPress={save} disabled={saving} style={[styles.saveBtn, { backgroundColor: Colors.primary, opacity: saving ? 0.6 : 1 }]}>
-                  <Text style={styles.saveText}>{t('discover.save')}</Text>
-                </Pressable>
+                <Button variant="solid" label={t('discover.save')} onPress={save} disabled={saving} style={{ marginTop: 8 }} />
               </ScrollView>
             )}
           </View>
@@ -237,7 +247,7 @@ export default function CoachingScreen() {
         <View style={styles.modalWrap}>
           <View style={[styles.modal, { backgroundColor: theme.background }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>{trEditing?.id ? t('discover.edit_result') : t('discover.add_result')}</Text>
+              <Text style={[Type.h1, { color: theme.text }]}>{trEditing?.id ? t('discover.edit_result') : t('discover.add_result')}</Text>
               <Pressable onPress={() => setTrEditing(null)}><Ionicons name="close" size={24} color={theme.text} /></Pressable>
             </View>
             {trEditing && (
@@ -258,9 +268,7 @@ export default function CoachingScreen() {
                 <Field label={t('discover.client_name')} value={trEditing.clientName || ''} onChange={(v: string) => setTrEditing({ ...trEditing, clientName: v })} theme={theme} />
                 <Field label={t('discover.target')} value={trEditing.target || ''} onChange={(v: string) => setTrEditing({ ...trEditing, target: v })} theme={theme} />
                 <Field label={t('discover.plan_duration')} value={trEditing.duration || ''} onChange={(v: string) => setTrEditing({ ...trEditing, duration: v })} theme={theme} />
-                <Pressable onPress={saveTr} style={[styles.saveBtn, { backgroundColor: Colors.primary }]}>
-                  <Text style={styles.saveText}>{t('discover.save')}</Text>
-                </Pressable>
+                <Button variant="solid" label={t('discover.save')} onPress={saveTr} style={{ marginTop: 8 }} />
               </ScrollView>
             )}
           </View>
@@ -275,7 +283,7 @@ function Field({ label, value, onChange, theme, multiline, keyboard }: any) {
     <View>
       <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>{label}</Text>
       <TextInput
-        style={[styles.input, { color: theme.text, backgroundColor: theme.card }, multiline && { height: 100, textAlignVertical: 'top' }]}
+        style={[styles.input, { color: theme.text, backgroundColor: theme.card, borderColor: theme.border }, multiline && { height: 100, textAlignVertical: 'top' }]}
         value={value} onChangeText={onChange} multiline={multiline} keyboardType={keyboard || 'default'}
         placeholderTextColor={theme.textMuted}
       />
@@ -285,44 +293,36 @@ function Field({ label, value, onChange, theme, multiline, keyboard }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12 },
-  backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontFamily: 'Rubik_600SemiBold' },
-  segment: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 14, borderRadius: 12, padding: 4, gap: 4 },
-  segBtn: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 9 },
-  segText: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
-  statusChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  statusText: { fontSize: 11, fontFamily: 'Rubik_600SemiBold' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, gap: 4 },
+  addBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+  segment: { paddingHorizontal: 20, paddingBottom: 14, gap: 8 },
+  statusChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  statusText: { fontSize: 11, fontFamily: Fonts.semibold },
   leadActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  leadBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1.5, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7 },
-  leadBtnText: { fontSize: 12, fontFamily: 'Rubik_600SemiBold' },
+  leadBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1.5, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+  leadBtnText: { fontSize: 12, fontFamily: Fonts.semibold },
   list: { paddingHorizontal: 20, paddingBottom: 40, gap: 12 },
-  empty: { textAlign: 'center', paddingTop: 60, fontSize: 15, fontFamily: 'Rubik_500Medium' },
-  card: { borderRadius: 14, padding: 16 },
-  cardHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  name: { fontSize: 16, fontFamily: 'Rubik_600SemiBold' },
-  duration: { fontSize: 12, fontFamily: 'Rubik_400Regular', marginTop: 2 },
-  price: { fontSize: 16, fontFamily: 'Rubik_700Bold' },
-  includes: { gap: 6, marginTop: 12 },
+  card: { borderRadius: 18, padding: 16 },
+  cardHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+  duration: { fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 },
+  price: { fontSize: 17, fontFamily: Fonts.monoBold, color: Colors.electric },
+  includes: { gap: 8, marginTop: 12 },
   incRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  incText: { fontSize: 13, fontFamily: 'Rubik_400Regular' },
+  incText: { fontSize: 13, fontFamily: Fonts.regular },
   cardActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 6, marginTop: 12 },
-  actionBtn: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  actionBtn: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   modal: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '85%' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  modalTitle: { fontSize: 18, fontFamily: 'Rubik_700Bold' },
-  fieldLabel: { fontSize: 12, fontFamily: 'Rubik_500Medium', marginBottom: 6 },
-  input: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: 'Rubik_400Regular' },
-  saveBtn: { paddingVertical: 16, borderRadius: 14, alignItems: 'center', marginTop: 8 },
-  saveText: { color: '#fff', fontSize: 16, fontFamily: 'Rubik_600SemiBold' },
+  fieldLabel: { fontSize: 12, fontFamily: Fonts.medium, marginBottom: 6 },
+  input: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: Fonts.regular, borderWidth: 1 },
   baRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   baCol: { flex: 1, gap: 6 },
-  baTag: { fontSize: 11, fontFamily: 'Rubik_600SemiBold', textAlign: 'center' },
-  baImg: { width: '100%', aspectRatio: 3 / 4, borderRadius: 12 },
+  baTag: { fontSize: 11, fontFamily: Fonts.semibold, textAlign: 'center' },
+  baImg: { width: '100%', aspectRatio: 3 / 4, borderRadius: 14 },
   baUpload: { borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   baArrow: { marginTop: 18 },
   baMeta: { marginTop: 12, gap: 8 },
   baMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  baChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  baChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
 });

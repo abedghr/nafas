@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, Platform, Linking, ActivityIndicator, Image } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, Platform, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
+import { Fonts } from '@/constants/typography';
+import { Display, Chip, HeroCard, SectionHeader, Button, EmptyState, Skeleton } from '@/components/ui';
 import { eventsApi, type ApiEvent } from '@/src/features/events/api';
 import { classesApi, type ClassItem } from '@/src/features/gyms/api';
 
@@ -63,8 +65,21 @@ export default function EventProfileScreen() {
 
   if (status !== 'ok' || !ev) {
     return (
-      <View style={[styles.container, styles.center, { backgroundColor: theme.background }]}>
-        {status === 'loading' ? <ActivityIndicator color={Colors.primary} /> : <Text style={{ color: theme.textMuted }}>{t('discover.no_events')}</Text>}
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 8 }]}>
+          <Pressable onPress={back} style={styles.backBtn}><Ionicons name="chevron-back" size={24} color={theme.text} /></Pressable>
+          <View style={{ width: 40 }} />
+        </View>
+        {status === 'loading' ? (
+          <View style={{ paddingHorizontal: 20, gap: 14 }}>
+            <Skeleton height={220} radius={24} />
+            <Skeleton height={20} width="70%" radius={8} />
+            <Skeleton height={14} width="90%" radius={8} />
+            <Skeleton height={14} width="80%" radius={8} />
+          </View>
+        ) : (
+          <EmptyState icon="trophy-outline" title={t('discover.no_events')} />
+        )}
       </View>
     );
   }
@@ -80,94 +95,97 @@ export default function EventProfileScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 8 }]}>
-        <Pressable onPress={back} style={styles.backBtn}><Ionicons name="chevron-back" size={24} color={theme.text} /></Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{ev.name}</Text>
+        <Pressable onPress={back} style={[styles.backBtn, styles.backBtnFloat]}><Ionicons name="chevron-back" size={24} color="#fff" /></Pressable>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {ev.coverUrl ? <Image source={{ uri: ev.coverUrl }} style={styles.cover} /> : <View style={[styles.cover, { backgroundColor: Colors.primary + '18', alignItems: 'center', justifyContent: 'center' }]}><Ionicons name="trophy-outline" size={44} color={Colors.primary} /></View>}
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <Animated.View entering={FadeInDown.duration(360)}>
+          <HeroCard
+            image={ev.coverUrl ? { uri: ev.coverUrl } : undefined}
+            title={ev.name}
+            height={240}
+            style={styles.hero}
+          >
+            <Text style={styles.heroOverline} numberOfLines={1}>{t(`discover.event_type_${ev.type}`)}{ev.category ? ` · ${ev.category}` : ''}</Text>
+          </HeroCard>
+        </Animated.View>
 
         <View style={styles.body}>
-          <View style={styles.badgeRow}>
-            <View style={[styles.typeBadge, { backgroundColor: Colors.primary + '20' }]}><Text style={[styles.typeText, { color: Colors.primary }]}>{t(`discover.event_type_${ev.type}`)}</Text></View>
-            {!!ev.category && <View style={[styles.typeBadge, { backgroundColor: theme.card }]}><Text style={[styles.typeText, { color: theme.textSecondary }]}>{ev.category}</Text></View>}
-          </View>
-          <Text style={[styles.name, { color: theme.text }]}>{ev.name}</Text>
-
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}><Ionicons name="calendar-outline" size={18} color={Colors.primary} /><Text style={[styles.infoText, { color: theme.text }]}>{fmt(ev.startsAt)}{ev.endsAt ? ` → ${fmt(ev.endsAt)}` : ''}</Text></View>
-            <Pressable onPress={directions} style={styles.infoRow}><Ionicons name="location-outline" size={18} color={Colors.primary} /><Text style={[styles.infoText, { color: theme.text, flex: 1 }]}>{ev.venue}{ev.city ? `, ${ev.city}` : ''}</Text>{ev.lat != null && <Ionicons name="navigate-outline" size={16} color={Colors.primary} />}</Pressable>
-            <View style={styles.infoRow}><Ionicons name="people-outline" size={18} color={Colors.primary} /><Text style={[styles.infoText, { color: theme.text }]}>{ev.registeredCount}{ev.capacity > 0 ? ` / ${ev.capacity}` : ''} {t('discover.registered')}</Text></View>
-          </View>
+          {/* date / place / people meta chips */}
+          <Animated.View entering={FadeInDown.duration(320).delay(80)} style={styles.metaChips}>
+            {!!fmt(ev.startsAt) && <Chip label={`${fmt(ev.startsAt)}${ev.endsAt ? ` → ${fmt(ev.endsAt)}` : ''}`} icon="calendar-outline" />}
+            <Chip label={`${ev.venue}${ev.city ? `, ${ev.city}` : ''}`} icon="location-outline" onPress={ev.lat != null ? directions : undefined} />
+            <Chip label={`${ev.registeredCount}${ev.capacity > 0 ? ` / ${ev.capacity}` : ''} ${t('discover.registered')}`} icon="people-outline" />
+          </Animated.View>
 
           {/* entry pricing */}
-          <View style={[styles.priceCard, { backgroundColor: theme.card }]}>
+          <Animated.View entering={FadeInDown.duration(320).delay(140)}>
+            <SectionHeader title={t('discover.entry')} style={styles.sectionSpace} />
             {ev.isFree ? (
-              <View style={styles.priceHeadRow}>
-                <Ionicons name="pricetag-outline" size={18} color={Colors.primary} />
-                <Text style={[styles.priceFree, { color: Colors.primary }]}>{t('discover.free_entry')}</Text>
-              </View>
+              <Chip label={t('discover.free_entry')} icon="pricetag-outline" active />
             ) : (
               <>
-                <View style={styles.priceHeadRow}>
-                  <Ionicons name="pricetag-outline" size={18} color={Colors.primary} />
-                  <Text style={[styles.priceHead, { color: theme.text }]}>{t('discover.entry')}</Text>
-                  <Text style={[styles.priceNote, { color: theme.textMuted }]}>{t('discover.pay_on_arrival_tiers')}</Text>
-                </View>
-                <View style={styles.priceTierRow}>
+                <View style={styles.tierRow}>
                   {(ev.priceTiers || []).map((tr) => (
-                    <View key={tr.label} style={[styles.priceTier, { backgroundColor: theme.background }]}>
-                      <Text style={[styles.priceTierAmt, { color: Colors.primary }]}>{tr.amount} {ev.currency || 'JOD'}</Text>
+                    <View key={tr.label} style={[styles.priceTier, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                      <Text style={[styles.priceTierAmt, { color: Colors.electric }]}>{tr.amount} {ev.currency || 'JOD'}</Text>
                       <Text style={[styles.priceTierLbl, { color: theme.textMuted }]}>{tr.label}</Text>
                     </View>
                   ))}
                 </View>
+                <Text style={[styles.priceNote, { color: theme.textMuted }]}>{t('discover.pay_on_arrival_tiers')}</Text>
                 {ev.my?.paid && (
-                  <View style={styles.paidNote}><Ionicons name="checkmark-circle" size={14} color={Colors.primary} /><Text style={[styles.paidNoteText, { color: Colors.primary }]}>{t('discover.paid')}: {ev.my.amountPaid} {ev.currency || 'JOD'}</Text></View>
+                  <View style={styles.paidNote}><Ionicons name="checkmark-circle" size={14} color={Colors.electric} /><Text style={[styles.paidNoteText, { color: Colors.electric }]}>{t('discover.paid')}: {ev.my.amountPaid} {ev.currency || 'JOD'}</Text></View>
                 )}
               </>
             )}
-          </View>
+          </Animated.View>
 
-          {!!ev.description && <Text style={[styles.desc, { color: theme.textSecondary }]}>{ev.description}</Text>}
+          {!!ev.description && (
+            <Animated.View entering={FadeInDown.duration(320).delay(180)}>
+              <Text style={[styles.desc, styles.sectionSpace, { color: theme.textSecondary }]}>{ev.description}</Text>
+            </Animated.View>
+          )}
 
           {ev.tags.length > 0 && (
             <View style={styles.tagRow}>
-              {ev.tags.map(tg => <View key={tg} style={[styles.tag, { backgroundColor: theme.card }]}><Text style={[styles.tagText, { color: theme.textSecondary }]}>{tg}</Text></View>)}
+              {ev.tags.map(tg => <Chip key={tg} label={tg} />)}
             </View>
           )}
 
           {classes.length > 0 && (
             <>
-              <Text style={[styles.section, { color: theme.text }]}>{t('discover.schedule')}</Text>
-              {classes.map((c) => {
+              <SectionHeader title={t('discover.schedule')} style={styles.sectionSpace} />
+              {classes.map((c, i) => {
                 const cfull = c.capacity > 0 && c.enrolledCount >= c.capacity;
                 const cCancelable = c.myStatus === 'enrolled' || c.myStatus === 'pending';
                 const clabel = c.myStatus === 'enrolled' ? t('discover.enrolled') : c.myStatus === 'pending' ? t('discover.pending_approval') : c.myStatus === 'rejected' ? t('discover.rejected') : cfull ? t('discover.class_full') : t('discover.join_class');
                 return (
-                  <View key={c.id} style={[styles.classCard, { backgroundColor: theme.card }]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.clsTitle, { color: theme.text }]}>{c.title}</Text>
-                      <View style={styles.clsMetaRow}>
-                        {!!c.startTime && <Text style={[styles.clsMeta, { color: theme.textMuted }]}>{c.startTime}</Text>}
-                        {!!c.duration && <Text style={[styles.clsMeta, { color: theme.textMuted }]}>· {c.duration}</Text>}
-                        {!!c.coachName && <Text style={[styles.clsMeta, { color: theme.textMuted }]}>· {c.coachName}</Text>}
+                  <Animated.View key={c.id} entering={FadeInDown.duration(300).delay(i * 60)}>
+                    <View style={[styles.classCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.clsTitle, { color: theme.text }]}>{c.title}</Text>
+                        <View style={styles.clsMetaRow}>
+                          {!!c.startTime && <Text style={[styles.clsMeta, { color: theme.textMuted }]}>{c.startTime}</Text>}
+                          {!!c.duration && <Text style={[styles.clsMeta, { color: theme.textMuted }]}>· {c.duration}</Text>}
+                          {!!c.coachName && <Text style={[styles.clsMeta, { color: theme.textMuted }]}>· {c.coachName}</Text>}
+                        </View>
+                        {c.capacity > 0 && <Text style={[styles.clsMeta, { color: theme.textMuted }]}>{c.enrolledCount}/{c.capacity} {t('discover.enrolled_count')}</Text>}
                       </View>
-                      {c.capacity > 0 && <Text style={[styles.clsMeta, { color: theme.textMuted }]}>{c.enrolledCount}/{c.capacity} {t('discover.enrolled_count')}</Text>}
+                      {manages ? (
+                        <View style={[styles.clsBtn, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}>
+                          <Text style={[styles.clsBtnText, { color: theme.textMuted }]}>—</Text>
+                        </View>
+                      ) : (
+                        <Pressable onPress={() => joinClass(c)} disabled={cfull && !cCancelable}
+                          style={[styles.clsBtn, { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.myStatus === 'enrolled' ? Colors.electric : c.myStatus || cfull ? theme.background : Colors.electric + '20', borderColor: Colors.electric, borderWidth: c.myStatus === 'enrolled' ? 0 : 1 }]}>
+                          <Text style={[styles.clsBtnText, { color: c.myStatus === 'enrolled' ? '#04120B' : c.myStatus || cfull ? theme.textMuted : Colors.electric }]}>{clabel}</Text>
+                          {cCancelable && <Ionicons name="close" size={12} color={c.myStatus === 'enrolled' ? '#04120B' : theme.textMuted} />}
+                        </Pressable>
+                      )}
                     </View>
-                    {manages ? (
-                      <View style={[styles.clsBtn, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}>
-                        <Text style={[styles.clsBtnText, { color: theme.textMuted }]}>—</Text>
-                      </View>
-                    ) : (
-                      <Pressable onPress={() => joinClass(c)} disabled={cfull && !cCancelable}
-                        style={[styles.clsBtn, { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.myStatus === 'enrolled' ? Colors.primary : c.myStatus || cfull ? theme.background : Colors.primary + '20', borderColor: Colors.primary, borderWidth: c.myStatus === 'enrolled' ? 0 : 1 }]}>
-                        <Text style={[styles.clsBtnText, { color: c.myStatus === 'enrolled' ? '#fff' : c.myStatus || cfull ? theme.textMuted : Colors.primary }]}>{clabel}</Text>
-                        {cCancelable && <Ionicons name="close" size={12} color={c.myStatus === 'enrolled' ? '#fff' : theme.textMuted} />}
-                      </Pressable>
-                    )}
-                  </View>
+                  </Animated.View>
                 );
               })}
             </>
@@ -177,17 +195,15 @@ export default function EventProfileScreen() {
 
       <View style={[styles.bottomBar, { backgroundColor: theme.background, paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 12, borderTopColor: theme.border }]}>
         {manages ? (
-          <View style={[styles.regGradient, { backgroundColor: theme.card }]}>
-            <Ionicons name="shield-checkmark" size={18} color={theme.textMuted} style={{ marginRight: 8 }} />
-            <Text style={[styles.regText, { color: theme.textMuted }]}>{label}</Text>
-          </View>
+          <Button variant="ghost" label={label} icon="shield-checkmark" disabled onPress={() => {}} />
         ) : (
-          <Pressable onPress={register} style={styles.regBtn} disabled={full && !canCancel}>
-            <LinearGradient colors={canCancel ? ['#F87171', '#e05555'] : full ? ['#3a3a44', '#2a2a32'] : [Colors.primary, Colors.primaryDark]} style={styles.regGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-              <Ionicons name={canCancel ? 'close-circle' : myStatus === 'rejected' ? 'close' : 'trophy'} size={20} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.regText}>{label}</Text>
-            </LinearGradient>
-          </Pressable>
+          <Button
+            variant={canCancel ? 'ghost' : 'solid'}
+            label={label}
+            icon={canCancel ? 'close-circle' : myStatus === 'rejected' ? 'close' : full ? 'lock-closed' : 'trophy'}
+            disabled={full && !canCancel}
+            onPress={register}
+          />
         )}
       </View>
     </View>
@@ -196,44 +212,29 @@ export default function EventProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  center: { justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12 },
+  header: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12 },
   backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontFamily: 'Rubik_600SemiBold' },
+  backBtnFloat: { borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)' },
   scroll: { paddingBottom: 120 },
-  cover: { width: '100%', height: 180 },
-  body: { paddingHorizontal: 20, paddingTop: 16 },
-  badgeRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  typeBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  typeText: { fontSize: 12, fontFamily: 'Rubik_600SemiBold' },
-  name: { fontSize: 24, fontFamily: 'Rubik_700Bold', marginBottom: 16 },
-  infoCard: { gap: 12, marginBottom: 18 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  infoText: { fontSize: 14, fontFamily: 'Rubik_500Medium' },
-  desc: { fontSize: 14, fontFamily: 'Rubik_400Regular', lineHeight: 21, marginBottom: 16 },
-  priceCard: { borderRadius: 14, padding: 14, marginBottom: 18 },
-  priceHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  priceHead: { fontSize: 15, fontFamily: 'Rubik_600SemiBold', flex: 1 },
-  priceFree: { fontSize: 15, fontFamily: 'Rubik_700Bold' },
-  priceNote: { fontSize: 11, fontFamily: 'Rubik_400Regular' },
-  priceTierRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  priceTier: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, alignItems: 'center', gap: 2, minWidth: 74 },
-  priceTierAmt: { fontSize: 15, fontFamily: 'Rubik_700Bold' },
-  priceTierLbl: { fontSize: 11, fontFamily: 'Rubik_400Regular' },
+  hero: { marginHorizontal: 0, borderRadius: 0 },
+  heroOverline: { fontFamily: Fonts.semibold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: Colors.electric },
+  body: { paddingHorizontal: 20, paddingTop: 18 },
+  metaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  sectionSpace: { marginTop: 22 },
+  desc: { fontSize: 14, fontFamily: Fonts.regular, lineHeight: 21 },
+  tierRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  priceTier: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, alignItems: 'center', gap: 2, minWidth: 78, borderWidth: 1 },
+  priceTierAmt: { fontSize: 15, fontFamily: Fonts.bold },
+  priceTierLbl: { fontSize: 11, fontFamily: Fonts.regular },
+  priceNote: { fontSize: 11, fontFamily: Fonts.regular, marginTop: 8 },
   paidNote: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
-  paidNoteText: { fontSize: 12, fontFamily: 'Rubik_600SemiBold' },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tag: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  tagText: { fontSize: 12, fontFamily: 'Rubik_500Medium' },
-  section: { fontSize: 17, fontFamily: 'Rubik_700Bold', marginTop: 24, marginBottom: 12 },
-  classCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 14, marginBottom: 10 },
-  clsTitle: { fontSize: 15, fontFamily: 'Rubik_600SemiBold' },
+  paidNoteText: { fontSize: 12, fontFamily: Fonts.semibold },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
+  classCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, marginBottom: 10, borderWidth: 1 },
+  clsTitle: { fontSize: 15, fontFamily: Fonts.semibold },
   clsMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 3 },
-  clsMeta: { fontSize: 12, fontFamily: 'Rubik_400Regular' },
-  clsBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  clsBtnText: { fontSize: 12, fontFamily: 'Rubik_600SemiBold' },
+  clsMeta: { fontSize: 12, fontFamily: Fonts.regular },
+  clsBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  clsBtnText: { fontSize: 12, fontFamily: Fonts.semibold },
   bottomBar: { paddingHorizontal: 20, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
-  regBtn: { borderRadius: 14, overflow: 'hidden' },
-  regGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16 },
-  regText: { color: '#fff', fontSize: 16, fontFamily: 'Rubik_600SemiBold' },
 });

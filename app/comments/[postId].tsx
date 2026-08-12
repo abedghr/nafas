@@ -11,10 +11,13 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
+import { Fonts, Type } from '@/constants/typography';
+import { Display, Button, EmptyState } from '@/components/ui';
 import { useApp } from '@/lib/app-context';
 import { posts, users } from '@/lib/mock-data';
 
@@ -46,6 +49,8 @@ function getUserById(userId: string) {
 }
 
 function CommentItem({ item, index }: { item: Comment; index: number }) {
+  const { isDark } = useApp();
+  const theme = isDark ? Colors.dark : Colors.light;
   const [liked, setLiked] = useState(item.liked);
   const commentUser = getUserById(item.userId);
   const displayName = commentUser?.username ?? 'user';
@@ -56,26 +61,31 @@ function CommentItem({ item, index }: { item: Comment; index: number }) {
       entering={FadeInDown.delay(index * 60).duration(300).springify()}
       style={styles.commentRow}
     >
-      <View style={[styles.avatarCircle, { backgroundColor: Colors.dark.cardAlt }]}>
-        <Text style={styles.avatarLetter}>{initial}</Text>
-      </View>
-      <View style={styles.commentBody}>
-        <Text style={styles.commentText}>
-          <Text style={styles.commentUsername}>{displayName} </Text>
+      {commentUser?.avatar ? (
+        <ExpoImage source={{ uri: commentUser.avatar }} style={styles.avatarImg} contentFit="cover" transition={200} />
+      ) : (
+        <View style={[styles.avatarCircle, { backgroundColor: theme.cardAlt }]}>
+          <Text style={[styles.avatarLetter, { color: theme.text }]}>{initial}</Text>
+        </View>
+      )}
+      <View style={[styles.commentBubble, { backgroundColor: theme.card }]}>
+        <Text style={[styles.commentText, { color: theme.text }]}>
+          <Text style={[styles.commentUsername, { color: theme.text }]}>{displayName} </Text>
           {item.text}
         </Text>
         <View style={styles.commentMeta}>
-          <Text style={styles.commentTime}>{getRelativeTime(item.timestamp)}</Text>
+          <Text style={[styles.commentTime, { color: theme.textMuted }]}>{getRelativeTime(item.timestamp)}</Text>
         </View>
       </View>
       <TouchableOpacity
         onPress={() => setLiked(prev => !prev)}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        style={styles.commentLike}
       >
         <Ionicons
           name={liked ? 'heart' : 'heart-outline'}
           size={16}
-          color={liked ? '#FF4D67' : Colors.dark.textMuted}
+          color={liked ? Colors.electric : theme.textMuted}
         />
       </TouchableOpacity>
     </Animated.View>
@@ -86,6 +96,7 @@ export default function CommentsScreen() {
   const { postId } = useLocalSearchParams<{ postId: string }>();
   const insets = useSafeAreaInsets();
   const { isDark, user } = useApp();
+  const theme = isDark ? Colors.dark : Colors.light;
 
   const post = posts.find(p => p.id === postId);
   const initialComments: Comment[] = (post?.comments ?? []).map(c => ({
@@ -126,7 +137,7 @@ export default function CommentsScreen() {
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
   return (
-    <View style={[styles.container, { backgroundColor: Colors.dark.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -136,28 +147,28 @@ export default function CommentsScreen() {
           style={[
             styles.modal,
             {
-              backgroundColor: Colors.dark.surface,
+              backgroundColor: theme.surface,
               paddingTop: Math.max(insets.top, 8) + webTopInset,
             },
           ]}
         >
           <View style={styles.dragHandleWrap}>
-            <View style={styles.dragHandle} />
+            <View style={[styles.dragHandle, { backgroundColor: theme.border }]} />
           </View>
 
           <View style={styles.header}>
             <View style={styles.headerSpacer} />
-            <Text style={styles.headerTitle}>Comments</Text>
-            <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color={Colors.dark.text} />
-            </TouchableOpacity>
+            <Display variant="d3" color={theme.text}>Comments</Display>
+            <Button variant="icon" icon="close" onPress={() => router.back()} />
           </View>
 
           {comments.length === 0 ? (
             <View style={styles.emptyWrap}>
-              <Ionicons name="chatbubble-ellipses-outline" size={56} color={Colors.dark.textMuted} />
-              <Text style={styles.emptyTitle}>No comments yet</Text>
-              <Text style={styles.emptySub}>Be the first!</Text>
+              <EmptyState
+                icon="chatbubble-ellipses-outline"
+                title="No comments yet"
+                subtitle="Be the first!"
+              />
             </View>
           ) : (
             <FlatList
@@ -176,17 +187,21 @@ export default function CommentsScreen() {
               styles.inputBar,
               {
                 paddingBottom: Math.max(insets.bottom, 12) + webBottomInset,
-                borderTopColor: Colors.dark.border,
+                borderTopColor: theme.border,
               },
             ]}
           >
-            <View style={[styles.inputAvatar, { backgroundColor: Colors.primary }]}>
-              <Text style={styles.inputAvatarLetter}>{currentUserInitial}</Text>
-            </View>
+            {user?.avatar ? (
+              <ExpoImage source={{ uri: user.avatar }} style={styles.inputAvatarImg} contentFit="cover" />
+            ) : (
+              <View style={[styles.inputAvatar, { backgroundColor: Colors.electric }]}>
+                <Text style={styles.inputAvatarLetter}>{currentUserInitial}</Text>
+              </View>
+            )}
             <TextInput
-              style={[styles.textInput, { backgroundColor: Colors.dark.card, color: Colors.dark.text }]}
+              style={[styles.textInput, { backgroundColor: theme.card, color: theme.text }]}
               placeholder="Add a comment..."
-              placeholderTextColor={Colors.dark.textMuted}
+              placeholderTextColor={theme.textMuted}
               value={inputText}
               onChangeText={setInputText}
               multiline
@@ -197,14 +212,14 @@ export default function CommentsScreen() {
               onPress={handleSend}
               style={[
                 styles.sendBtn,
-                { backgroundColor: inputText.trim() ? Colors.primary : Colors.dark.cardAlt },
+                { backgroundColor: inputText.trim() ? Colors.electric : theme.cardAlt },
               ]}
               disabled={!inputText.trim()}
             >
               <Ionicons
                 name="arrow-up"
                 size={20}
-                color={inputText.trim() ? '#FFFFFF' : Colors.dark.textMuted}
+                color={inputText.trim() ? '#04120B' : theme.textMuted}
               />
             </TouchableOpacity>
           </View>
@@ -236,7 +251,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#555',
   },
   header: {
     flexDirection: 'row',
@@ -246,18 +260,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   headerSpacer: {
-    width: 32,
-  },
-  headerTitle: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 17,
-    color: '#FFFFFF',
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 44,
   },
   listContent: {
     paddingHorizontal: 16,
@@ -266,7 +269,8 @@ const styles = StyleSheet.create({
   commentRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingVertical: 12,
+    gap: 10,
+    paddingVertical: 8,
   },
   avatarCircle: {
     width: 36,
@@ -274,27 +278,30 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+  },
+  avatarImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   avatarLetter: {
-    fontFamily: 'Rubik_600SemiBold',
+    fontFamily: Fonts.semibold,
     fontSize: 14,
-    color: '#FFFFFF',
   },
-  commentBody: {
+  commentBubble: {
     flex: 1,
-    marginRight: 12,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   commentText: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: Fonts.regular,
     fontSize: 14,
-    color: '#FFFFFF',
     lineHeight: 20,
   },
   commentUsername: {
-    fontFamily: 'Rubik_600SemiBold',
+    fontFamily: Fonts.semibold,
     fontSize: 14,
-    color: '#FFFFFF',
   },
   commentMeta: {
     flexDirection: 'row',
@@ -302,27 +309,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   commentTime: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    color: '#5C5C72',
+    ...Type.caption,
+  },
+  commentLike: {
+    paddingTop: 10,
   },
   emptyWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingBottom: 60,
-  },
-  emptyTitle: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 18,
-    color: '#FFFFFF',
-    marginTop: 16,
-  },
-  emptySub: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 14,
-    color: '#5C5C72',
-    marginTop: 4,
+    paddingBottom: 40,
   },
   inputBar: {
     flexDirection: 'row',
@@ -340,10 +336,17 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 4,
   },
+  inputAvatarImg: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    marginRight: 8,
+    marginBottom: 4,
+  },
   inputAvatarLetter: {
-    fontFamily: 'Rubik_600SemiBold',
+    fontFamily: Fonts.semibold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: '#04120B',
   },
   textInput: {
     flex: 1,
@@ -351,7 +354,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 10,
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: Fonts.regular,
     fontSize: 14,
     maxHeight: 100,
     marginRight: 8,

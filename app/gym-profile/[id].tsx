@@ -11,6 +11,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
+import { Fonts, Type } from '@/constants/typography';
+import { Display, HeroCard, Chip, SectionHeader, Button, EmptyState } from '@/components/ui';
 import { gymsApi, classesApi, reviewsApi, type ApiGym, type ClassItem, type GymReview } from '@/src/features/gyms/api';
 import { eventsApi, type ApiEvent } from '@/src/features/events/api';
 
@@ -109,13 +111,15 @@ export default function GymProfileScreen() {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 8 }]}>
-          <Pressable onPress={back} style={styles.backBtn}><Ionicons name="chevron-back" size={24} color={theme.text} /></Pressable>
-          <View style={{ width: 40 }} />
+          <Pressable onPress={back} style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Ionicons name="chevron-back" size={22} color={theme.text} />
+          </Pressable>
+          <View style={styles.iconBtn} />
         </View>
         <View style={styles.emptyContainer}>
           {status === 'loading'
-            ? <ActivityIndicator color={Colors.primary} />
-            : <Text style={[styles.emptyText, { color: theme.textSecondary }]}>{t('discover.not_found')}</Text>}
+            ? <ActivityIndicator color={Colors.electric} />
+            : <EmptyState icon="alert-circle-outline" title={t('discover.not_found')} />}
         </View>
       </View>
     );
@@ -124,123 +128,123 @@ export default function GymProfileScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 8 }]}>
-        <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); back(); }} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={theme.text} />
+        <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); back(); }} style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Ionicons name="chevron-back" size={22} color={theme.text} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{gym.name}</Text>
-        <View style={{ width: 40 }} />
+        <View style={styles.iconBtn} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 90 }]}>
-        {!!gym.coverUrl && (
-          <Image source={{ uri: gym.coverUrl }} style={styles.cover} resizeMode="cover" />
-        )}
-        <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroSection}>
-          {gym.logoUrl ? (
-            <Image source={{ uri: gym.logoUrl }} style={styles.avatarCircle} resizeMode="cover" />
-          ) : (
-            <LinearGradient colors={[Colors.primary, Colors.primaryDark]} style={styles.avatarCircle} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <Ionicons name="barbell" size={36} color="#fff" />
-            </LinearGradient>
-          )}
-          <Text style={[styles.gymName, { color: theme.text }]}>{gym.name}</Text>
-          <View style={styles.addressRow}>
-            <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
-            <Text style={[styles.addressText, { color: theme.textSecondary }]}>{gym.address}</Text>
-          </View>
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}><Ionicons name="star" size={14} color="#FFD700" /><Text style={[styles.metaText, { color: theme.text }]}>{gym.rating}</Text></View>
-            <View style={[styles.metaDot, { backgroundColor: theme.textMuted }]} />
-            <View style={styles.metaItem}><Ionicons name="people-outline" size={14} color={theme.textSecondary} /><Text style={[styles.metaText, { color: theme.textSecondary }]}>{gym.memberCount} {t('discover.members')}</Text></View>
-          </View>
-          <View style={styles.heroActions}>
-            {gym.lat != null && gym.lng != null && (
-              <Pressable onPress={handleDirections} style={[styles.directionsBtn, { borderColor: Colors.primary }]}>
-                <Ionicons name="navigate-outline" size={16} color={Colors.primary} />
-                <Text style={[styles.directionsText, { color: Colors.primary }]}>{t('discover.directions')}</Text>
-              </Pressable>
-            )}
-            {!!gym.whatsapp && (
-              <Pressable onPress={() => Linking.openURL(`https://wa.me/${gym.whatsapp!.replace(/[^0-9]/g, '')}`)} style={[styles.directionsBtn, { borderColor: '#25D36680', backgroundColor: '#25D36618' }]}>
-                <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
-                <Text style={[styles.directionsText, { color: '#25D366' }]}>{t('discover.whatsapp')}</Text>
-              </Pressable>
-            )}
-          </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}>
+        <Animated.View entering={FadeInDown.delay(80).duration(500)}>
+          <HeroCard image={gym.coverUrl ? { uri: gym.coverUrl } : undefined} height={236} style={{ marginBottom: 16 }}>
+            <View style={styles.heroMeta}>
+              <View style={styles.heroPill}><Ionicons name="star" size={13} color="#FFD700" /><Text style={styles.heroPillText}>{gym.rating}</Text></View>
+              <View style={styles.heroPill}><Ionicons name="people-outline" size={13} color="#fff" /><Text style={styles.heroPillText}>{gym.memberCount} {t('discover.members')}</Text></View>
+            </View>
+            <Display variant="d1" color="#fff" numberOfLines={2}>{gym.name}</Display>
+            <View style={styles.heroAddr}>
+              <Ionicons name="location-outline" size={14} color="#E6F5EE" />
+              <Text style={styles.heroAddrText} numberOfLines={1}>{gym.address}</Text>
+            </View>
+          </HeroCard>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(150).duration(500)} style={[styles.tabBar, { backgroundColor: theme.card }]}>
-          {(['info', 'schedule'] as const).map((tab) => {
-            const isActive = activeTab === tab;
-            return (
-              <Pressable key={tab} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveTab(tab); }}
-                style={[styles.tabItem, isActive && { borderBottomColor: Colors.primary, borderBottomWidth: 2 }]}>
-                <Ionicons name={tab === 'info' ? 'information-circle-outline' : 'time-outline'} size={18} color={isActive ? Colors.primary : theme.textMuted} />
-                <Text style={[styles.tabText, { color: isActive ? Colors.primary : theme.textMuted }]}>{t(`discover.${tab}`)}</Text>
-              </Pressable>
-            );
-          })}
+        {(gym.lat != null && gym.lng != null || !!gym.whatsapp) && (
+          <Animated.View entering={FadeInDown.delay(120).duration(500)} style={styles.actionRow}>
+            {gym.lat != null && gym.lng != null && (
+              <Chip label={t('discover.directions')} icon="navigate-outline" onPress={handleDirections} />
+            )}
+            {!!gym.whatsapp && (
+              <Chip label={t('discover.whatsapp')} icon="logo-whatsapp" onPress={() => Linking.openURL(`https://wa.me/${gym.whatsapp!.replace(/[^0-9]/g, '')}`)} />
+            )}
+          </Animated.View>
+        )}
+
+        <Animated.View entering={FadeInDown.delay(150).duration(500)} style={styles.tabContainer}>
+          <View style={[styles.tabBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            {(['info', 'schedule'] as const).map((tab) => {
+              const isActive = activeTab === tab;
+              return (
+                <Pressable key={tab} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveTab(tab); }}
+                  style={[styles.tabButton, isActive && { backgroundColor: Colors.electric }]}>
+                  <Ionicons name={tab === 'info' ? 'information-circle-outline' : 'time-outline'} size={16} color={isActive ? '#04120B' : theme.textMuted} />
+                  <Text style={[styles.tabText, { color: isActive ? '#04120B' : theme.textMuted }]}>{t(`discover.${tab}`)}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </Animated.View>
 
         {activeTab === 'info' ? (
           <>
-            {!!gym.description && <Text style={[styles.descriptionText, { color: theme.textSecondary }]}>{gym.description}</Text>}
+            {!!gym.description && (
+              <View style={styles.block}>
+                <SectionHeader title={t('discover.info')} />
+                <Text style={[styles.descriptionText, { color: theme.textSecondary }]}>{gym.description}</Text>
+              </View>
+            )}
 
             {!!gym.workingHours && (
               <View style={[styles.hoursCard, { backgroundColor: theme.card }]}>
-                <Ionicons name="time-outline" size={20} color={Colors.primary} />
+                <View style={[styles.hoursIcon, { backgroundColor: Colors.electric + '18' }]}>
+                  <Ionicons name="time-outline" size={18} color={Colors.electric} />
+                </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.hoursLabel, { color: theme.textSecondary }]}>{t('discover.working_hours')}</Text>
+                  <Text style={[styles.hoursLabel, { color: theme.textMuted }]}>{t('discover.working_hours')}</Text>
                   <Text style={[styles.hoursValue, { color: theme.text }]}>{gym.workingHours}</Text>
                 </View>
               </View>
             )}
 
+            {gym.lat != null && gym.lng != null && (
+              <Pressable onPress={handleDirections} style={styles.mapCard}>
+                <LinearGradient colors={['#12332A', '#0B1F18']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                <LinearGradient colors={['transparent', 'rgba(5,10,8,0.7)']} style={StyleSheet.absoluteFill} />
+                <View style={styles.mapPin}><Ionicons name="location" size={22} color="#04120B" /></View>
+                <View style={styles.mapFooter}>
+                  <Text style={styles.mapAddr} numberOfLines={1}>{gym.address}</Text>
+                  <View style={styles.mapDirBtn}>
+                    <Ionicons name="navigate" size={13} color="#04120B" />
+                    <Text style={styles.mapDirText}>{t('discover.directions')}</Text>
+                  </View>
+                </View>
+              </Pressable>
+            )}
+
             {gym.facilities.length > 0 && (
-              <>
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('discover.facilities')}</Text>
-                <View style={styles.facilitiesGrid}>
+              <View style={styles.block}>
+                <SectionHeader title={t('discover.facilities')} />
+                <View style={styles.chipWrap}>
                   {gym.facilities.map((facility) => (
-                    <View key={facility.id} style={[styles.facilityCard, { backgroundColor: theme.card }]}>
-                      {facility.logoUrl ? (
-                        <Image source={{ uri: facility.logoUrl }} style={styles.facilityLogo} resizeMode="cover" />
-                      ) : (
-                        <View style={[styles.facilityIconWrap, { backgroundColor: Colors.primary + '1A' }]}>
-                          <Ionicons name={(facility.icon || 'checkmark-circle-outline') as any} size={20} color={Colors.primary} />
-                        </View>
-                      )}
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.facilityName, { color: theme.text }]} numberOfLines={1}>{facility.title}</Text>
-                        {!!facility.description && <Text style={[styles.facilityDesc, { color: theme.textMuted }]} numberOfLines={2}>{facility.description}</Text>}
-                      </View>
-                    </View>
+                    <Chip key={facility.id} label={facility.title} icon={(facility.icon || 'checkmark-circle-outline') as any} />
                   ))}
                 </View>
-              </>
+              </View>
             )}
 
             {!!gym.coaches?.length && (
-              <>
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('discover.coaches')}</Text>
+              <View style={styles.block}>
+                <SectionHeader title={t('discover.coaches')} />
                 <View style={styles.coachRow}>
                   {gym.coaches.map((co) => (
-                    <Pressable key={co.id} onPress={() => router.push(`/coach-profile/${co.id}` as any)} style={[styles.coachCard, { backgroundColor: theme.card }]}>
+                    <Pressable key={co.id} onPress={() => router.push(`/coach-profile/${co.id}` as any)} style={[styles.coachCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                       {co.avatarUrl
                         ? <Image source={{ uri: co.avatarUrl }} style={styles.coachAvatar} />
-                        : <View style={[styles.coachAvatar, { backgroundColor: Colors.primary + '20', alignItems: 'center', justifyContent: 'center' }]}><Ionicons name="person" size={20} color={Colors.primary} /></View>}
+                        : <View style={[styles.coachAvatar, { backgroundColor: Colors.electric + '20', alignItems: 'center', justifyContent: 'center' }]}><Ionicons name="person" size={20} color={Colors.electric} /></View>}
                       <Text style={[styles.coachName, { color: theme.text }]} numberOfLines={1}>{co.name}</Text>
-                      {co.id === gym.headCoachId && <View style={[styles.headCoachBadge, { backgroundColor: Colors.primary + '20' }]}><Ionicons name="ribbon" size={10} color={Colors.primary} /><Text style={styles.headCoachText}>{t('discover.head_coach')}</Text></View>}
+                      {co.id === gym.headCoachId && <View style={[styles.headCoachBadge, { backgroundColor: Colors.electric + '20' }]}><Ionicons name="ribbon" size={10} color={Colors.electric} /><Text style={styles.headCoachText}>{t('discover.head_coach')}</Text></View>}
                       <Text style={[styles.coachHeadline, { color: theme.textMuted }]} numberOfLines={1}>{co.headline}</Text>
                       <View style={styles.coachRating}><Ionicons name="star" size={11} color="#FFD700" /><Text style={[styles.coachRatingText, { color: theme.textSecondary }]}>{co.rating}</Text></View>
                     </Pressable>
                   ))}
                 </View>
-              </>
+              </View>
             )}
 
             {classes.length > 0 && (
-              <>
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('discover.classes')}</Text>
+              <View style={styles.block}>
+                <SectionHeader title={t('discover.classes')} />
                 {classes.map((c) => {
                   const full = c.capacity > 0 && c.enrolledCount >= c.capacity;
                   const cCancelable = c.myStatus === 'enrolled' || c.myStatus === 'pending';
@@ -266,23 +270,23 @@ export default function GymProfileScreen() {
                         </View>
                       ) : (
                         <Pressable onPress={() => joinClass(c)} disabled={full && !cCancelable}
-                          style={[styles.classJoinBtn, { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.myStatus === 'enrolled' ? Colors.primary : c.myStatus ? theme.background : full ? theme.background : Colors.primary + '20', borderColor: Colors.primary, borderWidth: c.myStatus === 'enrolled' ? 0 : 1 }]}>
-                          <Text style={[styles.classJoinText, { color: c.myStatus === 'enrolled' ? '#fff' : full || c.myStatus ? theme.textMuted : Colors.primary }]}>{label}</Text>
-                          {cCancelable && <Ionicons name="close" size={12} color={c.myStatus === 'enrolled' ? '#fff' : theme.textMuted} />}
+                          style={[styles.classJoinBtn, { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.myStatus === 'enrolled' ? Colors.electric : c.myStatus ? theme.background : full ? theme.background : Colors.electric + '20', borderColor: Colors.electric, borderWidth: c.myStatus === 'enrolled' ? 0 : 1 }]}>
+                          <Text style={[styles.classJoinText, { color: c.myStatus === 'enrolled' ? '#04120B' : full || c.myStatus ? theme.textMuted : Colors.electric }]}>{label}</Text>
+                          {cCancelable && <Ionicons name="close" size={12} color={c.myStatus === 'enrolled' ? '#04120B' : theme.textMuted} />}
                         </Pressable>
                       )}
                     </View>
                   );
                 })}
-              </>
+              </View>
             )}
 
             {gymEvents.length > 0 && (
-              <>
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('discover.events')}</Text>
+              <View style={styles.block}>
+                <SectionHeader title={t('discover.events')} />
                 {gymEvents.map((ev) => (
                   <Pressable key={ev.id} onPress={() => router.push(`/event-profile/${ev.id}` as any)} style={[styles.eventCard, { backgroundColor: theme.card }]}>
-                    <View style={[styles.eventIcon, { backgroundColor: Colors.primary + '18' }]}><Ionicons name="trophy-outline" size={20} color={Colors.primary} /></View>
+                    <View style={[styles.eventIcon, { backgroundColor: Colors.electric + '18' }]}><Ionicons name="trophy-outline" size={20} color={Colors.electric} /></View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.eventName, { color: theme.text }]} numberOfLines={1}>{ev.name}</Text>
                       <Text style={[styles.eventMeta, { color: theme.textMuted }]}>{t(`discover.event_type_${ev.type}`)}{ev.startsAt ? ` · ${new Date(ev.startsAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}` : ''}</Text>
@@ -290,34 +294,34 @@ export default function GymProfileScreen() {
                     <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
                   </Pressable>
                 ))}
-              </>
+              </View>
             )}
 
             {gym.subscriptions.length > 0 && (
-              <>
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('discover.membership_plans')}</Text>
+              <View style={styles.block}>
+                <SectionHeader title={t('discover.membership_plans')} />
                 {gym.subscriptions.map((sub) => (
                   <View key={sub.name} style={[styles.subCard, { backgroundColor: theme.card }]}>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.subName, { color: theme.text }]}>{sub.name}</Text>
                       <View style={styles.subPriceRow}>
-                        <Text style={[styles.subPrice, { color: Colors.primary }]}>{sub.price.amount}</Text>
+                        <Text style={[styles.subPrice, { color: Colors.electric }]}>{sub.price.amount}</Text>
                         <Text style={[styles.subCurrency, { color: theme.textSecondary }]}> {sub.price.currency}</Text>
                       </View>
                     </View>
-                    <Pressable onPress={() => handleJoin(sub.name)} style={styles.subscribeBtn} disabled={manages || isMember}>
+                    <Pressable onPress={() => handleJoin(sub.name)} style={[styles.subscribeBtn, { opacity: manages || isMember ? 0.5 : 1 }]} disabled={manages || isMember}>
                       <Text style={styles.subscribeBtnText}>{manages ? '—' : isMember ? t('discover.member') : isPending ? t('discover.cancel_request') : t('discover.subscribe')}</Text>
                     </Pressable>
                   </View>
                 ))}
-              </>
+              </View>
             )}
 
             <View style={styles.reviewsHead}>
-              <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>{t('discover.reviews')} {gym.reviewsCount > 0 ? `(${gym.reviewsCount})` : ''}</Text>
+              <Text style={[Type.overline, { color: theme.textSecondary }]}>{t('discover.reviews')} {gym.reviewsCount > 0 ? `(${gym.reviewsCount})` : ''}</Text>
               <Pressable onPress={() => setReviewOpen(true)} style={styles.writeReviewBtn}>
-                <Ionicons name="create-outline" size={15} color={Colors.primary} />
-                <Text style={[styles.writeReviewText, { color: Colors.primary }]}>{reviews.some(r => r.mine) ? t('discover.edit_review') : t('discover.write_review')}</Text>
+                <Ionicons name="create-outline" size={15} color={Colors.electric} />
+                <Text style={[styles.writeReviewText, { color: Colors.electric }]}>{reviews.some(r => r.mine) ? t('discover.edit_review') : t('discover.write_review')}</Text>
               </Pressable>
             </View>
             {reviews.length === 0 ? (
@@ -327,7 +331,7 @@ export default function GymProfileScreen() {
                 <View style={styles.reviewTop}>
                   {r.userAvatar
                     ? <Image source={{ uri: r.userAvatar }} style={styles.reviewAvatar} />
-                    : <View style={[styles.reviewAvatar, { backgroundColor: Colors.primary + '20', alignItems: 'center', justifyContent: 'center' }]}><Ionicons name="person" size={16} color={Colors.primary} /></View>}
+                    : <View style={[styles.reviewAvatar, { backgroundColor: Colors.electric + '20', alignItems: 'center', justifyContent: 'center' }]}><Ionicons name="person" size={16} color={Colors.electric} /></View>}
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.reviewName, { color: theme.text }]}>{r.userName}{r.mine ? ` · ${t('discover.you')}` : ''}</Text>
                     <View style={styles.reviewStars}>
@@ -342,10 +346,12 @@ export default function GymProfileScreen() {
             {!!gym.phone && (
               <View style={[styles.contactCard, { backgroundColor: theme.card }]}>
                 <View style={styles.contactRow}>
-                  <Ionicons name="call-outline" size={20} color={Colors.primary} />
+                  <View style={[styles.hoursIcon, { backgroundColor: Colors.electric + '18' }]}>
+                    <Ionicons name="call-outline" size={18} color={Colors.electric} />
+                  </View>
                   <Text style={[styles.contactPhone, { color: theme.text }]}>{gym.phone}</Text>
                 </View>
-                <Pressable onPress={handleCall} style={styles.callBtn}><Ionicons name="call" size={18} color="#fff" /></Pressable>
+                <Pressable onPress={handleCall} style={styles.callBtn}><Ionicons name="call" size={18} color="#04120B" /></Pressable>
               </View>
             )}
           </>
@@ -359,9 +365,9 @@ export default function GymProfileScreen() {
                     <Text style={[styles.closedText, { color: theme.textMuted }]}>{t('discover.closed')}</Text>
                   </View>
                 ) : (item.open || item.close) ? (
-                  <View style={[styles.hoursPill, { backgroundColor: Colors.primary + '14' }]}>
-                    <Ionicons name="time-outline" size={12} color={Colors.primary} />
-                    <Text style={[styles.hoursPillText, { color: Colors.primary }]}>{item.open} – {item.close}</Text>
+                  <View style={[styles.hoursPill, { backgroundColor: Colors.electric + '14' }]}>
+                    <Ionicons name="time-outline" size={12} color={Colors.electric} />
+                    <Text style={[styles.hoursPillText, { color: Colors.electric }]}>{item.open} – {item.close}</Text>
                   </View>
                 ) : null}
               </View>
@@ -374,7 +380,7 @@ export default function GymProfileScreen() {
                           <Text style={[styles.classTime, { color: theme.text }]}>{cls.time}</Text>
                           <Text style={[styles.classDuration, { color: theme.textMuted }]}>{cls.duration}</Text>
                         </View>
-                        <View style={[styles.classBar, { backgroundColor: Colors.primary }]} />
+                        <View style={[styles.classBar, { backgroundColor: Colors.electric }]} />
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.className, { color: theme.text }]}>{cls.name}</Text>
                           {!!cls.coach && (
@@ -394,8 +400,7 @@ export default function GymProfileScreen() {
             </Animated.View>
           )) : (
             <View style={styles.emptyTabContainer}>
-              <Ionicons name="calendar-outline" size={48} color={theme.textMuted} />
-              <Text style={[styles.emptyTabText, { color: theme.textSecondary }]}>—</Text>
+              <EmptyState icon="calendar-outline" title="—" />
             </View>
           )
         )}
@@ -403,25 +408,27 @@ export default function GymProfileScreen() {
 
       <View style={[styles.bottomBar, { backgroundColor: theme.background, paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 12, borderTopColor: theme.border }]}>
         {manages ? (
-          <View style={[styles.joinGradient, { backgroundColor: theme.card, borderRadius: 14 }]}>
+          <View style={[styles.managePill, { backgroundColor: theme.card }]}>
             <Ionicons name="shield-checkmark" size={18} color={theme.textMuted} style={{ marginRight: 8 }} />
-            <Text style={[styles.joinText, { color: theme.textMuted }]}>{t('discover.you_manage_gym')}</Text>
+            <Text style={[styles.manageText, { color: theme.textMuted }]}>{t('discover.you_manage_gym')}</Text>
           </View>
         ) : (
-          <Pressable onPress={() => handleJoin()} style={styles.joinBtn} disabled={isMember}>
-            <LinearGradient colors={isMember ? ['#3a3a44', '#2a2a32'] : isPending ? ['#F87171', '#e05555'] : [Colors.primary, Colors.primaryDark]} style={styles.joinGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-              <Ionicons name={isMember ? 'checkmark' : isPending ? 'close-circle' : 'flash'} size={20} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.joinText}>{isMember ? t('discover.member') : isPending ? t('discover.cancel_request') : t('discover.join_now')}</Text>
-            </LinearGradient>
-          </Pressable>
+          <Button
+            variant="solid"
+            label={isMember ? t('discover.member') : isPending ? t('discover.cancel_request') : t('discover.join_now')}
+            icon={isMember ? 'checkmark' : isPending ? 'close-circle' : 'flash'}
+            onPress={() => handleJoin()}
+            disabled={isMember}
+            style={isPending ? { backgroundColor: Colors.semantic.danger } : isMember ? { backgroundColor: theme.cardAlt } : undefined}
+          />
         )}
       </View>
 
       <Modal visible={reviewOpen} transparent animationType="slide" onRequestClose={() => setReviewOpen(false)}>
         <View style={styles.modalWrap}>
-          <View style={[styles.modal, { backgroundColor: theme.background }]}>
+          <View style={[styles.modal, { backgroundColor: theme.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>{t('discover.rate_gym')}</Text>
+              <Display variant="d3" color={theme.text}>{t('discover.rate_gym')}</Display>
               <Pressable onPress={() => setReviewOpen(false)}><Ionicons name="close" size={24} color={theme.text} /></Pressable>
             </View>
             <View style={styles.ratePicker}>
@@ -432,12 +439,10 @@ export default function GymProfileScreen() {
               ))}
             </View>
             <TextInput
-              style={[styles.reviewInput, { color: theme.text, backgroundColor: theme.card }]}
+              style={[styles.reviewInput, { color: theme.text, backgroundColor: theme.card, borderColor: theme.border }]}
               value={myComment} onChangeText={setMyComment} multiline placeholder={t('discover.review_placeholder')} placeholderTextColor={theme.textMuted}
             />
-            <Pressable onPress={submitReview} disabled={myRating < 1} style={[styles.reviewSubmit, { backgroundColor: Colors.primary, opacity: myRating < 1 ? 0.5 : 1 }]}>
-              <Text style={styles.reviewSubmitText}>{t('discover.submit_review')}</Text>
-            </Pressable>
+            <Button variant="solid" label={t('discover.submit_review')} onPress={submitReview} disabled={myRating < 1} style={{ opacity: myRating < 1 ? 0.5 : 1 }} />
           </View>
         </View>
       </Modal>
@@ -448,107 +453,114 @@ export default function GymProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12 },
-  backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontFamily: 'Rubik_600SemiBold' },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'transparent' },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontFamily: Fonts.semibold },
   scrollContent: { paddingHorizontal: 20 },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: 16, fontFamily: 'Rubik_400Regular' },
-  cover: { width: '100%', height: 150, borderRadius: 16, marginBottom: -32 },
-  heroSection: { alignItems: 'center', paddingTop: 8, paddingBottom: 20 },
-  avatarCircle: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 16, borderWidth: 3, borderColor: '#0A0A0F' },
-  heroActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  directionsBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 },
-  directionsText: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
-  gymName: { fontSize: 22, fontFamily: 'Rubik_700Bold', marginBottom: 8, textAlign: 'center' },
-  addressRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 4 },
-  addressText: { fontSize: 14, fontFamily: 'Rubik_400Regular' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaText: { fontSize: 13, fontFamily: 'Rubik_500Medium' },
-  metaDot: { width: 4, height: 4, borderRadius: 2 },
-  tabBar: { flexDirection: 'row', borderRadius: 14, marginBottom: 20, overflow: 'hidden' },
-  tabItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 6, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabText: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
-  descriptionText: { fontSize: 14, fontFamily: 'Rubik_400Regular', lineHeight: 22, marginBottom: 20 },
-  hoursCard: { borderRadius: 14, padding: 16, marginBottom: 24, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  hoursLabel: { fontSize: 12, fontFamily: 'Rubik_400Regular', marginBottom: 2 },
-  hoursValue: { fontSize: 15, fontFamily: 'Rubik_600SemiBold' },
-  sectionTitle: { fontSize: 18, fontFamily: 'Rubik_700Bold', marginBottom: 14 },
-  facilitiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
-  facilityCard: { flexBasis: '47%', flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, gap: 10 },
-  facilityIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  facilityLogo: { width: 36, height: 36, borderRadius: 10 },
-  facilityName: { fontSize: 13, fontFamily: 'Rubik_500Medium' },
-  facilityDesc: { fontSize: 10, fontFamily: 'Rubik_400Regular', marginTop: 2 },
-  coachRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
-  coachCard: { width: '47%', flexBasis: '47%', borderRadius: 14, padding: 12, alignItems: 'center', gap: 4 },
+
+  heroMeta: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  heroPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 999, paddingHorizontal: 10, height: 26 },
+  heroPillText: { fontFamily: Fonts.semibold, fontSize: 12, color: '#fff' },
+  heroAddr: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
+  heroAddrText: { fontFamily: Fonts.medium, fontSize: 13, color: '#E6F5EE', flexShrink: 1 },
+
+  actionRow: { flexDirection: 'row', gap: 10, marginBottom: 16, flexWrap: 'wrap' },
+
+  tabContainer: { marginBottom: 20 },
+  tabBar: { flexDirection: 'row', borderRadius: 999, padding: 4, borderWidth: 1 },
+  tabButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 999 },
+  tabText: { fontSize: 14, fontFamily: Fonts.semibold },
+
+  block: { marginBottom: 24 },
+  descriptionText: { fontSize: 14, fontFamily: Fonts.regular, lineHeight: 22 },
+
+  hoursCard: { borderRadius: 16, padding: 14, marginBottom: 24, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  hoursIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  hoursLabel: { fontSize: 12, fontFamily: Fonts.regular, marginBottom: 2 },
+  hoursValue: { fontSize: 15, fontFamily: Fonts.semibold },
+
+  mapCard: { height: 120, borderRadius: 16, overflow: 'hidden', marginBottom: 24, justifyContent: 'flex-end' },
+  mapPin: { position: 'absolute', top: '50%', left: '50%', marginLeft: -18, marginTop: -26, width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.electric, alignItems: 'center', justifyContent: 'center' },
+  mapFooter: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
+  mapAddr: { flex: 1, fontFamily: Fonts.medium, fontSize: 13, color: '#E6F5EE' },
+  mapDirBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.electric, borderRadius: 999, paddingHorizontal: 12, height: 30 },
+  mapDirText: { fontFamily: Fonts.bold, fontSize: 12, color: '#04120B' },
+
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+
+  coachRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  coachCard: { width: '47%', flexBasis: '47%', borderRadius: 16, padding: 12, alignItems: 'center', gap: 4, borderWidth: 1 },
   coachAvatar: { width: 48, height: 48, borderRadius: 24, marginBottom: 4 },
-  coachName: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
+  coachName: { fontSize: 13, fontFamily: Fonts.semibold },
   headCoachBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginTop: 2 },
-  headCoachText: { fontSize: 9, fontFamily: 'Rubik_600SemiBold', color: Colors.primary },
-  classCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 14, marginBottom: 10 },
-  clsTitle: { fontSize: 15, fontFamily: 'Rubik_600SemiBold' },
+  headCoachText: { fontSize: 9, fontFamily: Fonts.semibold, color: Colors.electric },
+  coachHeadline: { fontSize: 10, fontFamily: Fonts.regular, textAlign: 'center' },
+  coachRating: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  coachRatingText: { fontSize: 11, fontFamily: Fonts.medium },
+
+  classCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, marginBottom: 10 },
+  clsTitle: { fontSize: 15, fontFamily: Fonts.semibold },
   classMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 3 },
-  classMeta: { fontSize: 12, fontFamily: 'Rubik_400Regular' },
-  clsCoach: { fontSize: 12, fontFamily: 'Rubik_500Medium', marginTop: 4 },
-  classJoinBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  classJoinText: { fontSize: 12, fontFamily: 'Rubik_600SemiBold' },
-  eventCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 14, marginBottom: 10 },
+  classMeta: { fontSize: 12, fontFamily: Fonts.regular },
+  clsCoach: { fontSize: 12, fontFamily: Fonts.medium, marginTop: 4 },
+  classJoinBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  classJoinText: { fontSize: 12, fontFamily: Fonts.semibold },
+
+  eventCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, marginBottom: 10 },
   eventIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  eventName: { fontSize: 15, fontFamily: 'Rubik_600SemiBold' },
-  eventMeta: { fontSize: 12, fontFamily: 'Rubik_400Regular', marginTop: 2 },
-  reviewsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 12 },
+  eventName: { fontSize: 15, fontFamily: Fonts.semibold },
+  eventMeta: { fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 },
+
+  subCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 16, padding: 16, marginBottom: 10 },
+  subName: { fontSize: 15, fontFamily: Fonts.semibold, marginBottom: 4 },
+  subPriceRow: { flexDirection: 'row', alignItems: 'baseline' },
+  subPrice: { fontSize: 20, fontFamily: Fonts.monoBold },
+  subCurrency: { fontSize: 13, fontFamily: Fonts.regular },
+  subscribeBtn: { borderWidth: 1.5, borderColor: Colors.electric, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 8 },
+  subscribeBtnText: { color: Colors.electric, fontSize: 13, fontFamily: Fonts.semibold },
+
+  reviewsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   writeReviewBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  writeReviewText: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
-  noReviews: { fontSize: 13, fontFamily: 'Rubik_400Regular', paddingVertical: 8 },
-  reviewCard: { borderRadius: 14, padding: 14, marginBottom: 10 },
+  writeReviewText: { fontSize: 13, fontFamily: Fonts.semibold },
+  noReviews: { fontSize: 13, fontFamily: Fonts.regular, paddingVertical: 8 },
+  reviewCard: { borderRadius: 16, padding: 14, marginBottom: 10 },
   reviewTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   reviewAvatar: { width: 34, height: 34, borderRadius: 17 },
-  reviewName: { fontSize: 14, fontFamily: 'Rubik_600SemiBold' },
+  reviewName: { fontSize: 14, fontFamily: Fonts.semibold },
   reviewStars: { flexDirection: 'row', gap: 2, marginTop: 3 },
-  reviewComment: { fontSize: 13, fontFamily: 'Rubik_400Regular', marginTop: 10, lineHeight: 19 },
-  modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modal: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34 },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  modalTitle: { fontSize: 18, fontFamily: 'Rubik_700Bold' },
-  ratePicker: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 12 },
-  reviewInput: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: 'Rubik_400Regular', height: 100, textAlignVertical: 'top', marginBottom: 14 },
-  reviewSubmit: { paddingVertical: 16, borderRadius: 14, alignItems: 'center' },
-  reviewSubmitText: { color: '#fff', fontSize: 16, fontFamily: 'Rubik_600SemiBold' },
-  coachHeadline: { fontSize: 10, fontFamily: 'Rubik_400Regular', textAlign: 'center' },
-  coachRating: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  coachRatingText: { fontSize: 11, fontFamily: 'Rubik_500Medium' },
-  subCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 14, padding: 16, marginBottom: 10 },
-  subName: { fontSize: 15, fontFamily: 'Rubik_600SemiBold', marginBottom: 4 },
-  subPriceRow: { flexDirection: 'row', alignItems: 'baseline' },
-  subPrice: { fontSize: 20, fontFamily: 'Rubik_700Bold' },
-  subCurrency: { fontSize: 13, fontFamily: 'Rubik_400Regular' },
-  subscribeBtn: { borderWidth: 1.5, borderColor: Colors.primary, borderRadius: 10, paddingHorizontal: 18, paddingVertical: 8 },
-  subscribeBtnText: { color: Colors.primary, fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
-  contactCard: { borderRadius: 14, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 10 },
-  contactRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  contactPhone: { fontSize: 15, fontFamily: 'Rubik_500Medium' },
-  callBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center' },
+  reviewComment: { fontSize: 13, fontFamily: Fonts.regular, marginTop: 10, lineHeight: 19 },
+
+  contactCard: { borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 10 },
+  contactRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  contactPhone: { fontSize: 15, fontFamily: Fonts.medium },
+  callBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.electric, justifyContent: 'center', alignItems: 'center' },
+
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1 },
-  joinBtn: { borderRadius: 14, overflow: 'hidden' },
-  joinGradient: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 16 },
-  joinText: { color: '#fff', fontSize: 17, fontFamily: 'Rubik_700Bold' },
-  emptyTabContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 12 },
-  emptyTabText: { fontSize: 15, fontFamily: 'Rubik_500Medium' },
-  scheduleCard: { borderRadius: 14, padding: 16, marginBottom: 10 },
+  managePill: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 16, borderRadius: 999 },
+  manageText: { fontSize: 15, fontFamily: Fonts.semibold },
+
+  emptyTabContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
+
+  scheduleCard: { borderRadius: 16, padding: 16, marginBottom: 10 },
   scheduleHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  scheduleDay: { fontSize: 16, fontFamily: 'Rubik_600SemiBold' },
-  hoursPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  hoursPillText: { fontSize: 12, fontFamily: 'Rubik_600SemiBold' },
-  closedText: { fontSize: 12, fontFamily: 'Rubik_500Medium' },
+  scheduleDay: { fontSize: 16, fontFamily: Fonts.semibold },
+  hoursPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  hoursPillText: { fontSize: 12, fontFamily: Fonts.semibold },
+  closedText: { fontSize: 12, fontFamily: Fonts.medium },
   classList: { marginTop: 10, gap: 2 },
   classRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: 1 },
   classTimeCol: { width: 64 },
-  classTime: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
-  classDuration: { fontSize: 11, fontFamily: 'Rubik_400Regular', marginTop: 1 },
+  classTime: { fontSize: 13, fontFamily: Fonts.semibold },
+  classDuration: { fontSize: 11, fontFamily: Fonts.regular, marginTop: 1 },
   classBar: { width: 3, alignSelf: 'stretch', borderRadius: 2 },
-  className: { fontSize: 14, fontFamily: 'Rubik_500Medium' },
+  className: { fontSize: 14, fontFamily: Fonts.medium },
   classCoachRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  classCoach: { fontSize: 11, fontFamily: 'Rubik_400Regular' },
-  noClasses: { fontSize: 12, fontFamily: 'Rubik_400Regular', marginTop: 8 },
+  classCoach: { fontSize: 11, fontFamily: Fonts.regular },
+  noClasses: { fontSize: 12, fontFamily: Fonts.regular, marginTop: 8 },
+
+  modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  modal: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34 },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  ratePicker: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 12 },
+  reviewInput: { borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: Fonts.regular, height: 100, textAlignVertical: 'top', marginBottom: 14, borderWidth: 1 },
 });

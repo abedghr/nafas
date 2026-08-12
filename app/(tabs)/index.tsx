@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
-  View, Text, Pressable, StyleSheet, FlatList, Platform, Image,
+  View, Text, Pressable, StyleSheet, FlatList, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, Redirect } from 'expo-router';
@@ -11,6 +12,8 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
+import { Fonts, Type } from '@/constants/typography';
+import { Display, Button } from '@/components/ui';
 import { communities, posts, users } from '@/lib/mock-data';
 import { isEnabled } from '@/lib/features';
 
@@ -33,20 +36,20 @@ function timeSince(timestamp: string) {
 function WorkoutShareCard({ workoutData }: { workoutData: any }) {
   return (
     <LinearGradient
-      colors={['#00C896', '#00A87A']}
+      colors={['#12352A', '#0A1C15']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.workoutCard}
     >
       <View style={styles.workoutHeader}>
         <View style={styles.workoutIconBg}>
-          <Ionicons name="barbell" size={18} color="#00C896" />
+          <Ionicons name="barbell" size={18} color={Colors.electric} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.workoutType}>{workoutData.type}</Text>
           <Text style={styles.workoutDuration}>{workoutData.duration} min</Text>
         </View>
-        <Ionicons name="fitness" size={24} color="rgba(255,255,255,0.6)" />
+        <Ionicons name="fitness" size={22} color="rgba(255,255,255,0.5)" />
       </View>
       <View style={styles.workoutDivider} />
       {workoutData.exercises.map((ex: any, i: number) => {
@@ -55,14 +58,14 @@ function WorkoutShareCard({ workoutData }: { workoutData: any }) {
           <View key={i} style={styles.workoutExercise}>
             <Text style={styles.workoutExName}>{ex.name}</Text>
             <Text style={styles.workoutExSets}>
-              {ex.sets.length} sets{maxWeight > 0 ? ` \u00B7 ${maxWeight}kg max` : ''}
+              {ex.sets.length} sets{maxWeight > 0 ? ` · ${maxWeight}kg max` : ''}
             </Text>
           </View>
         );
       })}
       <View style={styles.workoutDivider} />
       <View style={styles.workoutFooter}>
-        <Ionicons name="flame" size={16} color="rgba(255,255,255,0.9)" />
+        <Ionicons name="flame" size={16} color={Colors.electric} />
         <Text style={styles.workoutVolume}>
           Total Volume: {workoutData.totalVolume.toLocaleString()} kg
         </Text>
@@ -84,7 +87,7 @@ function PostCard({ post, index, isDark, likedPosts, toggleLike }: {
 
   return (
     <Animated.View entering={FadeInDown.duration(350).delay(index * 60)}>
-      <View style={[styles.postCard, { backgroundColor: theme.card }]}>
+      <View style={[styles.postCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <View style={styles.postHeader}>
           <Pressable
             onPress={() => {
@@ -93,17 +96,24 @@ function PostCard({ post, index, isDark, likedPosts, toggleLike }: {
             }}
             style={styles.postHeaderLeft}
           >
-            <View style={[styles.postAvatar, { backgroundColor: sportColor + '25' }]}>
-              <Text style={[styles.postAvatarText, { color: sportColor }]}>
-                {getInitials(postUser?.name || 'U')}
-              </Text>
-            </View>
+            {postUser?.avatar ? (
+              <View style={[styles.postAvatarRing, { borderColor: sportColor + '55' }]}>
+                <ExpoImage source={{ uri: postUser.avatar }} style={styles.postAvatarImg} contentFit="cover" transition={200} />
+              </View>
+            ) : (
+              <View style={[styles.postAvatar, { backgroundColor: sportColor + '25' }]}>
+                <Text style={[styles.postAvatarText, { color: sportColor }]}>
+                  {getInitials(postUser?.name || 'U')}
+                </Text>
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={[styles.postUsername, { color: theme.text }]}>
                 {postUser?.name || 'User'}
               </Text>
               <View style={styles.postMetaRow}>
-                <View style={[styles.postCommunityTag, { backgroundColor: sportColor + '18' }]}>
+                <View style={[styles.postCommunityTag, { backgroundColor: sportColor + '1A' }]}>
+                  <View style={[styles.postCommunityDot, { backgroundColor: sportColor }]} />
                   <Text style={[styles.postCommunityTagText, { color: sportColor }]}>
                     {community?.name || ''}
                   </Text>
@@ -119,23 +129,31 @@ function PostCard({ post, index, isDark, likedPosts, toggleLike }: {
         <Text style={[styles.postContent, { color: theme.text }]}>{post.content}</Text>
 
         {post.type === 'image' && (post as any).imageUrl && (
-          <Image
-            source={{ uri: (post as any).imageUrl }}
-            style={styles.postImage}
-            resizeMode="cover"
-          />
+          <View style={styles.mediaWrap}>
+            <ExpoImage
+              source={{ uri: (post as any).imageUrl }}
+              style={styles.postImage}
+              contentFit="cover"
+              transition={200}
+            />
+          </View>
         )}
 
         {post.type === 'video' && (post as any).videoThumbnail && (
-          <View style={styles.videoContainer}>
-            <Image
+          <View style={styles.mediaWrap}>
+            <ExpoImage
               source={{ uri: (post as any).videoThumbnail }}
               style={styles.postImage}
-              resizeMode="cover"
+              contentFit="cover"
+              transition={200}
+            />
+            <LinearGradient
+              colors={['rgba(0,0,0,0)', 'rgba(5,10,8,0.35)']}
+              style={StyleSheet.absoluteFill}
             />
             <View style={styles.playOverlay}>
               <View style={styles.playButton}>
-                <Ionicons name="play" size={28} color="#fff" />
+                <Ionicons name="play" size={26} color="#04120B" />
               </View>
             </View>
           </View>
@@ -151,14 +169,14 @@ function PostCard({ post, index, isDark, likedPosts, toggleLike }: {
               toggleLike(post.id);
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
-            style={styles.postAction}
+            style={[styles.postAction, isLiked && { backgroundColor: Colors.electric + '18' }]}
           >
             <Ionicons
               name={isLiked ? 'heart' : 'heart-outline'}
-              size={22}
-              color={isLiked ? '#FF4458' : theme.textMuted}
+              size={20}
+              color={isLiked ? Colors.electric : theme.textMuted}
             />
-            <Text style={[styles.postActionText, { color: isLiked ? '#FF4458' : theme.textMuted }]}>
+            <Text style={[styles.postActionText, { color: isLiked ? Colors.electric : theme.textMuted }]}>
               {post.likes + (isLiked && !post.liked ? 1 : 0)}
             </Text>
           </Pressable>
@@ -170,7 +188,7 @@ function PostCard({ post, index, isDark, likedPosts, toggleLike }: {
             }}
             style={styles.postAction}
           >
-            <Ionicons name="chatbubble-outline" size={20} color={theme.textMuted} />
+            <Ionicons name="chatbubble-outline" size={19} color={theme.textMuted} />
             <Text style={[styles.postActionText, { color: theme.textMuted }]}>
               {post.comments.length}
             </Text>
@@ -180,7 +198,7 @@ function PostCard({ post, index, isDark, likedPosts, toggleLike }: {
             onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
             style={styles.postAction}
           >
-            <Ionicons name="share-outline" size={20} color={theme.textMuted} />
+            <Ionicons name="share-outline" size={19} color={theme.textMuted} />
           </Pressable>
 
           <View style={{ flex: 1 }} />
@@ -194,8 +212,8 @@ function PostCard({ post, index, isDark, likedPosts, toggleLike }: {
           >
             <Ionicons
               name={saved ? 'bookmark' : 'bookmark-outline'}
-              size={20}
-              color={saved ? Colors.primary : theme.textMuted}
+              size={19}
+              color={saved ? Colors.electric : theme.textMuted}
             />
           </Pressable>
         </View>
@@ -225,31 +243,27 @@ export default function CommunitiesScreen() {
   const headerComponent = () => (
     <View>
       <View style={[styles.screenHeader, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 12 }]}>
-        <Text style={[styles.screenTitle, { color: Colors.primary }]}>Nafas</Text>
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push('/find-partner' as any);
-          }}
-          style={[styles.headerButton, { backgroundColor: theme.card }]}
-        >
-          <Ionicons name="people" size={20} color={Colors.primary} />
-        </Pressable>
+        <Display variant="d2" color={Colors.electric}>Nafas</Display>
+        <Button
+          variant="icon"
+          icon="people-outline"
+          onPress={() => router.push('/find-partner' as any)}
+        />
       </View>
 
       {showNudge && (
         <Animated.View entering={FadeInDown.duration(400)} style={styles.nudgeBanner}>
           <LinearGradient
-            colors={[Colors.primary + '22', Colors.primary + '08']}
+            colors={[Colors.electric + '22', Colors.electric + '06']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={[styles.nudgeInner, { borderColor: Colors.primary + '35' }]}
+            style={[styles.nudgeInner, { borderColor: Colors.electric + '35' }]}
           >
-            <View style={[styles.nudgeIconBg, { backgroundColor: Colors.primary + '25' }]}>
-              <Ionicons name="person-circle-outline" size={24} color={Colors.primary} />
+            <View style={[styles.nudgeIconBg, { backgroundColor: Colors.electric + '25' }]}>
+              <Ionicons name="person-circle-outline" size={24} color={Colors.electric} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.nudgeTitle}>Complete your profile</Text>
-              <Text style={styles.nudgeSub}>Add your stats, interests & goals</Text>
+              <Text style={[styles.nudgeTitle, { color: theme.text }]}>Complete your profile</Text>
+              <Text style={[styles.nudgeSub, { color: theme.textMuted }]}>Add your stats, interests & goals</Text>
             </View>
             <Pressable
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/onboarding' as any); }}
@@ -258,7 +272,7 @@ export default function CommunitiesScreen() {
               <Text style={styles.nudgeBtnText}>Set Up</Text>
             </Pressable>
             <Pressable onPress={() => { setNudgeDismissed(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} style={styles.nudgeClose}>
-              <Ionicons name="close" size={16} color={Colors.primary} />
+              <Ionicons name="close" size={16} color={Colors.electric} />
             </Pressable>
           </LinearGradient>
         </Animated.View>
@@ -269,34 +283,38 @@ export default function CommunitiesScreen() {
         horizontal
         scrollEnabled={filterData.length > 0}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterChips}
+        contentContainerStyle={styles.storyRail}
         keyExtractor={item => item.id}
         renderItem={({ item }) => {
           const isSelected = selectedFilter === item.id;
+          const itemColor = (Colors.sport as any)[item.id] || Colors.electric;
           return (
             <Pressable
               onPress={() => {
                 setSelectedFilter(item.id);
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }}
-              style={[
-                styles.filterChip,
-                {
-                  backgroundColor: isSelected ? Colors.primary : theme.card,
-                  borderColor: isSelected ? Colors.primary : theme.border,
-                },
-              ]}
+              style={styles.storyItem}
             >
-              <Ionicons
-                name={item.icon as any}
-                size={14}
-                color={isSelected ? '#fff' : theme.textSecondary}
-                style={{ marginRight: 4 }}
-              />
-              <Text style={[
-                styles.filterChipText,
-                { color: isSelected ? '#fff' : theme.textSecondary },
-              ]}>
+              {isSelected ? (
+                <LinearGradient
+                  colors={[Colors.electric, Colors.primaryDark]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  style={styles.storyRing}
+                >
+                  <View style={[styles.storyInner, { backgroundColor: theme.background }]}>
+                    <Ionicons name={item.icon as any} size={22} color={Colors.electric} />
+                  </View>
+                </LinearGradient>
+              ) : (
+                <View style={[styles.storyPlain, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                  <Ionicons name={item.icon as any} size={22} color={itemColor} />
+                </View>
+              )}
+              <Text
+                style={[styles.storyLabel, { color: isSelected ? theme.text : theme.textMuted, fontFamily: isSelected ? Fonts.semibold : Fonts.medium }]}
+                numberOfLines={1}
+              >
                 {item.name}
               </Text>
             </Pressable>
@@ -335,10 +353,10 @@ export default function CommunitiesScreen() {
         ]}
       >
         <LinearGradient
-          colors={['#00C896', '#00A87A']}
+          colors={[Colors.electric, Colors.electricPressed]}
           style={styles.fabGradient}
         >
-          <Ionicons name="add" size={28} color="#fff" />
+          <Ionicons name="add" size={28} color="#04120B" />
         </LinearGradient>
       </Pressable>
     </View>
@@ -351,10 +369,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingBottom: 16,
   },
-  screenTitle: { fontSize: 28, fontFamily: 'Rubik_700Bold' },
-  headerButton: {
-    width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center',
-  },
   nudgeBanner: { marginHorizontal: 20, marginBottom: 12 },
   nudgeInner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -362,54 +376,66 @@ const styles = StyleSheet.create({
     borderRadius: 16, borderWidth: 1,
   },
   nudgeIconBg: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  nudgeTitle: { fontSize: 14, fontFamily: 'Rubik_600SemiBold', color: '#00C896', marginBottom: 1 },
-  nudgeSub: { fontSize: 11, fontFamily: 'Rubik_400Regular', color: '#9B9BB0' },
+  nudgeTitle: { ...Type.bodyMed, marginBottom: 1 },
+  nudgeSub: { ...Type.caption },
   nudgeBtn: {
-    backgroundColor: '#00C896', paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 10,
+    backgroundColor: Colors.electric, paddingHorizontal: 14, height: 34,
+    borderRadius: 999, alignItems: 'center', justifyContent: 'center',
   },
-  nudgeBtnText: { fontSize: 12, fontFamily: 'Rubik_600SemiBold', color: '#fff' },
+  nudgeBtnText: { fontSize: 12, fontFamily: Fonts.bold, color: '#04120B' },
   nudgeClose: { padding: 4 },
-  filterChips: { paddingHorizontal: 20, gap: 8, paddingBottom: 16 },
-  filterChip: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1,
-  },
-  filterChipText: { fontSize: 13, fontFamily: 'Rubik_500Medium' },
-  postCard: { marginHorizontal: 16, marginBottom: 12, borderRadius: 16, padding: 16 },
+  storyRail: { paddingHorizontal: 20, gap: 16, paddingBottom: 18, paddingTop: 2 },
+  storyItem: { alignItems: 'center', gap: 6, width: 66 },
+  storyRing: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
+  storyInner: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  storyPlain: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  storyLabel: { fontSize: 11, maxWidth: 66, textAlign: 'center' },
+  postCard: { marginHorizontal: 16, marginBottom: 12, borderRadius: 20, padding: 16, borderWidth: 1 },
   postHeader: { marginBottom: 12 },
   postHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   postAvatar: {
     width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
   },
-  postAvatarText: { fontSize: 16, fontFamily: 'Rubik_700Bold' },
-  postUsername: { fontSize: 15, fontFamily: 'Rubik_600SemiBold' },
-  postMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
-  postCommunityTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  postCommunityTagText: { fontSize: 11, fontFamily: 'Rubik_500Medium' },
-  postTime: { fontSize: 12, fontFamily: 'Rubik_400Regular' },
+  postAvatarRing: {
+    width: 46, height: 46, borderRadius: 23, borderWidth: 2, padding: 2,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  postAvatarImg: { width: '100%', height: '100%', borderRadius: 20 },
+  postAvatarText: { fontSize: 16, fontFamily: Fonts.bold },
+  postUsername: { ...Type.h2 },
+  postMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
+  postCommunityTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999,
+  },
+  postCommunityDot: { width: 6, height: 6, borderRadius: 3 },
+  postCommunityTagText: { fontSize: 11, fontFamily: Fonts.semibold },
+  postTime: { ...Type.caption },
   postContent: {
-    fontSize: 15, fontFamily: 'Rubik_400Regular', lineHeight: 22, marginBottom: 12,
+    ...Type.body, lineHeight: 22, marginBottom: 12,
+  },
+  mediaWrap: {
+    borderRadius: 16, overflow: 'hidden', marginBottom: 12, backgroundColor: '#0E0E16',
   },
   postImage: {
-    width: '100%', height: 220, borderRadius: 12, marginBottom: 12,
-    backgroundColor: '#1a1a2e',
+    width: '100%', height: 220,
   },
-  videoContainer: { position: 'relative', marginBottom: 12 },
   playOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center', justifyContent: 'center',
-    borderRadius: 12,
   },
   playButton: {
-    width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(0,0,0,0.55)',
+    width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.electric,
     alignItems: 'center', justifyContent: 'center',
   },
   postActions: {
-    flexDirection: 'row', alignItems: 'center', gap: 18, borderTopWidth: 1, paddingTop: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, paddingTop: 12,
   },
-  postAction: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  postActionText: { fontSize: 13, fontFamily: 'Rubik_500Medium' },
+  postAction: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 8, paddingVertical: 6, borderRadius: 999,
+  },
+  postActionText: { fontSize: 13, fontFamily: Fonts.semibold },
   workoutCard: {
     borderRadius: 16, padding: 16, marginBottom: 12,
   },
@@ -417,33 +443,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10,
   },
   workoutIconBg: {
-    width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 36, height: 36, borderRadius: 12, backgroundColor: Colors.electric + '22',
     alignItems: 'center', justifyContent: 'center',
   },
   workoutType: {
-    fontSize: 16, fontFamily: 'Rubik_700Bold', color: '#fff',
+    fontSize: 16, fontFamily: Fonts.bold, color: '#fff',
   },
   workoutDuration: {
-    fontSize: 12, fontFamily: 'Rubik_400Regular', color: 'rgba(255,255,255,0.75)',
+    fontSize: 12, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.75)',
   },
   workoutDivider: {
-    height: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginVertical: 12,
+    height: 1, backgroundColor: 'rgba(255,255,255,0.12)', marginVertical: 12,
   },
   workoutExercise: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 4,
   },
   workoutExName: {
-    fontSize: 14, fontFamily: 'Rubik_500Medium', color: '#fff',
+    fontSize: 14, fontFamily: Fonts.medium, color: '#fff',
   },
   workoutExSets: {
-    fontSize: 12, fontFamily: 'Rubik_400Regular', color: 'rgba(255,255,255,0.7)',
+    fontSize: 12, fontFamily: Fonts.mono, color: 'rgba(255,255,255,0.7)',
   },
   workoutFooter: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
   },
   workoutVolume: {
-    fontSize: 14, fontFamily: 'Rubik_600SemiBold', color: '#fff',
+    fontSize: 14, fontFamily: Fonts.semibold, color: '#fff',
   },
   fab: {
     position: 'absolute', right: 20,
@@ -451,7 +477,7 @@ const styles = StyleSheet.create({
   fabGradient: {
     width: 56, height: 56, borderRadius: 28,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#00C896',
+    shadowColor: Colors.electric,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

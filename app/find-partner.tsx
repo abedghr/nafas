@@ -4,6 +4,7 @@ import {
   FlatList, Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -11,7 +12,9 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useApp } from '@/lib/app-context';
 import { alertDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
-import { users, readyToTrainUsers, sportInterests } from '@/lib/mock-data';
+import { Fonts, Type } from '@/constants/typography';
+import { Display, Chip, SectionHeader, EmptyState } from '@/components/ui';
+import { users, readyToTrainUsers, sportInterests, ranks } from '@/lib/mock-data';
 import type { ReadyUser } from '@/lib/mock-data';
 
 const ACTIVITY_ICONS: Record<string, string> = {
@@ -28,10 +31,11 @@ function PartnerCard({ item, theme, index }: { item: ReadyUser; theme: typeof Co
   const userData = users.find(u => u.id === item.userId);
   if (!userData) return null;
 
-  const initial = userData.name.charAt(0).toUpperCase();
   const isReady = item.status === 'ready';
   const activityLabel = sportInterests.find(s => s.id === item.activity)?.name || item.activity;
   const iconName = ACTIVITY_ICONS[item.activity] || 'fitness-outline';
+  const rankInfo = ranks.find(r => r.id === userData.rank);
+  const interests = (userData.interests || []).slice(0, 3);
 
   const scheduledLabel = item.scheduledTime
     ? new Date(item.scheduledTime).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })
@@ -45,59 +49,74 @@ function PartnerCard({ item, theme, index }: { item: ReadyUser; theme: typeof Co
     );
   };
 
+  const statusColor = isReady ? Colors.electric : Colors.semantic.warn;
+
   return (
     <Animated.View entering={FadeInDown.delay(index * 80).springify()}>
       <View style={[styles.partnerCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <View style={styles.partnerRow}>
           <Pressable
             onPress={() => router.push(`/user-profile/${item.userId}`)}
-            style={[styles.avatar, { backgroundColor: Colors.primary + '20' }]}
+            style={styles.thumbWrap}
           >
-            <Text style={[styles.avatarText, { color: Colors.primary }]}>{initial}</Text>
+            <Image source={{ uri: userData.avatar }} style={styles.thumb} contentFit="cover" transition={200} />
           </Pressable>
 
           <View style={styles.partnerInfo}>
             <Pressable onPress={() => router.push(`/user-profile/${item.userId}`)}>
-              <Text style={[styles.partnerName, { color: theme.text }]}>{userData.name}</Text>
+              <Display variant="d3" color={theme.text} numberOfLines={1}>{userData.name}</Display>
             </Pressable>
 
-            <View style={styles.detailRow}>
-              <Ionicons name={iconName as any} size={14} color={Colors.primary} />
-              <Text style={[styles.detailText, { color: theme.textSecondary }]}>{activityLabel}</Text>
+            <View style={styles.metaRow}>
+              <Ionicons name={iconName as any} size={13} color={Colors.electric} />
+              <Text style={[styles.metaText, { color: theme.textSecondary }]}>{activityLabel}</Text>
             </View>
 
-            <View style={styles.detailRow}>
-              <Ionicons name="location-outline" size={14} color={theme.textMuted} />
-              <Text style={[styles.detailText, { color: theme.textSecondary }]}>{item.location}</Text>
+            <View style={styles.metaRow}>
+              <Ionicons name="location-outline" size={13} color={theme.textMuted} />
+              <Text style={[styles.metaText, { color: theme.textMuted }]} numberOfLines={1}>{item.location}</Text>
             </View>
           </View>
 
-          <View style={[
-            styles.statusBadge,
-            { backgroundColor: isReady ? Colors.primary + '18' : '#F59E0B18' }
-          ]}>
-            <View style={[styles.statusDot, { backgroundColor: isReady ? Colors.primary : '#F59E0B' }]} />
-            <Text style={[styles.statusText, { color: isReady ? Colors.primary : '#F59E0B' }]}>
+          <View style={[styles.statusBadge, { backgroundColor: statusColor + '1A' }]}>
+            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+            <Text style={[styles.statusText, { color: statusColor }]}>
               {isReady ? 'Ready Now' : 'Scheduled'}
             </Text>
           </View>
         </View>
 
-        {!isReady && scheduledLabel ? (
-          <View style={styles.scheduledRow}>
-            <Ionicons name="time-outline" size={13} color="#F59E0B" />
-            <Text style={[styles.scheduledText, { color: '#F59E0B' }]}>{scheduledLabel}</Text>
+        <View style={styles.badgeRow}>
+          {rankInfo && (
+            <View style={[styles.levelBadge, { backgroundColor: rankInfo.color + '1A' }]}>
+              <Ionicons name={rankInfo.icon as any} size={13} color={rankInfo.color} />
+              <Text style={[styles.levelText, { color: rankInfo.color }]}>{rankInfo.name}</Text>
+            </View>
+          )}
+          {!isReady && scheduledLabel ? (
+            <View style={[styles.levelBadge, { backgroundColor: Colors.semantic.warn + '1A' }]}>
+              <Ionicons name="time-outline" size={13} color={Colors.semantic.warn} />
+              <Text style={[styles.levelText, { color: Colors.semantic.warn }]}>{scheduledLabel}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {interests.length > 0 && (
+          <View style={styles.interestRow}>
+            {interests.map(id => (
+              <Chip key={id} label={sportInterests.find(s => s.id === id)?.name || id} />
+            ))}
           </View>
-        ) : null}
+        )}
 
         <Pressable
           onPress={handleTrainTogether}
           style={({ pressed }) => [
             styles.trainButton,
-            { backgroundColor: Colors.primary, opacity: pressed ? 0.85 : 1 },
+            { backgroundColor: Colors.electric, opacity: pressed ? 0.85 : 1 },
           ]}
         >
-          <Ionicons name="people-outline" size={18} color="#fff" />
+          <Ionicons name="people-outline" size={18} color="#04120B" />
           <Text style={styles.trainButtonText}>Train Together</Text>
         </Pressable>
       </View>
@@ -132,18 +151,19 @@ export default function FindPartnerScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { paddingTop: topPadding + 8, borderBottomColor: theme.border }]}>
+      <View style={[styles.header, { paddingTop: topPadding + 12 }]}>
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.back();
           }}
-          style={styles.headerBtn}
+          style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+          hitSlop={8}
         >
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+          <Ionicons name="chevron-back" size={22} color={theme.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Find a Partner</Text>
-        <View style={styles.headerBtn} />
+        <Display variant="d3" color={theme.text} style={styles.headerTitle}>Find a Partner</Display>
+        <View style={styles.iconBtn} />
       </View>
 
       <FlatList
@@ -157,8 +177,8 @@ export default function FindPartnerScreen() {
               <View style={[styles.statusCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 <View style={styles.statusCardHeader}>
                   <View style={styles.statusLabelRow}>
-                    <View style={[styles.statusDotLarge, { backgroundColor: isReady ? Colors.primary : theme.textMuted }]} />
-                    <Text style={[styles.statusCardTitle, { color: theme.text }]}>Ready to Train</Text>
+                    <View style={[styles.statusDotLarge, { backgroundColor: isReady ? Colors.electric : theme.textMuted }]} />
+                    <Display variant="d3" color={theme.text}>Ready to Train</Display>
                   </View>
                   <Switch
                     value={isReady}
@@ -166,8 +186,8 @@ export default function FindPartnerScreen() {
                       setIsReady(val);
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     }}
-                    trackColor={{ false: theme.border, true: Colors.primary + '60' }}
-                    thumbColor={isReady ? Colors.primary : theme.textMuted}
+                    trackColor={{ false: theme.border, true: Colors.electric + '60' }}
+                    thumbColor={isReady ? Colors.electric : theme.textMuted}
                   />
                 </View>
 
@@ -187,13 +207,13 @@ export default function FindPartnerScreen() {
                             style={[
                               styles.chip,
                               {
-                                backgroundColor: active ? Colors.primary + '20' : theme.cardAlt,
-                                borderColor: active ? Colors.primary : theme.border,
+                                backgroundColor: active ? Colors.electric : theme.cardAlt,
+                                borderColor: active ? Colors.electric : theme.border,
                               },
                             ]}
                           >
-                            <Ionicons name={sport.icon as any} size={16} color={active ? Colors.primary : theme.textSecondary} />
-                            <Text style={[styles.chipText, { color: active ? Colors.primary : theme.textSecondary }]}>
+                            <Ionicons name={sport.icon as any} size={15} color={active ? '#04120B' : theme.textSecondary} />
+                            <Text style={[styles.chipText, { color: active ? '#04120B' : theme.textSecondary }]}>
                               {sport.name}
                             </Text>
                           </Pressable>
@@ -213,9 +233,9 @@ export default function FindPartnerScreen() {
                       />
                     </View>
 
-                    <View style={[styles.yourStatusBanner, { backgroundColor: Colors.primary + '12' }]}>
-                      <View style={[styles.statusDot, { backgroundColor: Colors.primary }]} />
-                      <Text style={[styles.yourStatusText, { color: Colors.primary }]}>
+                    <View style={[styles.yourStatusBanner, { backgroundColor: Colors.electric + '14' }]}>
+                      <View style={[styles.statusDot, { backgroundColor: Colors.electric }]} />
+                      <Text style={[styles.yourStatusText, { color: Colors.electric }]}>
                         You're visible to nearby athletes
                       </Text>
                     </View>
@@ -229,7 +249,7 @@ export default function FindPartnerScreen() {
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(120).springify()}>
-              <Text style={[styles.partnersSectionTitle, { color: theme.text }]}>Available Partners</Text>
+              <SectionHeader title="Available Partners" style={styles.partnersSectionHeader} />
               <FlatList
                 data={filterOptions}
                 horizontal
@@ -248,13 +268,13 @@ export default function FindPartnerScreen() {
                       style={[
                         styles.filterChip,
                         {
-                          backgroundColor: active ? Colors.primary : theme.cardAlt,
-                          borderColor: active ? Colors.primary : theme.border,
+                          backgroundColor: active ? Colors.electric : theme.card,
+                          borderColor: active ? Colors.electric : theme.border,
                         },
                       ]}
                     >
-                      <Ionicons name={opt.icon as any} size={14} color={active ? '#fff' : theme.textSecondary} />
-                      <Text style={[styles.filterChipText, { color: active ? '#fff' : theme.textSecondary }]}>
+                      <Ionicons name={opt.icon as any} size={14} color={active ? '#04120B' : theme.textSecondary} />
+                      <Text style={[styles.filterChipText, { color: active ? '#04120B' : theme.textSecondary }]}>
                         {opt.name}
                       </Text>
                     </Pressable>
@@ -268,14 +288,12 @@ export default function FindPartnerScreen() {
           <PartnerCard item={item} theme={theme} index={index} />
         )}
         ListEmptyComponent={
-          <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.emptyContainer}>
-            <View style={[styles.emptyIconCircle, { backgroundColor: theme.card }]}>
-              <Ionicons name="people-outline" size={48} color={theme.textMuted} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: theme.text }]}>No Partners Found</Text>
-            <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>
-              No one is training in this category right now. Toggle your status to "Ready" and be the first!
-            </Text>
+          <Animated.View entering={FadeInDown.delay(200).springify()}>
+            <EmptyState
+              icon="people-outline"
+              title="No Partners Found"
+              subtitle={'No one is training in this category right now. Toggle your status to "Ready" and be the first!'}
+            />
           </Animated.View>
         }
         ListFooterComponent={<View style={{ height: insets.bottom + 24 }} />}
@@ -294,24 +312,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerBtn: {
+  iconBtn: {
     width: 40,
     height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   headerTitle: {
-    fontSize: 18,
-    fontFamily: 'Rubik_600SemiBold',
+    flex: 1,
+    textAlign: 'center',
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 12,
   },
   statusCard: {
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 18,
     borderWidth: 1,
     marginBottom: 20,
@@ -331,20 +351,15 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
   },
-  statusCardTitle: {
-    fontSize: 17,
-    fontFamily: 'Rubik_600SemiBold',
-  },
   statusSubtext: {
+    fontFamily: Fonts.regular,
     fontSize: 13,
-    fontFamily: 'Rubik_400Regular',
     marginTop: 10,
   },
   sectionLabel: {
-    fontSize: 13,
-    fontFamily: 'Rubik_500Medium',
+    ...Type.overline,
     marginTop: 16,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   chipRow: {
     flexDirection: 'row',
@@ -354,29 +369,29 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    gap: 5,
+    paddingHorizontal: 14,
+    height: 34,
+    borderRadius: 999,
     borderWidth: 1,
   },
   chipText: {
+    fontFamily: Fonts.semibold,
     fontSize: 13,
-    fontFamily: 'Rubik_500Medium',
   },
   locationInput: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
   locationTextInput: {
     flex: 1,
+    fontFamily: Fonts.regular,
     fontSize: 14,
-    fontFamily: 'Rubik_400Regular',
     padding: 0,
   },
   yourStatusBanner: {
@@ -386,81 +401,73 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 12,
   },
   yourStatusText: {
+    fontFamily: Fonts.medium,
     fontSize: 13,
-    fontFamily: 'Rubik_500Medium',
   },
-  partnersSectionTitle: {
-    fontSize: 18,
-    fontFamily: 'Rubik_700Bold',
+  partnersSectionHeader: {
     marginBottom: 12,
   },
   filterRow: {
     gap: 8,
-    paddingBottom: 14,
+    paddingBottom: 16,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    height: 34,
+    borderRadius: 999,
     borderWidth: 1,
   },
   filterChipText: {
+    fontFamily: Fonts.semibold,
     fontSize: 13,
-    fontFamily: 'Rubik_500Medium',
   },
   partnerCard: {
-    borderRadius: 14,
+    borderRadius: 20,
     padding: 16,
     borderWidth: 1,
     marginBottom: 12,
   },
   partnerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
+    gap: 12,
   },
-  avatarText: {
-    fontSize: 20,
-    fontFamily: 'Rubik_700Bold',
+  thumbWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  thumb: {
+    width: '100%',
+    height: '100%',
   },
   partnerInfo: {
     flex: 1,
     gap: 3,
   },
-  partnerName: {
-    fontSize: 15,
-    fontFamily: 'Rubik_600SemiBold',
-    marginBottom: 2,
-  },
-  detailRow: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
   },
-  detailText: {
+  metaText: {
+    fontFamily: Fonts.medium,
     fontSize: 12,
-    fontFamily: 'Rubik_400Regular',
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
+    height: 26,
+    borderRadius: 999,
   },
   statusDot: {
     width: 7,
@@ -468,56 +475,47 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   statusText: {
+    fontFamily: Fonts.semibold,
     fontSize: 11,
-    fontFamily: 'Rubik_600SemiBold',
   },
-  scheduledRow: {
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+  },
+  levelBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginTop: 8,
-    marginLeft: 60,
+    paddingHorizontal: 10,
+    height: 30,
+    borderRadius: 999,
   },
-  scheduledText: {
+  levelText: {
+    fontFamily: Fonts.semibold,
     fontSize: 12,
-    fontFamily: 'Rubik_500Medium',
+  },
+  interestRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
   },
   trainButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 12,
-    paddingVertical: 11,
-    borderRadius: 10,
+    marginTop: 14,
+    height: 48,
+    borderRadius: 999,
   },
   trainButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: 'Rubik_600SemiBold',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingTop: 40,
-    paddingHorizontal: 32,
-  },
-  emptyIconCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontFamily: 'Rubik_700Bold',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    fontFamily: 'Rubik_400Regular',
-    textAlign: 'center',
-    lineHeight: 20,
+    color: '#04120B',
+    fontFamily: Fonts.bold,
+    fontSize: 15,
   },
 });

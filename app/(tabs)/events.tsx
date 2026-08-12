@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, Pressable, StyleSheet, FlatList, TextInput, Platform, Image,
+  View, Text, Pressable, StyleSheet, FlatList, TextInput, Platform, Image, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -10,6 +11,8 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
+import { Fonts } from '@/constants/typography';
+import { Display, Chip, HeroCard, EmptyState, Skeleton } from '@/components/ui';
 import { gymsApi, type ApiGym } from '@/src/features/gyms/api';
 import { restaurantsApi, type ApiRestaurant } from '@/src/features/restaurants/api';
 import { coachesApi, type ApiCoach } from '@/src/features/coaches/api';
@@ -57,35 +60,39 @@ export default function DiscoverScreen() {
 
   const open = (path: string) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(path as any); };
 
-  const renderCard = (logo: string | null, name: string, sub: string, tags: string[], priceText: string | null, rating: number | null, onPress: () => void, index: number) => (
-    <Animated.View entering={FadeInDown.duration(300).delay(index * 40)}>
-      <Pressable onPress={onPress} style={({ pressed }) => [styles.card, { backgroundColor: theme.card, opacity: pressed ? 0.9 : 1 }]}>
-        {logo ? <Image source={{ uri: logo }} style={styles.thumb} resizeMode="cover" /> : (
-          <View style={[styles.thumb, { backgroundColor: Colors.primary + '18', alignItems: 'center', justifyContent: 'center' }]}>
-            <Ionicons name={segIcon(mode) as any} size={26} color={Colors.primary} />
-          </View>
+  // Photo-led card: full-bleed image (brand-gradient fallback) + scrim + overlaid title/meta.
+  const renderCard = (image: string | null, name: string, sub: string, tags: string[], priceText: string | null, rating: number | null, onPress: () => void, index: number) => (
+    <Animated.View entering={FadeInDown.duration(320).delay(index * 45)}>
+      <Pressable onPress={onPress} style={({ pressed }) => [styles.photoCard, { opacity: pressed ? 0.92 : 1 }]}>
+        {image ? (
+          <Image source={{ uri: image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        ) : (
+          <LinearGradient colors={['#1A3A30', '#0C201A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
         )}
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>{name}</Text>
-          <View style={styles.metaRow}>
-            <Ionicons name="location-outline" size={13} color={theme.textMuted} />
-            <Text style={[styles.metaText, { color: theme.textMuted }]} numberOfLines={1}>{sub}</Text>
-          </View>
-          <View style={styles.tagRow}>
-            {tags.slice(0, 3).map(ty => (
-              <View key={ty} style={[styles.tag, { backgroundColor: theme.background }]}>
-                <Text style={[styles.tagText, { color: theme.textSecondary }]}>{ty}</Text>
-              </View>
-            ))}
-          </View>
-          {priceText && <Text style={[styles.fromText, { color: Colors.primary }]}>{priceText}</Text>}
-        </View>
+        <LinearGradient colors={['rgba(0,0,0,0.05)', 'rgba(5,10,8,0.86)']} style={StyleSheet.absoluteFill} />
         {rating != null && (
-          <View style={styles.ratingBox}>
-            <Ionicons name="star" size={13} color="#FFD93D" />
-            <Text style={[styles.ratingText, { color: theme.text }]}>{rating}</Text>
+          <View style={styles.ratingBadge}>
+            <Ionicons name="star" size={12} color="#FFD93D" />
+            <Text style={styles.ratingBadgeText}>{rating}</Text>
           </View>
         )}
+        <View style={styles.photoBody}>
+          {tags.length > 0 && <Text style={styles.overline} numberOfLines={1}>{tags[0]}</Text>}
+          <Display variant="d3" color="#fff" numberOfLines={2}>{name}</Display>
+          <View style={styles.infoPillRow}>
+            {!!sub && (
+              <View style={styles.infoPill}>
+                <Ionicons name="location-outline" size={12} color="#E6F5EE" />
+                <Text style={styles.infoPillText} numberOfLines={1}>{sub}</Text>
+              </View>
+            )}
+            {priceText && (
+              <View style={[styles.infoPill, styles.pricePill]}>
+                <Text style={styles.priceText} numberOfLines={1}>{priceText}</Text>
+              </View>
+            )}
+          </View>
+        </View>
       </Pressable>
     </Animated.View>
   );
@@ -93,35 +100,48 @@ export default function DiscoverScreen() {
   const data: any[] = mode === 'gyms' ? gyms : mode === 'restaurants' ? restaurants : mode === 'events' ? events : coaches;
   const segIcon = (m: Mode) => m === 'gyms' ? 'barbell-outline' : m === 'restaurants' ? 'restaurant-outline' : m === 'events' ? 'trophy-outline' : 'person-outline';
 
+  // Trending spotlight — the first result, shown only on the default (unsearched) browse view.
+  const heroMeta = (item: any) => {
+    if (mode === 'gyms') return { img: item.logoUrl as string | null, title: item.name as string, sub: item.city || item.address || '', path: `/gym-profile/${item.id}` };
+    if (mode === 'restaurants') return { img: item.logoUrl as string | null, title: item.name as string, sub: item.city || item.address || '', path: `/restaurant-profile/${item.id}` };
+    if (mode === 'events') return { img: (item.coverUrl || item.logoUrl) as string | null, title: item.name as string, sub: [item.city, fmtDate(item.startsAt)].filter(Boolean).join(' · '), path: `/event-profile/${item.id}` };
+    return { img: item.avatarUrl as string | null, title: item.name as string, sub: item.headline as string, path: `/coach-profile/${item.id}` };
+  };
+  const showHero = !search && status === 'ok' && data.length > 0;
+  const hero = showHero ? heroMeta(data[0]) : null;
+  const listData = showHero ? data.slice(1) : data;
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={{ paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 12 }}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: theme.text }]}>{t('discover.title')}</Text>
+          <Display variant="d2" color={theme.text}>{t('discover.title')}</Display>
           {mode === 'gyms' && (
-            <Pressable onPress={() => router.push('/my-gyms' as any)} style={[styles.myGymsBtn, { backgroundColor: Colors.primary + '18' }]}>
-              <Ionicons name="bookmark" size={14} color={Colors.primary} />
-              <Text style={[styles.myGymsText, { color: Colors.primary }]}>{t('discover.my_gyms')}</Text>
+            <Pressable onPress={() => router.push('/my-gyms' as any)} style={[styles.myGymsBtn, { backgroundColor: Colors.electric + '1A' }]}>
+              <Ionicons name="bookmark" size={14} color={Colors.electric} />
+              <Text style={[styles.myGymsText, { color: Colors.electric }]}>{t('discover.my_gyms')}</Text>
             </Pressable>
           )}
           {mode === 'events' && (
-            <Pressable onPress={() => router.push('/my-events' as any)} style={[styles.myGymsBtn, { backgroundColor: Colors.primary + '18' }]}>
-              <Ionicons name="bookmark" size={14} color={Colors.primary} />
-              <Text style={[styles.myGymsText, { color: Colors.primary }]}>{t('discover.my_events')}</Text>
+            <Pressable onPress={() => router.push('/my-events' as any)} style={[styles.myGymsBtn, { backgroundColor: Colors.electric + '1A' }]}>
+              <Ionicons name="bookmark" size={14} color={Colors.electric} />
+              <Text style={[styles.myGymsText, { color: Colors.electric }]}>{t('discover.my_events')}</Text>
             </Pressable>
           )}
         </View>
 
-        {/* segment: gyms | restaurants | coaches */}
-        <View style={[styles.segment, { backgroundColor: theme.card }]}>
+        {/* category rail: gyms | restaurants | coaches | events */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRail}>
           {segments.map(m => (
-            <Pressable key={m} onPress={() => { setMode(m); setSearch(''); Haptics.selectionAsync(); }}
-              style={[styles.segmentBtn, mode === m && { backgroundColor: Colors.primary }]}>
-              <Ionicons name={segIcon(m) as any} size={15} color={mode === m ? '#fff' : theme.textMuted} />
-              <Text style={[styles.segmentText, { color: mode === m ? '#fff' : theme.textMuted }]}>{t(`discover.${m}`)}</Text>
-            </Pressable>
+            <Chip
+              key={m}
+              label={t(`discover.${m}`)}
+              icon={segIcon(m) as any}
+              active={mode === m}
+              onPress={() => { setMode(m); setSearch(''); }}
+            />
           ))}
-        </View>
+        </ScrollView>
 
         <View style={[styles.searchBar, { backgroundColor: theme.card }]}>
           <Ionicons name="search-outline" size={18} color={theme.textMuted} />
@@ -137,9 +157,20 @@ export default function DiscoverScreen() {
       </View>
 
       <FlatList
-        data={data}
+        data={listData}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={hero ? (
+          <Animated.View entering={FadeInDown.duration(340)} style={styles.heroWrap}>
+            <HeroCard
+              image={hero.img ? { uri: hero.img } : undefined}
+              subtitle={hero.sub || undefined}
+              title={hero.title}
+              height={210}
+              onPress={() => open(hero.path)}
+            />
+          </Animated.View>
+        ) : null}
         renderItem={({ item, index }) =>
           mode === 'gyms'
             ? renderCard(item.logoUrl, item.name, item.city || item.address, item.types,
@@ -149,20 +180,24 @@ export default function DiscoverScreen() {
             ? renderCard(item.logoUrl, item.name, item.city || item.address, item.cuisines,
                 item.priceRange, item.rating, () => open(`/restaurant-profile/${item.id}`), index)
             : mode === 'events'
-            ? renderCard(item.logoUrl, item.name, [item.city, fmtDate(item.startsAt)].filter(Boolean).join(' · '), item.tags,
+            ? renderCard(item.coverUrl || item.logoUrl, item.name, [item.city, fmtDate(item.startsAt)].filter(Boolean).join(' · '), item.tags,
                 t(`discover.event_type_${item.type}`), null, () => open(`/event-profile/${item.id}`), index)
             : renderCard(item.avatarUrl, item.name, item.headline, item.specialty,
                 item.pricePerSession ? `${item.pricePerSession.amount} ${item.pricePerSession.currency} ${t('discover.per_session')}` : null,
                 item.rating, () => open(`/coach-profile/${item.id}`), index)
         }
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name={status === 'loading' ? 'time-outline' : (segIcon(mode) as any)} size={40} color={theme.textMuted} />
-            <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-              {status === 'loading' ? t('nutrition.loading') : t(mode === 'gyms' ? 'discover.no_gyms' : mode === 'restaurants' ? 'discover.no_restaurants' : mode === 'events' ? 'discover.no_events' : 'discover.no_coaches')}
-            </Text>
-          </View>
+          status === 'loading' ? (
+            <View style={{ gap: 12 }}>
+              {[0, 1, 2, 3].map(i => <Skeleton key={i} height={168} radius={20} />)}
+            </View>
+          ) : (
+            <EmptyState
+              icon={segIcon(mode) as any}
+              title={t(mode === 'gyms' ? 'discover.no_gyms' : mode === 'restaurants' ? 'discover.no_restaurants' : mode === 'events' ? 'discover.no_events' : 'discover.no_coaches')}
+            />
+          )
         }
       />
     </View>
@@ -172,26 +207,21 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingHorizontal: 20, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 28, fontFamily: 'Rubik_700Bold' },
   myGymsBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
-  myGymsText: { fontSize: 12, fontFamily: 'Rubik_600SemiBold' },
-  segment: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 12, borderRadius: 12, padding: 4, gap: 4 },
-  segmentBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 9 },
-  segmentText: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
+  myGymsText: { fontSize: 12, fontFamily: Fonts.semibold },
+  chipRail: { paddingHorizontal: 20, paddingBottom: 12, gap: 8 },
   searchBar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 20, paddingHorizontal: 14, height: 48, borderRadius: 14 },
-  searchInput: { flex: 1, fontSize: 15, fontFamily: 'Rubik_400Regular' },
+  searchInput: { flex: 1, fontSize: 15, fontFamily: Fonts.regular },
   list: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16 },
-  thumb: { width: 56, height: 56, borderRadius: 14 },
-  name: { fontSize: 15, fontFamily: 'Rubik_600SemiBold', marginBottom: 3 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
-  metaText: { fontSize: 12, fontFamily: 'Rubik_400Regular', flex: 1 },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 5 },
-  tag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  tagText: { fontSize: 10, fontFamily: 'Rubik_500Medium' },
-  fromText: { fontSize: 12, fontFamily: 'Rubik_600SemiBold' },
-  ratingBox: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  ratingText: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
-  empty: { alignItems: 'center', gap: 12, paddingTop: 80 },
-  emptyText: { fontSize: 15, fontFamily: 'Rubik_500Medium' },
+  heroWrap: { marginBottom: 16 },
+  photoCard: { height: 168, borderRadius: 20, overflow: 'hidden', justifyContent: 'flex-end' },
+  photoBody: { padding: 14, gap: 6 },
+  overline: { fontFamily: Fonts.semibold, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: Colors.electric },
+  infoPillRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 2 },
+  infoPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, maxWidth: '72%' },
+  infoPillText: { fontFamily: Fonts.medium, fontSize: 11, color: '#E6F5EE' },
+  pricePill: { backgroundColor: Colors.electric },
+  priceText: { fontFamily: Fonts.bold, fontSize: 11, color: '#04120B' },
+  ratingBadge: { position: 'absolute', top: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(0,0,0,0.42)', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
+  ratingBadgeText: { fontFamily: Fonts.bold, fontSize: 11, color: '#fff' },
 });

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ScrollView, Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -10,6 +11,8 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
+import { Fonts } from '@/constants/typography';
+import { Display, StatTile, SectionHeader, Button, EmptyState } from '@/components/ui';
 import { users, posts, ranks } from '@/lib/mock-data';
 
 const profileTabs = ['Posts', 'Workouts', 'Achievements'];
@@ -44,13 +47,14 @@ export default function UserProfileScreen() {
   if (!profileUser) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <View style={{ paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top }}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={24} color={theme.text} />
+        <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 8, borderBottomColor: theme.border }]}>
+          <Pressable onPress={() => router.back()} style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]} hitSlop={8}>
+            <Ionicons name="chevron-back" size={22} color={theme.text} />
           </Pressable>
+          <View style={styles.iconBtn} />
         </View>
         <View style={styles.emptyContainer}>
-          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>User not found</Text>
+          <EmptyState icon="person-outline" title="User not found" />
         </View>
       </View>
     );
@@ -91,10 +95,7 @@ export default function UserProfileScreen() {
   const renderPostsTab = () => (
     <View>
       {userPosts.length === 0 ? (
-        <View style={styles.emptyTab}>
-          <Ionicons name="document-text-outline" size={48} color={theme.textMuted} />
-          <Text style={[styles.emptyTabText, { color: theme.textSecondary }]}>No posts yet</Text>
-        </View>
+        <EmptyState icon="document-text-outline" title="No posts yet" />
       ) : (
         userPosts.map((post, index) => {
           const isLiked = likedPosts.has(post.id);
@@ -102,7 +103,7 @@ export default function UserProfileScreen() {
             <Animated.View
               key={post.id}
               entering={FadeInDown.delay(index * 80).duration(400)}
-              style={[styles.postCard, { backgroundColor: theme.card }]}
+              style={[styles.postCard, { backgroundColor: theme.card, borderColor: theme.border }]}
             >
               <Text style={[styles.postContent, { color: theme.text }]}>{post.content}</Text>
               <View style={[styles.postFooter, { borderTopColor: theme.border }]}>
@@ -117,7 +118,7 @@ export default function UserProfileScreen() {
                     <Ionicons
                       name={isLiked ? 'heart' : 'heart-outline'}
                       size={18}
-                      color={isLiked ? '#FF4B6E' : theme.textSecondary}
+                      color={isLiked ? Colors.semantic.danger : theme.textSecondary}
                     />
                     <Text style={[styles.postActionText, { color: theme.textSecondary }]}>
                       {post.likes + (isLiked && !post.liked ? 1 : !isLiked && post.liked ? -1 : 0)}
@@ -141,47 +142,21 @@ export default function UserProfileScreen() {
 
   const renderWorkoutsTab = () => (
     <View>
-      <Animated.View
-        entering={FadeInDown.duration(400)}
-        style={[styles.statsCard, { backgroundColor: theme.card }]}
-      >
-        <LinearGradient
-          colors={['rgba(0,200,150,0.12)', 'rgba(0,200,150,0.02)']}
-          style={styles.statsCardGradient}
-        />
-        <View style={styles.statsCardRow}>
-          <View style={styles.statsCardItem}>
-            <Text style={[styles.statsCardValue, { color: Colors.primary }]}>
-              {profileUser.totalWorkouts}
-            </Text>
-            <Text style={[styles.statsCardLabel, { color: theme.textSecondary }]}>Workouts</Text>
-          </View>
-          <View style={[styles.statsCardDivider, { backgroundColor: theme.border }]} />
-          <View style={styles.statsCardItem}>
-            <Text style={[styles.statsCardValue, { color: Colors.primary }]}>
-              {formatVolume(profileUser.totalVolume)}
-            </Text>
-            <Text style={[styles.statsCardLabel, { color: theme.textSecondary }]}>Total Volume</Text>
-          </View>
-          <View style={[styles.statsCardDivider, { backgroundColor: theme.border }]} />
-          <View style={styles.statsCardItem}>
-            <Text style={[styles.statsCardValue, { color: Colors.primary }]}>
-              {profileUser.bestStreak}
-            </Text>
-            <Text style={[styles.statsCardLabel, { color: theme.textSecondary }]}>Best Streak</Text>
-          </View>
-        </View>
+      <Animated.View entering={FadeInDown.duration(400)} style={styles.statRow}>
+        <StatTile value={String(profileUser.totalWorkouts)} label="Workouts" />
+        <StatTile value={formatVolume(profileUser.totalVolume)} label="Total Volume" color={Colors.ring.amber} />
+        <StatTile value={String(profileUser.bestStreak)} label="Best Streak" color={Colors.ring.blue} />
       </Animated.View>
 
-      <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Workouts</Text>
+      <SectionHeader title="Recent Workouts" style={styles.sectionHeader} />
       {recentWorkouts.map((workout, index) => (
         <Animated.View
           key={workout.id}
           entering={FadeInDown.delay(index * 80 + 100).duration(400)}
-          style={[styles.workoutItem, { backgroundColor: theme.card }]}
+          style={[styles.workoutItem, { backgroundColor: theme.card, borderColor: theme.border }]}
         >
-          <View style={[styles.workoutIcon, { backgroundColor: `${Colors.primary}18` }]}>
-            <Ionicons name="barbell-outline" size={20} color={Colors.primary} />
+          <View style={[styles.workoutIcon, { backgroundColor: Colors.electric + '18' }]}>
+            <Ionicons name="barbell-outline" size={20} color={Colors.electric} />
           </View>
           <View style={styles.workoutInfo}>
             <Text style={[styles.workoutType, { color: theme.text }]}>{workout.type}</Text>
@@ -203,7 +178,7 @@ export default function UserProfileScreen() {
           <Animated.View
             key={achievement}
             entering={FadeInDown.delay(index * 80).duration(400)}
-            style={[styles.achievementCard, { backgroundColor: theme.card }]}
+            style={[styles.achievementCard, { backgroundColor: theme.card, borderColor: theme.border }]}
           >
             <View style={[styles.achievementIconWrap, { backgroundColor: `${info.color}18` }]}>
               <Ionicons name={info.icon as any} size={28} color={info.color} />
@@ -229,14 +204,14 @@ export default function UserProfileScreen() {
           },
         ]}
       >
-        <Pressable onPress={() => router.back()} style={styles.headerBtn}>
-          <Ionicons name="chevron-back" size={24} color={theme.text} />
+        <Pressable onPress={() => router.back()} style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]} hitSlop={8}>
+          <Ionicons name="chevron-back" size={22} color={theme.text} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
           @{profileUser.username}
         </Text>
-        <Pressable style={styles.headerBtn}>
-          <Ionicons name="ellipsis-horizontal" size={22} color={theme.text} />
+        <Pressable style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]} hitSlop={8}>
+          <Ionicons name="ellipsis-horizontal" size={20} color={theme.text} />
         </Pressable>
       </View>
 
@@ -245,21 +220,35 @@ export default function UserProfileScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         <Animated.View entering={FadeInDown.duration(500)} style={styles.profileSection}>
-          <View style={[styles.avatarCircle, { borderColor: Colors.primary }]}>
-            <LinearGradient
-              colors={[Colors.primary, Colors.primaryDark]}
-              style={styles.avatarGradient}
-            >
-              <Text style={styles.avatarInitial}>
-                {profileUser.name.charAt(0).toUpperCase()}
-              </Text>
-            </LinearGradient>
+          <View style={[styles.avatarRing, { borderColor: Colors.electric }]}>
+            {profileUser.avatar ? (
+              <Image source={{ uri: profileUser.avatar }} style={styles.avatarImg} contentFit="cover" transition={200} />
+            ) : (
+              <LinearGradient colors={['#1A3A30', '#0C201A']} style={styles.avatarImg}>
+                <Text style={styles.avatarInitial}>{profileUser.name.charAt(0).toUpperCase()}</Text>
+              </LinearGradient>
+            )}
           </View>
 
-          <Text style={[styles.profileName, { color: theme.text }]}>{profileUser.name}</Text>
+          <Display variant="d2" color={theme.text} style={styles.profileName}>{profileUser.name}</Display>
           <Text style={[styles.profileUsername, { color: theme.textSecondary }]}>
             @{profileUser.username}
           </Text>
+
+          <View style={styles.badgeRow}>
+            {!!profileUser.type && (
+              <View style={[styles.typeBadge, { backgroundColor: Colors.electric + '18' }]}>
+                <Ionicons name="fitness-outline" size={13} color={Colors.electric} />
+                <Text style={[styles.typeBadgeText, { color: Colors.electric }]}>{profileUser.type}</Text>
+              </View>
+            )}
+            {userRank ? (
+              <View style={[styles.rankBadge, { backgroundColor: `${userRank.color}20` }]}>
+                <Ionicons name={userRank.icon as any} size={13} color={userRank.color} />
+                <Text style={[styles.rankText, { color: userRank.color }]}>{userRank.name}</Text>
+              </View>
+            ) : null}
+          </View>
 
           {profileUser.bio ? (
             <Text style={[styles.profileBio, { color: theme.textSecondary }]}>
@@ -267,67 +256,27 @@ export default function UserProfileScreen() {
             </Text>
           ) : null}
 
-          {userRank ? (
-            <View style={[styles.rankBadge, { backgroundColor: `${userRank.color}20` }]}>
-              <Ionicons name={userRank.icon as any} size={14} color={userRank.color} />
-              <Text style={[styles.rankText, { color: userRank.color }]}>{userRank.name}</Text>
-            </View>
-          ) : null}
-
-          <View style={[styles.statsRow, { borderColor: theme.border }]}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: theme.text }]}>
-                {profileUser.totalWorkouts}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.textMuted }]}>Workouts</Text>
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: theme.text }]}>
-                {formatNumber(profileUser.followers)}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.textMuted }]}>Followers</Text>
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: theme.text }]}>
-                {formatNumber(profileUser.following)}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.textMuted }]}>Following</Text>
-            </View>
+          <View style={styles.statRow}>
+            <StatTile value={String(profileUser.totalWorkouts)} label="Workouts" />
+            <StatTile value={formatNumber(profileUser.followers)} label="Followers" color={Colors.ring.blue} />
+            <StatTile value={formatNumber(profileUser.following)} label="Following" color={Colors.ring.amber} />
           </View>
 
           <View style={styles.actionRow}>
-            <Pressable
-              style={[
-                styles.followBtn,
-                isFollowing
-                  ? { backgroundColor: 'transparent', borderColor: Colors.primary, borderWidth: 1.5 }
-                  : { backgroundColor: Colors.primary },
-              ]}
+            <Button
+              variant={isFollowing ? 'ghost' : 'solid'}
+              icon={isFollowing ? 'checkmark' : 'person-add-outline'}
+              label={isFollowing ? 'Following' : 'Follow'}
               onPress={handleFollow}
-            >
-              <Ionicons
-                name={isFollowing ? 'checkmark' : 'person-add-outline'}
-                size={16}
-                color={isFollowing ? Colors.primary : '#fff'}
-              />
-              <Text
-                style={[
-                  styles.followBtnText,
-                  { color: isFollowing ? Colors.primary : '#fff' },
-                ]}
-              >
-                {isFollowing ? 'Following' : 'Follow'}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.messageBtn, { borderColor: theme.border }]}
+              style={styles.actionBtn}
+            />
+            <Button
+              variant="ghost"
+              icon="chatbubble-outline"
+              label="Message"
               onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-            >
-              <Ionicons name="chatbubble-outline" size={16} color={theme.text} />
-              <Text style={[styles.messageBtnText, { color: theme.text }]}>Message</Text>
-            </Pressable>
+              style={styles.actionBtn}
+            />
           </View>
         </Animated.View>
 
@@ -337,8 +286,7 @@ export default function UserProfileScreen() {
               key={tab}
               style={[
                 styles.tabItem,
-                activeTab === tab && styles.tabItemActive,
-                activeTab === tab && { borderBottomColor: Colors.primary },
+                activeTab === tab && { borderBottomColor: Colors.electric },
               ]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -348,7 +296,7 @@ export default function UserProfileScreen() {
               <Text
                 style={[
                   styles.tabText,
-                  { color: activeTab === tab ? Colors.primary : theme.textMuted },
+                  { color: activeTab === tab ? Colors.electric : theme.textMuted },
                 ]}
               >
                 {tab}
@@ -378,155 +326,126 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
+    gap: 12,
   },
-  headerBtn: {
-    width: 36,
-    height: 36,
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   headerTitle: {
     fontSize: 16,
-    fontFamily: 'Rubik_600SemiBold',
+    fontFamily: Fonts.semibold,
     flex: 1,
     textAlign: 'center',
-  },
-  backBtn: {
-    padding: 12,
   },
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyText: {
-    fontSize: 16,
-    fontFamily: 'Rubik_500Medium',
-  },
   scrollContent: {
     paddingBottom: 40,
   },
   profileSection: {
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 8,
   },
-  avatarCircle: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
+  avatarRing: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     borderWidth: 2.5,
-    padding: 2,
+    padding: 3,
     overflow: 'hidden',
   },
-  avatarGradient: {
+  avatarImg: {
     width: '100%',
     height: '100%',
-    borderRadius: 40,
+    borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitial: {
     fontSize: 32,
-    fontFamily: 'Rubik_700Bold',
+    fontFamily: Fonts.bold,
     color: '#fff',
   },
   profileName: {
-    fontSize: 22,
-    fontFamily: 'Rubik_700Bold',
     marginTop: 14,
+    textAlign: 'center',
   },
   profileUsername: {
     fontSize: 14,
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: Fonts.regular,
     marginTop: 2,
   },
-  profileBio: {
-    fontSize: 14,
-    fontFamily: 'Rubik_400Regular',
-    marginTop: 10,
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 16,
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  typeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    height: 30,
+    borderRadius: 999,
+    gap: 5,
+  },
+  typeBadgeText: {
+    fontSize: 12,
+    fontFamily: Fonts.semibold,
+    textTransform: 'capitalize',
   },
   rankBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginTop: 12,
-    gap: 6,
+    paddingHorizontal: 12,
+    height: 30,
+    borderRadius: 999,
+    gap: 5,
   },
   rankText: {
     fontSize: 12,
-    fontFamily: 'Rubik_600SemiBold',
+    fontFamily: Fonts.semibold,
   },
-  statsRow: {
+  profileBio: {
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    marginTop: 12,
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 16,
+  },
+  statRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 10,
     marginTop: 20,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
     width: '100%',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 18,
-    fontFamily: 'Rubik_700Bold',
-  },
-  statLabel: {
-    fontSize: 12,
-    fontFamily: 'Rubik_400Regular',
-    marginTop: 2,
-  },
-  statDivider: {
-    width: 1,
-    height: 30,
   },
   actionRow: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 18,
+    marginTop: 16,
     width: '100%',
   },
-  followBtn: {
+  actionBtn: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 11,
-    borderRadius: 12,
-    gap: 6,
-  },
-  followBtnText: {
-    fontSize: 14,
-    fontFamily: 'Rubik_600SemiBold',
-  },
-  messageBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 11,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    gap: 6,
-  },
-  messageBtnText: {
-    fontSize: 14,
-    fontFamily: 'Rubik_600SemiBold',
   },
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    marginTop: 8,
+    marginTop: 12,
+    paddingHorizontal: 8,
   },
   tabItem: {
     flex: 1,
@@ -535,25 +454,26 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabItemActive: {
-    borderBottomWidth: 2,
-  },
   tabText: {
     fontSize: 14,
-    fontFamily: 'Rubik_600SemiBold',
+    fontFamily: Fonts.semibold,
   },
   tabContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  sectionHeader: {
+    marginTop: 24,
   },
   postCard: {
-    borderRadius: 14,
+    borderRadius: 18,
     padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
   },
   postContent: {
     fontSize: 14,
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: Fonts.regular,
     lineHeight: 21,
   },
   postFooter: {
@@ -575,70 +495,25 @@ const styles = StyleSheet.create({
   },
   postActionText: {
     fontSize: 13,
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: Fonts.medium,
   },
   postTime: {
     fontSize: 12,
-    fontFamily: 'Rubik_400Regular',
-  },
-  emptyTab: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 48,
-    gap: 12,
-  },
-  emptyTabText: {
-    fontSize: 15,
-    fontFamily: 'Rubik_500Medium',
-  },
-  statsCard: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 20,
-  },
-  statsCardGradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  statsCardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 8,
-  },
-  statsCardItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statsCardValue: {
-    fontSize: 22,
-    fontFamily: 'Rubik_700Bold',
-  },
-  statsCardLabel: {
-    fontSize: 12,
-    fontFamily: 'Rubik_400Regular',
-    marginTop: 4,
-  },
-  statsCardDivider: {
-    width: 1,
-    height: 36,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontFamily: 'Rubik_600SemiBold',
-    marginBottom: 12,
+    fontFamily: Fonts.regular,
   },
   workoutItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 18,
     marginBottom: 10,
     gap: 12,
+    borderWidth: 1,
   },
   workoutIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -647,16 +522,16 @@ const styles = StyleSheet.create({
   },
   workoutType: {
     fontSize: 14,
-    fontFamily: 'Rubik_600SemiBold',
+    fontFamily: Fonts.semibold,
   },
   workoutMeta: {
     fontSize: 12,
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: Fonts.regular,
     marginTop: 2,
   },
   workoutDate: {
     fontSize: 12,
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: Fonts.regular,
   },
   achievementsGrid: {
     flexDirection: 'row',
@@ -665,21 +540,22 @@ const styles = StyleSheet.create({
   },
   achievementCard: {
     width: '47%',
-    borderRadius: 14,
+    borderRadius: 18,
     padding: 18,
     alignItems: 'center',
     gap: 10,
+    borderWidth: 1,
   },
   achievementIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   achievementName: {
     fontSize: 13,
-    fontFamily: 'Rubik_600SemiBold',
+    fontFamily: Fonts.semibold,
     textAlign: 'center',
   },
 });

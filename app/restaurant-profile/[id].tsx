@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, Pressable, StyleSheet, ScrollView, Platform, Linking, ActivityIndicator, Image,
+  View, Text, Pressable, StyleSheet, ScrollView, Platform, Linking, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
+import { Fonts } from '@/constants/typography';
+import { Display, HeroCard, StatTile, SectionHeader, Button, Chip, EmptyState } from '@/components/ui';
 import { restaurantsApi, type ApiRestaurant } from '@/src/features/restaurants/api';
 
 export default function RestaurantProfileScreen() {
@@ -46,98 +47,133 @@ export default function RestaurantProfileScreen() {
     restaurantsApi.reserve(r.id, { partySize: 2 }).catch(() => setReserved(false));
   };
 
+  const topPad = Platform.OS === 'web' ? 67 + 16 : insets.top + 8;
+
   if (status !== 'ok' || !r) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 8 }]}>
-          <Pressable onPress={back} style={styles.backBtn}><Ionicons name="chevron-back" size={24} color={theme.text} /></Pressable>
-          <View style={{ width: 40 }} />
+        <View style={[styles.header, { paddingTop: topPad }]}>
+          <Pressable onPress={back} style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]} hitSlop={8}>
+            <Ionicons name="chevron-back" size={22} color={theme.text} />
+          </Pressable>
+          <View style={styles.iconBtn} />
         </View>
         <View style={styles.emptyContainer}>
-          {status === 'loading' ? <ActivityIndicator color={Colors.primary} /> : <Text style={[styles.emptyText, { color: theme.textSecondary }]}>{t('discover.not_found')}</Text>}
+          {status === 'loading'
+            ? <ActivityIndicator color={Colors.electric} />
+            : <EmptyState icon="restaurant-outline" title={t('discover.not_found')} />}
         </View>
       </View>
     );
   }
 
+  const cuisineLine = r.cuisines.filter(Boolean).join('  ·  ');
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 8 }]}>
-        <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); back(); }} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={theme.text} />
+      <View style={[styles.header, { paddingTop: topPad }]}>
+        <Pressable
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); back(); }}
+          style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+          hitSlop={8}
+        >
+          <Ionicons name="chevron-back" size={22} color={theme.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{r.name}</Text>
-        <View style={{ width: 40 }} />
+        <Display variant="d3" color={theme.text} style={styles.headerTitle} numberOfLines={1}>{r.name}</Display>
+        <View style={styles.iconBtn} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 90 }]}>
-        {!!r.coverUrl && <Image source={{ uri: r.coverUrl }} style={styles.cover} resizeMode="cover" />}
-        <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroSection}>
-          {r.logoUrl ? <Image source={{ uri: r.logoUrl }} style={styles.avatarCircle} resizeMode="cover" /> : (
-            <LinearGradient colors={[Colors.primary, Colors.primaryDark]} style={styles.avatarCircle} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <Ionicons name="restaurant" size={34} color="#fff" />
-            </LinearGradient>
-          )}
-          <Text style={[styles.name, { color: theme.text }]}>{r.name}</Text>
-          <View style={styles.addressRow}>
-            <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
-            <Text style={[styles.addressText, { color: theme.textSecondary }]}>{r.address}</Text>
-          </View>
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}><Ionicons name="star" size={14} color="#FFD700" /><Text style={[styles.metaText, { color: theme.text }]}>{r.rating}</Text></View>
-            {!!r.priceRange && <><View style={[styles.metaDot, { backgroundColor: theme.textMuted }]} /><Text style={[styles.metaText, { color: theme.textSecondary }]}>{r.priceRange}</Text></>}
-          </View>
-          <View style={styles.actionRow}>
-            {r.lat != null && r.lng != null && (
-              <Pressable onPress={handleDirections} style={[styles.outlineBtn, { borderColor: Colors.primary }]}>
-                <Ionicons name="navigate-outline" size={15} color={Colors.primary} />
-                <Text style={[styles.outlineBtnText, { color: Colors.primary }]}>{t('discover.directions')}</Text>
-              </Pressable>
-            )}
-            {!!r.phone && (
-              <Pressable onPress={handleCall} style={[styles.outlineBtn, { borderColor: theme.border }]}>
-                <Ionicons name="call-outline" size={15} color={theme.text} />
-                <Text style={[styles.outlineBtnText, { color: theme.text }]}>{t('discover.call')}</Text>
-              </Pressable>
-            )}
-          </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 110 }]}>
+        <Animated.View entering={FadeInDown.duration(500)}>
+          <HeroCard
+            image={r.coverUrl ? { uri: r.coverUrl } : undefined}
+            subtitle={cuisineLine || undefined}
+            title={r.name}
+            height={240}
+          />
         </Animated.View>
 
-        {!!r.description && <Text style={[styles.descriptionText, { color: theme.textSecondary }]}>{r.description}</Text>}
+        <Animated.View entering={FadeInDown.delay(80).duration(500)} style={styles.addressRow}>
+          <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
+          <Text style={[styles.addressText, { color: theme.textSecondary }]}>{r.address}</Text>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(140).duration(500)} style={styles.statRow}>
+          <StatTile icon="star" color="#FFD700" value={String(r.rating)} label={t('discover.rating', { defaultValue: 'Rating' })} />
+          {!!r.priceRange && (
+            <StatTile icon="pricetag-outline" value={r.priceRange} label={t('discover.priceRange', { defaultValue: 'Price' })} />
+          )}
+        </Animated.View>
 
         {!!r.workingHours && (
-          <View style={[styles.hoursCard, { backgroundColor: theme.card }]}>
-            <Ionicons name="time-outline" size={20} color={Colors.primary} />
-            <Text style={[styles.hoursValue, { color: theme.text }]}>{r.workingHours}</Text>
-          </View>
+          <Animated.View
+            entering={FadeInDown.delay(180).duration(500)}
+            style={[styles.hoursCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+          >
+            <View style={[styles.hoursIcon, { backgroundColor: Colors.electric + '18' }]}>
+              <Ionicons name="time-outline" size={18} color={Colors.electric} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.hoursLabel, { color: theme.textMuted }]}>{t('discover.working_hours')}</Text>
+              <Text style={[styles.hoursValue, { color: theme.text }]}>{r.workingHours}</Text>
+            </View>
+          </Animated.View>
+        )}
+
+        {(r.lat != null && r.lng != null) || r.phone ? (
+          <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.actionRow}>
+            {r.lat != null && r.lng != null && (
+              <Button variant="ghost" icon="navigate-outline" label={t('discover.directions')} onPress={handleDirections} style={styles.actionBtn} />
+            )}
+            {!!r.phone && (
+              <Button variant="ghost" icon="call-outline" label={t('discover.call')} onPress={handleCall} style={styles.actionBtn} />
+            )}
+          </Animated.View>
+        ) : null}
+
+        {!!r.description && (
+          <Animated.View entering={FadeInDown.delay(260).duration(500)} style={styles.section}>
+            <SectionHeader title={t('discover.about', { defaultValue: 'About' })} />
+            <Text style={[styles.descriptionText, { color: theme.textSecondary }]}>{r.description}</Text>
+          </Animated.View>
         )}
 
         {r.menu.length > 0 && (
-          <>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('discover.menu')}</Text>
-            <View style={[styles.menuCard, { backgroundColor: theme.card }]}>
+          <Animated.View entering={FadeInDown.delay(320).duration(500)} style={styles.section}>
+            <SectionHeader title={t('discover.menu')} />
+            <View style={styles.menuList}>
               {r.menu.map((m, i) => (
-                <View key={i} style={[styles.menuRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: 1 }]}>
+                <Animated.View
+                  key={i}
+                  entering={FadeInDown.delay(360 + i * 60).duration(400)}
+                  style={[styles.menuCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+                >
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.menuName, { color: theme.text }]}>{m.name}</Text>
-                    {!!m.description && <Text style={[styles.menuDesc, { color: theme.textMuted }]} numberOfLines={1}>{m.description}</Text>}
-                    {m.calories != null && <Text style={[styles.menuCals, { color: theme.textMuted }]}>{m.calories} {t('nutrition.kcal')}</Text>}
+                    {!!m.description && <Text style={[styles.menuDesc, { color: theme.textMuted }]} numberOfLines={2}>{m.description}</Text>}
+                    {m.calories != null && (
+                      <View style={[styles.calPill, { backgroundColor: Colors.electric + '18' }]}>
+                        <Ionicons name="flame-outline" size={11} color={Colors.electric} />
+                        <Text style={[styles.calText, { color: Colors.electric }]}>{m.calories} {t('nutrition.kcal')}</Text>
+                      </View>
+                    )}
                   </View>
-                  <Text style={[styles.menuPrice, { color: Colors.primary }]}>{m.price.amount} {m.price.currency}</Text>
-                </View>
+                  <Text style={[styles.menuPrice, { color: theme.text }]}>{m.price.amount} {m.price.currency}</Text>
+                </Animated.View>
               ))}
             </View>
-          </>
+          </Animated.View>
         )}
       </ScrollView>
 
       <View style={[styles.bottomBar, { backgroundColor: theme.background, paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 12, borderTopColor: theme.border }]}>
-        <Pressable onPress={handleReserve} style={styles.reserveBtn} disabled={reserved}>
-          <LinearGradient colors={reserved ? ['#3a3a44', '#2a2a32'] : [Colors.primary, Colors.primaryDark]} style={styles.reserveGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-            <Ionicons name={reserved ? 'checkmark' : 'calendar-outline'} size={20} color="#fff" style={{ marginRight: 8 }} />
-            <Text style={styles.reserveText}>{reserved ? t('discover.request_sent') : t('discover.reserve')}</Text>
-          </LinearGradient>
-        </Pressable>
+        <Button
+          variant="solid"
+          icon={reserved ? 'checkmark' : 'calendar-outline'}
+          label={reserved ? t('discover.request_sent') : t('discover.reserve')}
+          onPress={handleReserve}
+          disabled={reserved}
+        />
       </View>
     </View>
   );
@@ -145,37 +181,28 @@ export default function RestaurantProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12 },
-  backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontFamily: 'Rubik_600SemiBold' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12, gap: 12 },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'transparent' },
+  headerTitle: { flex: 1, textAlign: 'center' },
   scrollContent: { paddingHorizontal: 20 },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: 16, fontFamily: 'Rubik_400Regular' },
-  cover: { width: '100%', height: 150, borderRadius: 16, marginBottom: -32 },
-  heroSection: { alignItems: 'center', paddingTop: 8, paddingBottom: 20 },
-  avatarCircle: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 16, borderWidth: 3, borderColor: '#0A0A0F' },
-  name: { fontSize: 22, fontFamily: 'Rubik_700Bold', marginBottom: 8, textAlign: 'center' },
-  addressRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 4 },
-  addressText: { fontSize: 14, fontFamily: 'Rubik_400Regular' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaText: { fontSize: 13, fontFamily: 'Rubik_500Medium' },
-  metaDot: { width: 4, height: 4, borderRadius: 2 },
-  actionRow: { flexDirection: 'row', gap: 10 },
-  outlineBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-  outlineBtnText: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
-  descriptionText: { fontSize: 14, fontFamily: 'Rubik_400Regular', lineHeight: 22, marginBottom: 16 },
-  hoursCard: { borderRadius: 14, padding: 16, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  hoursValue: { fontSize: 15, fontFamily: 'Rubik_600SemiBold' },
-  sectionTitle: { fontSize: 18, fontFamily: 'Rubik_700Bold', marginBottom: 12 },
-  menuCard: { borderRadius: 14, paddingHorizontal: 16 },
-  menuRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, gap: 12 },
-  menuName: { fontSize: 15, fontFamily: 'Rubik_500Medium' },
-  menuDesc: { fontSize: 12, fontFamily: 'Rubik_400Regular', marginTop: 1 },
-  menuCals: { fontSize: 11, fontFamily: 'Rubik_400Regular', marginTop: 1 },
-  menuPrice: { fontSize: 15, fontFamily: 'Rubik_700Bold' },
+  addressRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16 },
+  addressText: { fontFamily: Fonts.regular, fontSize: 14, flex: 1 },
+  statRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  hoursCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, marginTop: 10, borderWidth: 1 },
+  hoursIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  hoursLabel: { fontFamily: Fonts.medium, fontSize: 11 },
+  hoursValue: { fontFamily: Fonts.semibold, fontSize: 15, marginTop: 1 },
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  actionBtn: { flex: 1 },
+  section: { marginTop: 24 },
+  descriptionText: { fontFamily: Fonts.regular, fontSize: 14, lineHeight: 22 },
+  menuList: { gap: 10 },
+  menuCard: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, borderRadius: 18, padding: 16, borderWidth: 1 },
+  menuName: { fontFamily: Fonts.semibold, fontSize: 15 },
+  menuDesc: { fontFamily: Fonts.regular, fontSize: 12, marginTop: 3, lineHeight: 17 },
+  calPill: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, marginTop: 8, paddingHorizontal: 10, height: 24, borderRadius: 999 },
+  calText: { fontFamily: Fonts.semibold, fontSize: 11 },
+  menuPrice: { fontFamily: Fonts.monoBold, fontSize: 15 },
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1 },
-  reserveBtn: { borderRadius: 14, overflow: 'hidden' },
-  reserveGradient: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 16 },
-  reserveText: { color: '#fff', fontSize: 17, fontFamily: 'Rubik_700Bold' },
 });

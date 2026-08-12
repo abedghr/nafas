@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, Pressable, StyleSheet, ScrollView, Platform, ActivityIndicator, Image, Linking,
+  View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Image, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
+import { Fonts, Type } from '@/constants/typography';
+import { HeroCard, StatTile, Chip, Button, SectionHeader, EmptyState } from '@/components/ui';
 import { coachesApi, type ApiCoach } from '@/src/features/coaches/api';
 
 export default function CoachProfileScreen() {
@@ -42,242 +43,239 @@ export default function CoachProfileScreen() {
     coachesApi.book(c.id, planId ? { planId } : {}).catch(() => setBooked(false));
   };
 
+  const topPad = Platform.OS === 'web' ? 67 + 16 : insets.top + 8;
+
   if (status !== 'ok' || !c) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 8 }]}>
-          <Pressable onPress={back} style={styles.backBtn}><Ionicons name="chevron-back" size={24} color={theme.text} /></Pressable>
-          <View style={{ width: 40 }} />
+      <View style={[s.container, { backgroundColor: theme.background }]}>
+        <View style={[s.header, { paddingTop: topPad }]}>
+          <Button variant="icon" icon="chevron-back" onPress={back} />
+          <View style={{ flex: 1 }} />
         </View>
-        <View style={styles.emptyContainer}>
-          {status === 'loading' ? <ActivityIndicator color={Colors.primary} /> : <Text style={[styles.emptyText, { color: theme.textSecondary }]}>{t('discover.not_found')}</Text>}
+        <View style={s.center}>
+          {status === 'loading'
+            ? <ActivityIndicator color={Colors.electric} />
+            : <EmptyState icon="person-outline" title={t('discover.not_found')} />}
         </View>
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 8 }]}>
-        <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); back(); }} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={theme.text} />
-        </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{c.name}</Text>
-        <View style={{ width: 40 }} />
+    <View style={[s.container, { backgroundColor: theme.background }]}>
+      <View style={[s.header, { paddingTop: topPad }]}>
+        <Button variant="icon" icon="chevron-back" onPress={back} />
+        <Text style={[Type.h2, { color: theme.text, flex: 1, textAlign: 'center' }]} numberOfLines={1}>{c.name}</Text>
+        <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 90 }]}>
-        {!!c.coverUrl && <Image source={{ uri: c.coverUrl }} style={styles.cover} resizeMode="cover" />}
-        <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroSection}>
-          {c.avatarUrl ? <Image source={{ uri: c.avatarUrl }} style={styles.avatarCircle} resizeMode="cover" /> : (
-            <LinearGradient colors={[Colors.primary, Colors.primaryDark]} style={styles.avatarCircle} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <Ionicons name="person" size={34} color="#fff" />
-            </LinearGradient>
-          )}
-          <View style={styles.nameRow}>
-            <Text style={[styles.name, { color: theme.text }]}>{c.name}</Text>
-            {c.verificationStatus === 'verified' && <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />}
-          </View>
-          {!!c.headline && <Text style={[styles.headline, { color: theme.textSecondary }]}>{c.headline}</Text>}
-          {!!c.gymName && (
-            <View style={styles.gymRow}>
-              <Ionicons name="barbell-outline" size={13} color={Colors.primary} />
-              <Text style={[styles.gymName, { color: Colors.primary }]}>{c.gymName}</Text>
-            </View>
-          )}
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}><Ionicons name="star" size={14} color="#FFD700" /><Text style={[styles.metaText, { color: theme.text }]}>{c.rating} ({c.reviewsCount})</Text></View>
-            <View style={[styles.metaDot, { backgroundColor: theme.textMuted }]} />
-            <View style={styles.metaItem}><Ionicons name="people-outline" size={14} color={theme.textSecondary} /><Text style={[styles.metaText, { color: theme.textSecondary }]}>{c.clientsCount}</Text></View>
-            <View style={[styles.metaDot, { backgroundColor: theme.textMuted }]} />
-            <View style={styles.metaItem}><Ionicons name="ribbon-outline" size={14} color={theme.textSecondary} /><Text style={[styles.metaText, { color: theme.textSecondary }]}>{c.yearsExperience}y</Text></View>
-          </View>
-          {c.specialty.length > 0 && (
-            <View style={styles.tagRow}>
-              {c.specialty.map(s => <View key={s} style={[styles.tag, { backgroundColor: Colors.primary + '18' }]}><Text style={[styles.tagText, { color: Colors.primary }]}>{s}</Text></View>)}
-            </View>
-          )}
-          {(!!c.phone || !!c.whatsapp) && (
-            <View style={styles.contactRow}>
-              {!!c.phone && (
-                <Pressable onPress={handleCall} style={[styles.contactBtn, { borderColor: theme.border }]}>
-                  <Ionicons name="call-outline" size={15} color={theme.text} /><Text style={[styles.contactText, { color: theme.text }]}>{t('discover.call')}</Text>
-                </Pressable>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 110 }]}>
+        <Animated.View entering={FadeInDown.duration(500)}>
+          <HeroCard
+            image={c.coverUrl ? { uri: c.coverUrl } : c.avatarUrl ? { uri: c.avatarUrl } : undefined}
+            height={264}
+            title={c.name}
+            subtitle={c.headline || undefined}
+          >
+            <View style={s.heroBadges}>
+              {c.verificationStatus === 'verified' && (
+                <View style={s.verifyPill}>
+                  <Ionicons name="checkmark-circle" size={13} color="#04120B" />
+                  <Text style={s.verifyText}>{t('discover.verified')}</Text>
+                </View>
               )}
-              {!!c.whatsapp && (
-                <Pressable onPress={handleWhatsapp} style={[styles.contactBtn, { borderColor: '#25D36680', backgroundColor: '#25D36618' }]}>
-                  <Ionicons name="logo-whatsapp" size={15} color="#25D366" /><Text style={[styles.contactText, { color: '#25D366' }]}>{t('discover.whatsapp')}</Text>
-                </Pressable>
+              {!!c.gymName && (
+                <View style={s.glassPill}>
+                  <Ionicons name="barbell-outline" size={12} color={Colors.electric} />
+                  <Text style={s.glassText}>{c.gymName}</Text>
+                </View>
+              )}
+              {c.clientsCount > 0 && (
+                <View style={s.glassPill}>
+                  <Ionicons name="people" size={12} color="#E6F5EE" />
+                  <Text style={s.glassText}>{c.clientsCount}</Text>
+                </View>
               )}
             </View>
-          )}
+          </HeroCard>
         </Animated.View>
 
-        <View style={[styles.tabBar, { backgroundColor: theme.card }]}>
+        <Animated.View entering={FadeInDown.duration(500).delay(100)} style={s.statsRow}>
+          <StatTile icon="star" color="#FFD700" value={String(c.rating)} label={t('discover.rating')} />
+          <StatTile icon="chatbox-ellipses-outline" color={theme.textSecondary} value={String(c.reviewsCount)} label={t('discover.reviews')} />
+          <StatTile icon="ribbon-outline" color={Colors.electric} value={`${c.yearsExperience}y`} label={t('authx.yearsOfExperience')} />
+        </Animated.View>
+
+        {c.specialty.length > 0 && (
+          <Animated.View entering={FadeInDown.duration(500).delay(160)} style={s.chipRow}>
+            {c.specialty.map(spec => <Chip key={spec} label={spec} />)}
+          </Animated.View>
+        )}
+
+        {(!!c.phone || !!c.whatsapp) && (
+          <Animated.View entering={FadeInDown.duration(500).delay(220)} style={s.contactRow}>
+            {!!c.phone && <Button variant="ghost" icon="call-outline" label={t('discover.call')} onPress={handleCall} style={{ flex: 1 }} />}
+            {!!c.whatsapp && <Button variant="ghost" icon="logo-whatsapp" label={t('discover.whatsapp')} onPress={handleWhatsapp} style={{ flex: 1 }} />}
+          </Animated.View>
+        )}
+
+        <View style={s.tabRow}>
           {(['info', 'results'] as const).map(tb => (
-            <Pressable key={tb} onPress={() => setTab(tb)} style={[styles.tabBtn, tab === tb && { backgroundColor: Colors.primary }]}>
-              <Text style={[styles.tabBtnText, { color: tab === tb ? '#fff' : theme.textMuted }]}>{t(`discover.${tb}`)}{tb === 'results' && c.transformations?.length ? ` (${c.transformations.length})` : ''}</Text>
-            </Pressable>
+            <Chip
+              key={tb}
+              label={`${t(`discover.${tb}`)}${tb === 'results' && c.transformations?.length ? ` (${c.transformations.length})` : ''}`}
+              active={tab === tb}
+              onPress={() => setTab(tb)}
+            />
           ))}
         </View>
 
         {tab === 'results' ? (
           (c.transformations?.length ?? 0) === 0 ? (
-            <Text style={[styles.emptyText, { color: theme.textMuted, textAlign: 'center', paddingTop: 30 }]}>{t('discover.no_results')}</Text>
-          ) : c.transformations!.map((tr) => (
-            <View key={tr.id} style={[styles.resultCard, { backgroundColor: theme.card }]}>
-              <View style={styles.baRow}>
-                <View style={styles.baCol}>
-                  <View style={[styles.baImgWrap, { backgroundColor: theme.background }]}>
-                    {tr.beforeImage ? <Image source={{ uri: tr.beforeImage }} style={styles.baImg} /> : <Ionicons name="image-outline" size={28} color={theme.textMuted} />}
-                    <View style={[styles.baTag, { backgroundColor: theme.textMuted }]}><Text style={styles.baTagText}>{t('discover.before')}</Text></View>
+            <EmptyState icon="images-outline" title={t('discover.no_results')} />
+          ) : c.transformations!.map((tr, i) => (
+            <Animated.View key={tr.id} entering={FadeInDown.duration(400).delay(i * 60)}>
+              <View style={[s.resultCard, { backgroundColor: theme.card }]}>
+                <View style={s.baRow}>
+                  <View style={s.baCol}>
+                    <View style={[s.baImgWrap, { backgroundColor: theme.cardAlt }]}>
+                      {tr.beforeImage ? <Image source={{ uri: tr.beforeImage }} style={s.baImg} /> : <Ionicons name="image-outline" size={28} color={theme.textMuted} />}
+                      <View style={[s.baTag, { backgroundColor: theme.scrim }]}><Text style={s.baTagText}>{t('discover.before')}</Text></View>
+                    </View>
+                  </View>
+                  <View style={s.baArrow}><Ionicons name="arrow-forward" size={20} color={Colors.electric} /></View>
+                  <View style={s.baCol}>
+                    <View style={[s.baImgWrap, { backgroundColor: theme.cardAlt }]}>
+                      {tr.afterImage ? <Image source={{ uri: tr.afterImage }} style={s.baImg} /> : <Ionicons name="image-outline" size={28} color={theme.textMuted} />}
+                      <View style={[s.baTag, { backgroundColor: Colors.electric }]}><Text style={[s.baTagText, { color: '#04120B' }]}>{t('discover.after')}</Text></View>
+                    </View>
                   </View>
                 </View>
-                <View style={styles.baArrow}><Ionicons name="arrow-forward" size={22} color={Colors.primary} /></View>
-                <View style={styles.baCol}>
-                  <View style={[styles.baImgWrap, { backgroundColor: theme.background }]}>
-                    {tr.afterImage ? <Image source={{ uri: tr.afterImage }} style={styles.baImg} /> : <Ionicons name="image-outline" size={28} color={theme.textMuted} />}
-                    <View style={[styles.baTag, { backgroundColor: Colors.primary }]}><Text style={styles.baTagText}>{t('discover.after')}</Text></View>
+                <View style={s.baMeta}>
+                  {!!tr.clientName && <Text style={[Type.h2, { color: theme.text, marginBottom: 6 }]}>{tr.clientName}</Text>}
+                  <View style={s.baMetaRow}>
+                    {!!tr.target && <View style={[s.baChip, { backgroundColor: Colors.electric + '18' }]}><Ionicons name="flag-outline" size={12} color={Colors.electric} /><Text style={[s.baChipText, { color: theme.textSecondary }]}>{tr.target}</Text></View>}
+                    {!!tr.duration && <View style={[s.baChip, { backgroundColor: theme.cardAlt }]}><Ionicons name="time-outline" size={12} color={Colors.electric} /><Text style={[s.baChipText, { color: theme.textSecondary }]}>{tr.duration}</Text></View>}
                   </View>
                 </View>
               </View>
-              <View style={styles.baMeta}>
-                {!!tr.clientName && <Text style={[styles.baClient, { color: theme.text }]}>{tr.clientName}</Text>}
-                <View style={styles.baMetaRow}>
-                  {!!tr.target && <View style={styles.baChip}><Ionicons name="flag-outline" size={12} color={Colors.primary} /><Text style={[styles.baChipText, { color: theme.textSecondary }]}>{tr.target}</Text></View>}
-                  {!!tr.duration && <View style={styles.baChip}><Ionicons name="time-outline" size={12} color={Colors.primary} /><Text style={[styles.baChipText, { color: theme.textSecondary }]}>{tr.duration}</Text></View>}
-                </View>
-              </View>
-            </View>
+            </Animated.View>
           ))
         ) : (<>
 
-        {!!c.bio && <Text style={[styles.bio, { color: theme.textSecondary }]}>{c.bio}</Text>}
+          {!!c.bio && (
+            <Animated.View entering={FadeInDown.duration(500).delay(80)} style={s.sectionWrap}>
+              <SectionHeader title={t('workoutTab.about')} />
+              <View style={[s.card, { backgroundColor: theme.card }]}>
+                <Text style={[Type.body, { color: theme.textSecondary }]}>{c.bio}</Text>
+              </View>
+            </Animated.View>
+          )}
 
-        {c.certifications.length > 0 && (
-          <>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('discover.certifications')}</Text>
-            <View style={[styles.certCard, { backgroundColor: theme.card }]}>
-              {c.certifications.map((cert, i) => (
-                <View key={i} style={[styles.certRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: 1 }]}>
-                  <Ionicons name="ribbon-outline" size={16} color={Colors.primary} />
-                  <Text style={[styles.certText, { color: theme.text }]}>{cert}</Text>
+          {c.certifications.length > 0 && (
+            <Animated.View entering={FadeInDown.duration(500).delay(140)} style={s.sectionWrap}>
+              <SectionHeader title={t('discover.certifications')} />
+              <View style={[s.card, { backgroundColor: theme.card }]}>
+                {c.certifications.map((cert, i) => (
+                  <View key={i} style={[s.certRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                    <Ionicons name="ribbon-outline" size={16} color={Colors.electric} />
+                    <Text style={[Type.bodyMed, { color: theme.text, flex: 1 }]}>{cert}</Text>
+                  </View>
+                ))}
+              </View>
+            </Animated.View>
+          )}
+
+          {!!c.plans?.length && (
+            <Animated.View entering={FadeInDown.duration(500).delay(200)} style={s.sectionWrap}>
+              <SectionHeader title={t('discover.plans')} />
+              {c.plans.map((p) => (
+                <View key={p.id} style={[s.planCard, { backgroundColor: theme.card }]}>
+                  <View style={s.planHead}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[Type.h2, { color: theme.text }]}>{p.name}</Text>
+                      {!!p.duration && <Text style={[Type.small, { color: theme.textMuted, marginTop: 2 }]}>{p.duration}</Text>}
+                    </View>
+                    {p.price && <Text style={s.planPrice}>{p.price.amount} {p.price.currency}</Text>}
+                  </View>
+                  {p.includes.length > 0 && (
+                    <View style={s.planIncludes}>
+                      {p.includes.map((inc, i) => (
+                        <View key={i} style={s.planIncRow}>
+                          <Ionicons name="checkmark-circle" size={14} color={Colors.electric} />
+                          <Text style={[Type.small, { color: theme.textSecondary }]}>{inc}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  <Button
+                    variant="solid"
+                    label={booked ? t('discover.interest_sent') : t('discover.interested')}
+                    onPress={() => handleInterest(p.id)}
+                    disabled={booked}
+                    style={{ marginTop: 14 }}
+                  />
                 </View>
               ))}
-            </View>
-          </>
-        )}
-
-        {!!c.plans?.length && (
-          <>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('discover.plans')}</Text>
-            {c.plans.map((p) => (
-              <View key={p.id} style={[styles.planCard, { backgroundColor: theme.card }]}>
-                <View style={styles.planHead}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.planName, { color: theme.text }]}>{p.name}</Text>
-                    {!!p.duration && <Text style={[styles.planDuration, { color: theme.textMuted }]}>{p.duration}</Text>}
-                  </View>
-                  {p.price && <Text style={[styles.planPrice, { color: Colors.primary }]}>{p.price.amount} {p.price.currency}</Text>}
-                </View>
-                {p.includes.length > 0 && (
-                  <View style={styles.planIncludes}>
-                    {p.includes.map((inc, i) => (
-                      <View key={i} style={styles.planIncRow}>
-                        <Ionicons name="checkmark-circle" size={14} color={Colors.primary} />
-                        <Text style={[styles.planIncText, { color: theme.textSecondary }]}>{inc}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-                <Pressable onPress={() => handleInterest(p.id)} disabled={booked} style={[styles.planBtn, { borderColor: Colors.primary, opacity: booked ? 0.5 : 1 }]}>
-                  <Text style={[styles.planBtnText, { color: Colors.primary }]}>{booked ? t('discover.interest_sent') : t('discover.interested')}</Text>
-                </Pressable>
-              </View>
-            ))}
-          </>
-        )}
+            </Animated.View>
+          )}
         </>
         )}
       </ScrollView>
 
-      <View style={[styles.bottomBar, { backgroundColor: theme.background, paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 12, borderTopColor: theme.border }]}>
+      <View style={[s.bottomBar, { backgroundColor: theme.background, paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 12, borderTopColor: theme.border }]}>
         {c.pricePerSession && !booked && (
-          <Text style={[styles.priceLine, { color: theme.textSecondary }]}>
-            <Text style={{ color: Colors.primary, fontFamily: 'Rubik_700Bold' }}>{c.pricePerSession.amount} {c.pricePerSession.currency}</Text> {t('discover.per_session')}
+          <Text style={[s.priceLine, { color: theme.textSecondary }]}>
+            <Text style={{ color: Colors.electric, fontFamily: Fonts.monoBold }}>{c.pricePerSession.amount} {c.pricePerSession.currency}</Text> {t('discover.per_session')}
           </Text>
         )}
-        <Pressable onPress={() => handleInterest()} style={styles.bookBtn} disabled={booked}>
-          <LinearGradient colors={booked ? ['#3a3a44', '#2a2a32'] : [Colors.primary, Colors.primaryDark]} style={styles.bookGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-            <Ionicons name={booked ? 'checkmark' : 'calendar-outline'} size={20} color="#fff" style={{ marginRight: 8 }} />
-            <Text style={styles.bookText}>{booked ? t('discover.interest_sent') : t('discover.book')}</Text>
-          </LinearGradient>
-        </Pressable>
+        <Button
+          variant="solid"
+          icon={booked ? 'checkmark' : 'calendar-outline'}
+          label={booked ? t('discover.interest_sent') : t('discover.book')}
+          onPress={() => handleInterest()}
+          disabled={booked}
+          style={{ width: '100%' }}
+        />
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12 },
-  backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontFamily: 'Rubik_600SemiBold' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8, gap: 4 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingHorizontal: 20 },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: 16, fontFamily: 'Rubik_400Regular' },
-  cover: { width: '100%', height: 130, borderRadius: 16, marginBottom: -32 },
-  heroSection: { alignItems: 'center', paddingTop: 8, paddingBottom: 16 },
-  avatarCircle: { width: 84, height: 84, borderRadius: 42, justifyContent: 'center', alignItems: 'center', marginBottom: 14, borderWidth: 3, borderColor: '#0A0A0F' },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  name: { fontSize: 22, fontFamily: 'Rubik_700Bold', textAlign: 'center' },
-  tabBar: { flexDirection: 'row', borderRadius: 12, padding: 4, gap: 4, marginBottom: 16 },
-  tabBtn: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 9 },
-  tabBtnText: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
-  resultCard: { borderRadius: 16, padding: 14, marginBottom: 12 },
+  heroBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  verifyPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.electric, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  verifyText: { fontFamily: Fonts.bold, fontSize: 11, color: '#04120B' },
+  glassPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  glassText: { fontFamily: Fonts.semibold, fontSize: 12, color: '#E6F5EE' },
+  statsRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
+  contactRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  tabRow: { flexDirection: 'row', gap: 8, marginTop: 20, marginBottom: 16 },
+  sectionWrap: { marginTop: 24 },
+  card: { borderRadius: 16, padding: 16 },
+  certRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
+  resultCard: { borderRadius: 20, padding: 14, marginBottom: 12 },
   baRow: { flexDirection: 'row', alignItems: 'center' },
   baCol: { flex: 1 },
-  baImgWrap: { aspectRatio: 3 / 4, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  baImgWrap: { aspectRatio: 3 / 4, borderRadius: 14, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   baImg: { width: '100%', height: '100%' },
   baTag: { position: 'absolute', bottom: 6, left: 6, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  baTagText: { color: '#fff', fontSize: 10, fontFamily: 'Rubik_600SemiBold' },
+  baTagText: { color: '#fff', fontSize: 10, fontFamily: Fonts.semibold },
   baArrow: { width: 36, alignItems: 'center' },
-  baMeta: { marginTop: 10 },
-  baClient: { fontSize: 14, fontFamily: 'Rubik_600SemiBold', marginBottom: 6 },
+  baMeta: { marginTop: 12 },
   baMetaRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  baChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#00C89614', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  baChipText: { fontSize: 12, fontFamily: 'Rubik_500Medium' },
-  contactRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  contactBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 },
-  contactText: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
-  planCard: { borderRadius: 14, padding: 16, marginBottom: 10 },
-  planHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  planName: { fontSize: 16, fontFamily: 'Rubik_600SemiBold' },
-  planDuration: { fontSize: 12, fontFamily: 'Rubik_400Regular', marginTop: 2 },
-  planPrice: { fontSize: 16, fontFamily: 'Rubik_700Bold' },
-  planIncludes: { gap: 6, marginTop: 12 },
+  baChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  baChipText: { fontSize: 12, fontFamily: Fonts.medium },
+  planCard: { borderRadius: 18, padding: 16, marginBottom: 10 },
+  planHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+  planPrice: { fontSize: 17, fontFamily: Fonts.monoBold, color: Colors.electric },
+  planIncludes: { gap: 8, marginTop: 12 },
   planIncRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  planIncText: { fontSize: 13, fontFamily: 'Rubik_400Regular' },
-  planBtn: { marginTop: 14, borderWidth: 1.5, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  planBtnText: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
-  headline: { fontSize: 14, fontFamily: 'Rubik_400Regular', marginTop: 4, textAlign: 'center' },
-  gymRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
-  gymName: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaText: { fontSize: 13, fontFamily: 'Rubik_500Medium' },
-  metaDot: { width: 4, height: 4, borderRadius: 2 },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12, justifyContent: 'center' },
-  tag: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
-  tagText: { fontSize: 12, fontFamily: 'Rubik_600SemiBold' },
-  bio: { fontSize: 14, fontFamily: 'Rubik_400Regular', lineHeight: 22, marginBottom: 16 },
-  sectionTitle: { fontSize: 18, fontFamily: 'Rubik_700Bold', marginBottom: 12 },
-  certCard: { borderRadius: 14, paddingHorizontal: 16 },
-  certRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
-  certText: { fontSize: 14, fontFamily: 'Rubik_500Medium', flex: 1 },
-  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1, gap: 8 },
-  priceLine: { fontSize: 13, fontFamily: 'Rubik_400Regular', textAlign: 'center' },
-  bookBtn: { borderRadius: 14, overflow: 'hidden' },
-  bookGradient: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 16 },
-  bookText: { color: '#fff', fontSize: 17, fontFamily: 'Rubik_700Bold' },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, gap: 10 },
+  priceLine: { fontSize: 13, fontFamily: Fonts.regular, textAlign: 'center' },
 });
