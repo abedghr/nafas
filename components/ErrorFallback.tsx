@@ -12,24 +12,29 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import Colors from "@/constants/colors";
+import { Fonts } from "@/constants/typography";
 
 export type ErrorFallbackProps = {
   error: Error;
   resetError: () => void;
 };
 
+// Note: this fallback renders OUTSIDE AppProvider (ErrorBoundary is the outermost
+// provider), so it must not use useApp() or any kit component that depends on it.
+// It mirrors the EmptyState visual language with static tokens only.
 export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const insets = useSafeAreaInsets();
 
   const theme = {
-    background: isDark ? "#000000" : "#FFFFFF",
-    backgroundSecondary: isDark ? "#1C1C1E" : "#F2F2F7",
-    text: isDark ? "#FFFFFF" : "#000000",
-    textSecondary: isDark ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)",
-    link: "#007AFF",
-    buttonText: "#FFFFFF",
+    background: isDark ? Colors.dark.background : Colors.light.background,
+    backgroundSecondary: isDark ? Colors.dark.card : Colors.light.cardAlt,
+    text: isDark ? Colors.dark.text : Colors.light.text,
+    textSecondary: isDark ? Colors.dark.textSecondary : Colors.light.textSecondary,
+    link: Colors.electric,
+    buttonText: "#04120B",
   };
 
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -78,6 +83,10 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
       ) : null}
 
       <View style={styles.content}>
+        <View style={[styles.iconCircle, { backgroundColor: Colors.electric + "18" }]}>
+          <Feather name="alert-triangle" size={28} color={Colors.electric} />
+        </View>
+
         <Text style={[styles.title, { color: theme.text }]}>
           Something went wrong
         </Text>
@@ -195,14 +204,23 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 600,
   },
+  iconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
   title: {
     fontSize: 28,
-    fontWeight: "700",
+    fontFamily: Fonts.bold,
     textAlign: "center",
     lineHeight: 40,
   },
   message: {
     fontSize: 16,
+    fontFamily: Fonts.regular,
     textAlign: "center",
     lineHeight: 24,
   },
@@ -219,7 +237,7 @@ const styles = StyleSheet.create({
   },
   button: {
     paddingVertical: 16,
-    borderRadius: 8,
+    borderRadius: 999,
     paddingHorizontal: 24,
     minWidth: 200,
     shadowColor: "#000",
@@ -232,7 +250,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   buttonText: {
-    fontWeight: "600",
+    fontFamily: Fonts.bold,
     textAlign: "center",
     fontSize: 16,
   },
@@ -258,7 +276,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: "600",
+    fontFamily: Fonts.semibold,
   },
   closeButton: {
     width: 44,

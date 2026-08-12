@@ -9,6 +9,8 @@ import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
+import { Fonts, Type } from '@/constants/typography';
+import { StatTile, SectionHeader, Button } from '@/components/ui';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -97,12 +99,7 @@ function InBodyModal({ visible, onClose, onSave }: { visible: boolean; onClose: 
                 />
               </View>
             ))}
-            <Pressable onPress={handleSave} style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1 }]}>
-              <LinearGradient colors={[Colors.primary, Colors.primaryDark]} style={s.saveBtn}>
-                <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                <Text style={s.saveBtnText}>{t('workoutTab.saveTestResults')}</Text>
-              </LinearGradient>
-            </Pressable>
+            <Button variant="solid" label={t('workoutTab.saveTestResults')} icon="checkmark-circle" onPress={handleSave} style={{ marginTop: 8 }} />
           </ScrollView>
         </View>
       </View>
@@ -134,14 +131,14 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight }: 
   const test1yr = findTestAround(12);
 
   const metrics: { key: string; label: string; icon: string; color: string; unit: string; higherIsBetter: boolean }[] = [
-    { key: 'weight', label: t('workoutTab.metricWeight'), icon: 'scale-outline', color: Colors.primary, unit: 'kg', higherIsBetter: false },
-    { key: 'bodyFat', label: t('workoutTab.metricBodyFat'), icon: 'pie-chart-outline', color: '#FF6B35', unit: '%', higherIsBetter: false },
-    { key: 'muscleMass', label: t('workoutTab.metricMuscleMass'), icon: 'barbell-outline', color: '#4ECDC4', unit: 'kg', higherIsBetter: true },
-    { key: 'bmi', label: t('workoutTab.metricBmi'), icon: 'analytics-outline', color: '#FFD93D', unit: '', higherIsBetter: false },
-    { key: 'bodyWater', label: t('workoutTab.metricBodyWater'), icon: 'water-outline', color: '#48CAE4', unit: '%', higherIsBetter: true },
-    { key: 'bmr', label: t('workoutTab.metricBmr'), icon: 'flame-outline', color: '#E07A5F', unit: 'kcal', higherIsBetter: true },
-    { key: 'visceralFat', label: t('workoutTab.metricVisceralFat'), icon: 'heart-outline', color: '#FF4458', unit: '', higherIsBetter: false },
-    { key: 'skeletalMuscle', label: t('workoutTab.metricSkeletalMuscle'), icon: 'body-outline', color: Colors.primary, unit: '%', higherIsBetter: true },
+    { key: 'weight', label: t('workoutTab.metricWeight'), icon: 'scale-outline', color: Colors.electric, unit: 'kg', higherIsBetter: false },
+    { key: 'bodyFat', label: t('workoutTab.metricBodyFat'), icon: 'pie-chart-outline', color: Colors.accent, unit: '%', higherIsBetter: false },
+    { key: 'muscleMass', label: t('workoutTab.metricMuscleMass'), icon: 'barbell-outline', color: Colors.ring.blue, unit: 'kg', higherIsBetter: true },
+    { key: 'bmi', label: t('workoutTab.metricBmi'), icon: 'analytics-outline', color: Colors.ring.amber, unit: '', higherIsBetter: false },
+    { key: 'bodyWater', label: t('workoutTab.metricBodyWater'), icon: 'water-outline', color: Colors.ring.blue, unit: '%', higherIsBetter: true },
+    { key: 'bmr', label: t('workoutTab.metricBmr'), icon: 'flame-outline', color: Colors.accent, unit: 'kcal', higherIsBetter: true },
+    { key: 'visceralFat', label: t('workoutTab.metricVisceralFat'), icon: 'heart-outline', color: Colors.semantic.danger, unit: '', higherIsBetter: false },
+    { key: 'skeletalMuscle', label: t('workoutTab.metricSkeletalMuscle'), icon: 'body-outline', color: Colors.electric, unit: '%', higherIsBetter: true },
   ];
 
   const getComparisonData = (metricKey: string, higherIsBetter: boolean) => {
@@ -223,20 +220,12 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight }: 
             {inBodyTests.length > 0 ? t('workoutTab.testsRecorded', { n: inBodyTests.length }) : t('workoutTab.trackBodyComposition')}
           </Text>
         </View>
-        <Pressable
-          onPress={onAddTest}
-          style={({ pressed }) => [s.addTestBtn, { opacity: pressed ? 0.8 : 1 }]}
-        >
-          <LinearGradient colors={[Colors.primary, Colors.primaryDark]} style={s.addTestBtnGrad}>
-            <Ionicons name="add" size={18} color="#fff" />
-            <Text style={s.addTestBtnText}>{t('workoutTab.addTest')}</Text>
-          </LinearGradient>
-        </Pressable>
+        <Button variant="solid" label={t('workoutTab.addTest')} icon="add" onPress={onAddTest} style={s.addTestBtn} />
       </View>
 
       {latestInBody ? (
         <View>
-          <Text style={[s.sectionTitle, { color: theme.text }]}>{t('workoutTab.latestResults')}</Text>
+          <View style={s.sectionHead}><SectionHeader title={t('workoutTab.latestResults')} /></View>
           <View style={s.inbodyGrid}>
             {metrics.map((item, i) => {
               let val = latestInBody[item.key];
@@ -245,33 +234,36 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight }: 
               const comp = getComparisonData(item.key, item.higherIsBetter);
               return (
                 <Animated.View key={item.label} entering={FadeInDown.duration(300).delay(i * 50)} style={s.inbodyStatWrap}>
-                  <View style={[s.inbodyStat, { backgroundColor: theme.card }]}>
-                    <View style={[s.inbodyStatIcon, { backgroundColor: item.color + '15' }]}>
-                      <Ionicons name={item.icon as any} size={18} color={item.color} />
-                    </View>
-                    <Text style={[s.inbodyStatValue, { color: has ? theme.text : theme.textMuted }]}>
-                      {has ? `${val}${item.unit && item.key !== 'bmr' ? item.unit : ''}` : '—'}
-                    </Text>
-                    <Text style={[s.inbodyStatLabel, { color: theme.textMuted }]}>{item.label}</Text>
-                    {comp && !comp.unchanged && (
-                      <View style={[s.deltaRow, { backgroundColor: comp.improved ? '#00C89615' : '#FF445815' }]}>
-                        <Ionicons
-                          name={comp.improved ? 'arrow-up' : 'arrow-down'}
-                          size={10}
-                          color={comp.improved ? '#00C896' : '#FF4458'}
-                        />
-                        <Text style={[s.deltaText, { color: comp.improved ? '#00C896' : '#FF4458' }]}>
-                          {Math.abs(comp.diff)}{item.unit}
+                  <StatTile
+                    icon={item.icon as any}
+                    color={item.color}
+                    label={item.label}
+                    value={
+                      <View style={{ gap: 4 }}>
+                        <Text style={[Type.statSm, { color: has ? theme.text : theme.textMuted }]}>
+                          {has ? `${val}${item.unit && item.key !== 'bmr' ? item.unit : ''}` : '—'}
                         </Text>
+                        {comp && !comp.unchanged && (
+                          <View style={[s.deltaRow, { backgroundColor: (comp.improved ? Colors.electric : Colors.semantic.danger) + '15' }]}>
+                            <Ionicons
+                              name={comp.improved ? 'arrow-up' : 'arrow-down'}
+                              size={10}
+                              color={comp.improved ? Colors.electric : Colors.semantic.danger}
+                            />
+                            <Text style={[s.deltaText, { color: comp.improved ? Colors.electric : Colors.semantic.danger }]}>
+                              {Math.abs(comp.diff)}{item.unit}
+                            </Text>
+                          </View>
+                        )}
+                        {comp && comp.unchanged && (
+                          <View style={[s.deltaRow, { backgroundColor: Colors.ring.amber + '15' }]}>
+                            <Ionicons name="remove" size={10} color={Colors.ring.amber} />
+                            <Text style={[s.deltaText, { color: Colors.ring.amber }]}>{t('workoutTab.noChange')}</Text>
+                          </View>
+                        )}
                       </View>
-                    )}
-                    {comp && comp.unchanged && (
-                      <View style={[s.deltaRow, { backgroundColor: '#FFD93D15' }]}>
-                        <Ionicons name="remove" size={10} color="#FFD93D" />
-                        <Text style={[s.deltaText, { color: '#FFD93D' }]}>{t('workoutTab.noChange')}</Text>
-                      </View>
-                    )}
-                  </View>
+                    }
+                  />
                 </Animated.View>
               );
             })}
@@ -280,7 +272,7 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight }: 
 
           {trendInsights.length > 0 && (
             <View>
-              <Text style={[s.sectionTitle, { color: theme.text }]}>{t('workoutTab.aiInsights')}</Text>
+              <View style={s.sectionHead}><SectionHeader title={t('workoutTab.aiInsights')} /></View>
               {trendInsights.map((insight, i) => (
                 <Animated.View key={i} entering={FadeInDown.duration(350).delay(i * 70)}>
                   <View style={[s.insightCard, { backgroundColor: theme.card }]}>
@@ -298,7 +290,7 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight }: 
 
           {inBodyTests.length > 1 && (
             <View>
-              <Text style={[s.sectionTitle, { color: theme.text }]}>{t('workoutTab.testHistory')}</Text>
+              <View style={s.sectionHead}><SectionHeader title={t('workoutTab.testHistory')} /></View>
               {inBodyTests.slice(0, 8).map((test: any, i: number) => {
                 const isLatest = i === 0;
                 const prevTest = i < inBodyTests.length - 1 ? inBodyTests[i + 1] : null;
@@ -307,13 +299,13 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight }: 
                 const muscleDelta = prevTest ? calcDelta(test.muscleMass, prevTest.muscleMass) : null;
                 return (
                   <Animated.View key={test.id} entering={FadeInRight.duration(300).delay(i * 60)}>
-                    <View style={[s.historyCard, { backgroundColor: theme.card, borderColor: isLatest ? Colors.primary + '40' : 'transparent', borderWidth: isLatest ? 1 : 0 }]}>
+                    <View style={[s.historyCard, { backgroundColor: theme.card, borderColor: isLatest ? Colors.electric + '40' : 'transparent', borderWidth: isLatest ? 1 : 0 }]}>
                       <View style={s.historyCardHeader}>
                         <View style={s.historyDateRow}>
                           <Text style={[s.inbodyHistDate, { color: theme.text }]}>{test.date}</Text>
                           {isLatest && (
-                            <View style={[s.latestBadge, { backgroundColor: Colors.primary + '20' }]}>
-                              <Text style={[s.latestBadgeText, { color: Colors.primary }]}>{t('workoutTab.latest')}</Text>
+                            <View style={[s.latestBadge, { backgroundColor: Colors.electric + '20' }]}>
+                              <Text style={[s.latestBadgeText, { color: Colors.electric }]}>{t('workoutTab.latest')}</Text>
                             </View>
                           )}
                         </View>
@@ -324,26 +316,26 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight }: 
                           <Text style={[s.historyMetricVal, { color: theme.text }]}>{test.weight}kg</Text>
                           {weightDelta && weightDelta.diff !== 0 && (
                             <View style={s.historyDeltaRow}>
-                              <Ionicons name={weightDelta.diff < 0 ? 'caret-down' : 'caret-up'} size={10} color={weightDelta.diff < 0 ? '#00C896' : '#FF4458'} />
-                              <Text style={{ fontSize: 10, fontFamily: 'Rubik_500Medium', color: weightDelta.diff < 0 ? '#00C896' : '#FF4458' }}>{Math.abs(weightDelta.diff)}</Text>
+                              <Ionicons name={weightDelta.diff < 0 ? 'caret-down' : 'caret-up'} size={10} color={weightDelta.diff < 0 ? Colors.electric : Colors.semantic.danger} />
+                              <Text style={{ fontSize: 10, fontFamily: Fonts.monoBold, color: weightDelta.diff < 0 ? Colors.electric : Colors.semantic.danger }}>{Math.abs(weightDelta.diff)}</Text>
                             </View>
                           )}
                         </View>
                         <View style={s.historyMetric}>
-                          <Text style={[s.historyMetricVal, { color: '#FF6B35' }]}>{test.bodyFat}%</Text>
+                          <Text style={[s.historyMetricVal, { color: Colors.accent }]}>{test.bodyFat}%</Text>
                           {fatDelta && fatDelta.diff !== 0 && (
                             <View style={s.historyDeltaRow}>
-                              <Ionicons name={fatDelta.diff < 0 ? 'caret-down' : 'caret-up'} size={10} color={fatDelta.diff < 0 ? '#00C896' : '#FF4458'} />
-                              <Text style={{ fontSize: 10, fontFamily: 'Rubik_500Medium', color: fatDelta.diff < 0 ? '#00C896' : '#FF4458' }}>{Math.abs(fatDelta.diff)}%</Text>
+                              <Ionicons name={fatDelta.diff < 0 ? 'caret-down' : 'caret-up'} size={10} color={fatDelta.diff < 0 ? Colors.electric : Colors.semantic.danger} />
+                              <Text style={{ fontSize: 10, fontFamily: Fonts.monoBold, color: fatDelta.diff < 0 ? Colors.electric : Colors.semantic.danger }}>{Math.abs(fatDelta.diff)}%</Text>
                             </View>
                           )}
                         </View>
                         <View style={s.historyMetric}>
-                          <Text style={[s.historyMetricVal, { color: '#4ECDC4' }]}>{test.muscleMass}kg</Text>
+                          <Text style={[s.historyMetricVal, { color: Colors.ring.blue }]}>{test.muscleMass}kg</Text>
                           {muscleDelta && muscleDelta.diff !== 0 && (
                             <View style={s.historyDeltaRow}>
-                              <Ionicons name={muscleDelta.diff > 0 ? 'caret-up' : 'caret-down'} size={10} color={muscleDelta.diff > 0 ? '#00C896' : '#FF4458'} />
-                              <Text style={{ fontSize: 10, fontFamily: 'Rubik_500Medium', color: muscleDelta.diff > 0 ? '#00C896' : '#FF4458' }}>{Math.abs(muscleDelta.diff)}</Text>
+                              <Ionicons name={muscleDelta.diff > 0 ? 'caret-up' : 'caret-down'} size={10} color={muscleDelta.diff > 0 ? Colors.electric : Colors.semantic.danger} />
+                              <Text style={{ fontSize: 10, fontFamily: Fonts.monoBold, color: muscleDelta.diff > 0 ? Colors.electric : Colors.semantic.danger }}>{Math.abs(muscleDelta.diff)}</Text>
                             </View>
                           )}
                         </View>
@@ -361,30 +353,30 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight }: 
                 const mDelta = calcDelta(latestInBody.muscleMass, oldest.muscleMass);
                 return (
                   <Animated.View entering={FadeInDown.duration(400).delay(200)}>
-                    <LinearGradient colors={[Colors.primary + '15', '#48CAE415']} style={s.totalProgressCard}>
+                    <LinearGradient colors={[Colors.electric + '15', Colors.ring.blue + '15']} style={s.totalProgressCard}>
                       <View style={s.totalProgressHeader}>
-                        <Ionicons name="analytics" size={20} color={Colors.primary} />
+                        <Ionicons name="analytics" size={20} color={Colors.electric} />
                         <Text style={[s.totalProgressTitle, { color: theme.text }]}>{t('workoutTab.totalJourney')}</Text>
                         <Text style={[s.totalProgressSub, { color: theme.textMuted }]}>{t('workoutTab.since', { date: oldest.date })}</Text>
                       </View>
                       <View style={s.totalProgressRow}>
                         <View style={s.totalProgressItem}>
                           <Text style={[s.totalProgressLabel, { color: theme.textMuted }]}>{t('workoutTab.metricWeight')}</Text>
-                          <Text style={[s.totalProgressValue, { color: wDelta.diff <= 0 ? '#00C896' : '#FF6B35' }]}>
+                          <Text style={[s.totalProgressValue, { color: wDelta.diff <= 0 ? Colors.electric : Colors.accent }]}>
                             {wDelta.diff > 0 ? '+' : ''}{wDelta.diff}kg
                           </Text>
                         </View>
                         <View style={[s.totalProgressDivider, { backgroundColor: theme.border }]} />
                         <View style={s.totalProgressItem}>
                           <Text style={[s.totalProgressLabel, { color: theme.textMuted }]}>{t('workoutTab.metricBodyFat')}</Text>
-                          <Text style={[s.totalProgressValue, { color: fDelta.diff <= 0 ? '#00C896' : '#FF4458' }]}>
+                          <Text style={[s.totalProgressValue, { color: fDelta.diff <= 0 ? Colors.electric : Colors.semantic.danger }]}>
                             {fDelta.diff > 0 ? '+' : ''}{fDelta.diff}%
                           </Text>
                         </View>
                         <View style={[s.totalProgressDivider, { backgroundColor: theme.border }]} />
                         <View style={s.totalProgressItem}>
                           <Text style={[s.totalProgressLabel, { color: theme.textMuted }]}>{t('workoutTab.muscleShort')}</Text>
-                          <Text style={[s.totalProgressValue, { color: mDelta.diff >= 0 ? '#00C896' : '#FF4458' }]}>
+                          <Text style={[s.totalProgressValue, { color: mDelta.diff >= 0 ? Colors.electric : Colors.semantic.danger }]}>
                             {mDelta.diff > 0 ? '+' : ''}{mDelta.diff}kg
                           </Text>
                         </View>
@@ -401,15 +393,7 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight }: 
           <Ionicons name="body-outline" size={48} color={theme.textMuted} />
           <Text style={[s.emptyTitle, { color: theme.textMuted }]}>{t('workoutTab.noInbodyTests')}</Text>
           <Text style={[s.emptySub, { color: theme.textMuted }]}>{t('workoutTab.noInbodyTestsSub')}</Text>
-          <Pressable
-            onPress={onAddTest}
-            style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1, marginTop: 12 }]}
-          >
-            <LinearGradient colors={[Colors.primary, Colors.primaryDark]} style={s.emptyBtn}>
-              <Ionicons name="add-circle-outline" size={18} color="#fff" />
-              <Text style={s.emptyBtnText}>{t('workoutTab.addFirstTest')}</Text>
-            </LinearGradient>
-          </Pressable>
+          <Button variant="solid" label={t('workoutTab.addFirstTest')} icon="add-circle-outline" onPress={onAddTest} style={{ marginTop: 12 }} />
         </View>
       )}
     </View>
@@ -444,46 +428,35 @@ export default function InBodySection() {
 }
 
 const s = StyleSheet.create({
-  sectionTitle: { fontSize: 17, fontFamily: 'Rubik_600SemiBold', paddingHorizontal: 20, marginTop: 24, marginBottom: 12 },
+  sectionHead: { paddingHorizontal: 20, marginTop: 24 },
   emptyCard: {
     marginHorizontal: 20, borderRadius: 16, padding: 32, alignItems: 'center', gap: 8,
   },
-  emptyTitle: { fontSize: 16, fontFamily: 'Rubik_600SemiBold' },
-  emptySub: { fontSize: 13, fontFamily: 'Rubik_400Regular', textAlign: 'center', lineHeight: 19 },
-  emptyBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20,
-    paddingVertical: 12, borderRadius: 12,
-  },
-  emptyBtnText: { color: '#fff', fontSize: 14, fontFamily: 'Rubik_600SemiBold' },
+  emptyTitle: { fontSize: 16, fontFamily: Fonts.semibold },
+  emptySub: { fontSize: 13, fontFamily: Fonts.regular, textAlign: 'center', lineHeight: 19 },
   insightsIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  insightsTitle: { fontSize: 17, fontFamily: 'Rubik_600SemiBold' },
-  insightsSub: { fontSize: 12, fontFamily: 'Rubik_400Regular', marginTop: 2 },
+  insightsTitle: { fontSize: 17, fontFamily: Fonts.semibold },
+  insightsSub: { fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 },
   insightCard: {
     marginHorizontal: 20, marginBottom: 10, borderRadius: 14, padding: 14,
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
   },
   insightIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
-  insightText: { fontSize: 13, fontFamily: 'Rubik_400Regular', lineHeight: 19 },
+  insightText: { fontSize: 13, fontFamily: Fonts.regular, lineHeight: 19 },
   inbodyHeader: {
     marginHorizontal: 20, borderRadius: 16, padding: 16,
     flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 4,
   },
-  addTestBtn: {},
-  addTestBtnGrad: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
-  addTestBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
+  addTestBtn: { height: 40, paddingHorizontal: 14 },
   inbodyGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, gap: 10 },
   inbodyStatWrap: { width: (SW - 50) / 2 },
-  inbodyStat: { borderRadius: 14, padding: 14, alignItems: 'center', gap: 4 },
-  inbodyStatIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  inbodyStatValue: { fontSize: 20, fontFamily: 'Rubik_700Bold' },
-  inbodyStatLabel: { fontSize: 11, fontFamily: 'Rubik_500Medium' },
-  inbodyDate: { fontSize: 12, fontFamily: 'Rubik_400Regular', textAlign: 'center', marginTop: 8, paddingHorizontal: 20 },
-  inbodyHistDate: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
+  inbodyDate: { fontSize: 12, fontFamily: Fonts.regular, textAlign: 'center', marginTop: 8, paddingHorizontal: 20 },
+  inbodyHistDate: { fontSize: 13, fontFamily: Fonts.semibold },
   deltaRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
+    flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start',
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginTop: 4,
   },
-  deltaText: { fontSize: 10, fontFamily: 'Rubik_600SemiBold' },
+  deltaText: { fontSize: 10, fontFamily: Fonts.monoBold },
   historyCard: {
     marginHorizontal: 20, marginBottom: 10, borderRadius: 16, padding: 14,
   },
@@ -492,11 +465,11 @@ const s = StyleSheet.create({
   },
   historyDateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   latestBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  latestBadgeText: { fontSize: 10, fontFamily: 'Rubik_600SemiBold' },
-  historyTimeAgo: { fontSize: 11, fontFamily: 'Rubik_400Regular' },
+  latestBadgeText: { fontSize: 10, fontFamily: Fonts.semibold },
+  historyTimeAgo: { fontSize: 11, fontFamily: Fonts.regular },
   historyMetrics: { flexDirection: 'row', justifyContent: 'space-around' },
   historyMetric: { alignItems: 'center', gap: 2 },
-  historyMetricVal: { fontSize: 14, fontFamily: 'Rubik_600SemiBold' },
+  historyMetricVal: { fontSize: 14, fontFamily: Fonts.monoBold },
   historyDeltaRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   totalProgressCard: {
     marginHorizontal: 20, marginTop: 16, borderRadius: 16, padding: 16,
@@ -504,27 +477,22 @@ const s = StyleSheet.create({
   totalProgressHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14,
   },
-  totalProgressTitle: { fontSize: 15, fontFamily: 'Rubik_600SemiBold' },
-  totalProgressSub: { fontSize: 11, fontFamily: 'Rubik_400Regular' },
+  totalProgressTitle: { fontSize: 15, fontFamily: Fonts.semibold },
+  totalProgressSub: { fontSize: 11, fontFamily: Fonts.regular },
   totalProgressRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
   totalProgressItem: { alignItems: 'center', gap: 4 },
-  totalProgressLabel: { fontSize: 11, fontFamily: 'Rubik_400Regular' },
-  totalProgressValue: { fontSize: 20, fontFamily: 'Rubik_700Bold' },
+  totalProgressLabel: { fontSize: 11, fontFamily: Fonts.regular },
+  totalProgressValue: { fontSize: 20, fontFamily: Fonts.monoBold },
   totalProgressDivider: { width: 1, height: 32 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 8, maxHeight: '85%' },
   modalHandle: { alignItems: 'center', paddingVertical: 8 },
   handleBar: { width: 40, height: 4, borderRadius: 2 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontFamily: 'Rubik_700Bold' },
-  fieldLabel: { fontSize: 13, fontFamily: 'Rubik_500Medium', marginBottom: 6 },
+  modalTitle: { fontSize: 20, fontFamily: Fonts.bold },
+  fieldLabel: { fontSize: 13, fontFamily: Fonts.medium, marginBottom: 6 },
   fieldInput: {
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 16, fontFamily: 'Rubik_500Medium', borderWidth: 1,
+    fontSize: 16, fontFamily: Fonts.medium, borderWidth: 1,
   },
-  saveBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 14, borderRadius: 14, marginTop: 8,
-  },
-  saveBtnText: { color: '#fff', fontSize: 16, fontFamily: 'Rubik_600SemiBold' },
 });

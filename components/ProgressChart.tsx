@@ -43,12 +43,12 @@ export default function ProgressChart({ points, theme, toDisplay }: {
             <SvgText x={PAD.left - 6} y={y(w) + 3.5} fill={theme.textMuted} fontSize={10} textAnchor="end">{Math.round(toDisplay ? toDisplay(w) : w)}</SvgText>
           </React.Fragment>
         ))}
-        {points.length > 1 && <Polygon points={fill} fill={Colors.primary} opacity={0.08} />}
-        {points.length > 1 && <Polyline points={coords} fill="none" stroke={Colors.primary} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />}
+        {points.length > 1 && <Polygon points={fill} fill={Colors.electric} opacity={0.1} />}
+        {points.length > 1 && <Polyline points={coords} fill="none" stroke={Colors.electric} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />}
         {points.map((p, i) => (
           <Circle key={i} cx={x(i)} cy={y(p.weight)} r={i === points.length - 1 ? 5 : 3.5}
-            fill={i === points.length - 1 ? Colors.primary : theme.background}
-            stroke={Colors.primary} strokeWidth={2} />
+            fill={i === points.length - 1 ? Colors.electric : theme.background}
+            stroke={Colors.electric} strokeWidth={2} />
         ))}
         <SvgText x={x(0)} y={H - 6} fill={theme.textMuted} fontSize={10} textAnchor="start">{fmt(points[0].date)}</SvgText>
         {points.length > 1 && (

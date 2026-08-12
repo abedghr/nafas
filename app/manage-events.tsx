@@ -5,9 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
+import { Fonts } from '@/constants/typography';
+import { Display, Button, StatTile, Chip, EmptyState } from '@/components/ui';
 import DateTimeField from '@/components/DateTimeField';
 import { eventsApi, type ApiEvent } from '@/src/features/events/api';
 import { gymsApi, type ManagedGym } from '@/src/features/gyms/api';
@@ -15,6 +18,9 @@ import { gymsApi, type ManagedGym } from '@/src/features/gyms/api';
 const TYPES = ['tournament', 'event', 'challenge'] as const;
 type TierDraft = { label: string; amount: string };
 type Draft = { id?: string; name: string; type: string; gymId: string | null; venue: string; startsAt: string; endsAt: string; capacity: string; description: string; isFree: boolean; currency: string; tiers: TierDraft[] };
+
+const typeIcon = (type: string): keyof typeof Ionicons.glyphMap =>
+  type === 'tournament' ? 'trophy-outline' : type === 'challenge' ? 'flame-outline' : 'calendar-outline';
 
 export default function ManageEventsScreen() {
   const { t } = useTranslation();
@@ -48,33 +54,62 @@ export default function ManageEventsScreen() {
   };
   const remove = async (id: string) => { await eventsApi.remove(id).catch(() => {}); load(); };
 
+  const tournaments = items.filter((e) => e.type === 'tournament').length;
+  const events = items.filter((e) => e.type === 'event').length;
+  const challenges = items.filter((e) => e.type === 'challenge').length;
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 8 }]}>
-        <Pressable onPress={back} style={styles.backBtn}><Ionicons name="chevron-back" size={24} color={theme.text} /></Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>{t('discover.manage_events')}</Text>
-        <Pressable onPress={openNew} style={styles.backBtn}><Ionicons name="add" size={26} color={Colors.primary} /></Pressable>
+        <Button variant="icon" icon="chevron-back" onPress={back} />
+        <Display variant="d3" color={theme.text} style={styles.headerTitle}>{t('discover.manage_events')}</Display>
+        <Button variant="icon" icon="add" onPress={openNew} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.list}>
-        {items.length === 0 && <Text style={[styles.empty, { color: theme.textMuted }]}>{t('discover.no_managed_events')}</Text>}
-        {items.map((e) => (
-          <View key={e.id} style={[styles.card, { backgroundColor: theme.card }]}>
-            <Pressable onPress={() => router.push(`/event-profile/${e.id}` as any)} style={{ flex: 1 }}>
-              <Text style={[styles.name, { color: theme.text }]}>{e.name}</Text>
-              <Text style={[styles.sub, { color: theme.textMuted }]}>{t(`discover.event_type_${e.type}`)}{e.gymName ? ` · ${e.gymName}` : ''}</Text>
-            </Pressable>
-            <Pressable onPress={() => openEdit(e)} style={styles.actionBtn}><Ionicons name="pencil" size={16} color={theme.textSecondary} /></Pressable>
-            <Pressable onPress={() => remove(e.id)} style={styles.actionBtn}><Ionicons name="trash-outline" size={16} color={Colors.accent} /></Pressable>
-          </View>
-        ))}
+      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+        {items.length === 0 ? (
+          <Animated.View entering={FadeInDown.delay(100).duration(500)}>
+            <EmptyState icon="trophy-outline" title={t('discover.no_managed_events')} actionLabel={t('discover.add_event')} onAction={openNew} />
+          </Animated.View>
+        ) : (
+          <>
+            <Animated.View entering={FadeInDown.delay(80).duration(500)} style={styles.statsRow}>
+              <StatTile icon="trophy-outline" value={tournaments} label={t('discover.event_type_tournament')} />
+              <StatTile icon="calendar-outline" value={events} label={t('discover.event_type_event')} color={Colors.semantic.info} />
+              <StatTile icon="flame-outline" value={challenges} label={t('discover.event_type_challenge')} color={Colors.accent} />
+            </Animated.View>
+
+            {items.map((e, i) => (
+              <Animated.View key={e.id} entering={FadeInDown.delay(120 + i * 70).duration(500)}>
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                  <Pressable onPress={() => router.push(`/event-profile/${e.id}` as any)} style={styles.cardMain}>
+                    <View style={[styles.eventIcon, { backgroundColor: Colors.electric + '18' }]}>
+                      <Ionicons name={typeIcon(e.type)} size={20} color={Colors.electric} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>{e.name}</Text>
+                      {!!e.gymName && <Text style={[styles.sub, { color: theme.textMuted }]} numberOfLines={1}>{e.gymName}</Text>}
+                      <View style={styles.typePillRow}>
+                        <View style={[styles.typePill, { backgroundColor: Colors.electric + '1A' }]}>
+                          <Text style={[styles.typePillText, { color: Colors.electric }]}>{t(`discover.event_type_${e.type}`)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </Pressable>
+                  <Pressable onPress={() => openEdit(e)} style={styles.actionBtn}><Ionicons name="pencil" size={16} color={theme.textSecondary} /></Pressable>
+                  <Pressable onPress={() => remove(e.id)} style={styles.actionBtn}><Ionicons name="trash-outline" size={16} color={Colors.semantic.danger} /></Pressable>
+                </View>
+              </Animated.View>
+            ))}
+          </>
+        )}
       </ScrollView>
 
       <Modal visible={!!draft} transparent animationType="slide" onRequestClose={() => setDraft(null)}>
         <View style={styles.modalWrap}>
           <View style={[styles.modal, { backgroundColor: theme.background }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>{draft?.id ? t('discover.edit_event') : t('discover.add_event')}</Text>
+              <Display variant="d3" color={theme.text} style={{ flex: 1 }}>{draft?.id ? t('discover.edit_event') : t('discover.add_event')}</Display>
               <Pressable onPress={() => setDraft(null)}><Ionicons name="close" size={24} color={theme.text} /></Pressable>
             </View>
             {draft && (
@@ -84,22 +119,16 @@ export default function ManageEventsScreen() {
                   <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>{t('discover.event_type')}</Text>
                   <View style={styles.chips}>
                     {TYPES.map(ty => (
-                      <Pressable key={ty} onPress={() => setDraft({ ...draft, type: ty })} style={[styles.chip, { borderColor: draft.type === ty ? Colors.primary : theme.border, backgroundColor: draft.type === ty ? Colors.primary + '20' : 'transparent' }]}>
-                        <Text style={[styles.chipText, { color: draft.type === ty ? Colors.primary : theme.textMuted }]}>{t(`discover.event_type_${ty}`)}</Text>
-                      </Pressable>
+                      <Chip key={ty} label={t(`discover.event_type_${ty}`)} active={draft.type === ty} onPress={() => setDraft({ ...draft, type: ty })} />
                     ))}
                   </View>
                 </View>
                 <View>
                   <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>{t('discover.host_gym')}</Text>
                   <View style={styles.chips}>
-                    <Pressable onPress={() => setDraft({ ...draft, gymId: null })} style={[styles.chip, { borderColor: !draft.gymId ? Colors.primary : theme.border, backgroundColor: !draft.gymId ? Colors.primary + '20' : 'transparent' }]}>
-                      <Text style={[styles.chipText, { color: !draft.gymId ? Colors.primary : theme.textMuted }]}>{t('discover.no_gym')}</Text>
-                    </Pressable>
+                    <Chip label={t('discover.no_gym')} active={!draft.gymId} onPress={() => setDraft({ ...draft, gymId: null })} />
                     {gyms.map(g => (
-                      <Pressable key={g.id} onPress={() => setDraft({ ...draft, gymId: g.id })} style={[styles.chip, { borderColor: draft.gymId === g.id ? Colors.primary : theme.border, backgroundColor: draft.gymId === g.id ? Colors.primary + '20' : 'transparent' }]}>
-                        <Text style={[styles.chipText, { color: draft.gymId === g.id ? Colors.primary : theme.textMuted }]}>{g.name}</Text>
-                      </Pressable>
+                      <Chip key={g.id} label={g.name} active={draft.gymId === g.id} onPress={() => setDraft({ ...draft, gymId: g.id })} />
                     ))}
                   </View>
                 </View>
@@ -113,12 +142,8 @@ export default function ManageEventsScreen() {
                 <View>
                   <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>{t('discover.entry')}</Text>
                   <View style={styles.chips}>
-                    <Pressable onPress={() => setDraft({ ...draft, isFree: true })} style={[styles.chip, { borderColor: draft.isFree ? Colors.primary : theme.border, backgroundColor: draft.isFree ? Colors.primary + '20' : 'transparent' }]}>
-                      <Text style={[styles.chipText, { color: draft.isFree ? Colors.primary : theme.textMuted }]}>{t('discover.free_entry')}</Text>
-                    </Pressable>
-                    <Pressable onPress={() => setDraft({ ...draft, isFree: false })} style={[styles.chip, { borderColor: !draft.isFree ? Colors.primary : theme.border, backgroundColor: !draft.isFree ? Colors.primary + '20' : 'transparent' }]}>
-                      <Text style={[styles.chipText, { color: !draft.isFree ? Colors.primary : theme.textMuted }]}>{t('discover.paid')}</Text>
-                    </Pressable>
+                    <Chip label={t('discover.free_entry')} active={draft.isFree} onPress={() => setDraft({ ...draft, isFree: true })} />
+                    <Chip label={t('discover.paid')} active={!draft.isFree} onPress={() => setDraft({ ...draft, isFree: false })} />
                   </View>
                 </View>
                 {!draft.isFree && (
@@ -129,16 +154,16 @@ export default function ManageEventsScreen() {
                     <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>{t('discover.price_tiers')}</Text>
                     {draft.tiers.map((tr, i) => (
                       <View key={i} style={styles.tierRow}>
-                        <TextInput style={[styles.input, styles.tierLabel, { color: theme.text, backgroundColor: theme.card }]} value={tr.label} onChangeText={(v) => setTier(i, { label: v })} placeholder={t('discover.tier_label')} placeholderTextColor={theme.textMuted} />
-                        <TextInput style={[styles.input, styles.tierAmount, { color: theme.text, backgroundColor: theme.card }]} value={tr.amount} onChangeText={(v) => setTier(i, { amount: v.replace(/[^0-9.]/g, '') })} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={theme.textMuted} />
+                        <TextInput style={[styles.input, styles.tierLabel, { color: theme.text, backgroundColor: theme.card, borderColor: theme.border }]} value={tr.label} onChangeText={(v) => setTier(i, { label: v })} placeholder={t('discover.tier_label')} placeholderTextColor={theme.textMuted} />
+                        <TextInput style={[styles.input, styles.tierAmount, { color: theme.text, backgroundColor: theme.card, borderColor: theme.border }]} value={tr.amount} onChangeText={(v) => setTier(i, { amount: v.replace(/[^0-9.]/g, '') })} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={theme.textMuted} />
                         <Pressable onPress={() => removeTier(i)} style={styles.tierDel}><Ionicons name="close-circle" size={22} color={theme.textMuted} /></Pressable>
                       </View>
                     ))}
-                    <Pressable onPress={addTier} style={[styles.addTier, { borderColor: theme.border }]}><Ionicons name="add" size={16} color={Colors.primary} /><Text style={[styles.addTierText, { color: Colors.primary }]}>{t('discover.add_tier')}</Text></Pressable>
+                    <Pressable onPress={addTier} style={[styles.addTier, { borderColor: theme.border }]}><Ionicons name="add" size={16} color={Colors.electric} /><Text style={[styles.addTierText, { color: Colors.electric }]}>{t('discover.add_tier')}</Text></Pressable>
                   </View>
                 )}
 
-                <Pressable onPress={save} style={[styles.saveBtn, { backgroundColor: Colors.primary }]}><Text style={styles.saveText}>{t('discover.save')}</Text></Pressable>
+                <Button variant="solid" label={t('discover.save')} onPress={save} style={{ marginTop: 4 }} />
               </KeyboardAwareScrollView>
             )}
           </View>
@@ -152,7 +177,7 @@ function Field({ label, value, onChange, theme, multiline, keyboard, placeholder
   return (
     <View>
       <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>{label}</Text>
-      <TextInput style={[styles.input, { color: theme.text, backgroundColor: theme.card }, multiline && { height: 90, textAlignVertical: 'top' }]}
+      <TextInput style={[styles.input, { color: theme.text, backgroundColor: theme.card, borderColor: theme.border }, multiline && { height: 90, textAlignVertical: 'top' }]}
         value={value} onChangeText={onChange} multiline={multiline} keyboardType={keyboard || 'default'} placeholder={placeholder} placeholderTextColor={theme.textMuted} autoCapitalize="none" />
     </View>
   );
@@ -161,29 +186,28 @@ function Field({ label, value, onChange, theme, multiline, keyboard, placeholder
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12 },
-  backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontFamily: 'Rubik_600SemiBold' },
+  headerTitle: { flex: 1, textAlign: 'center' },
   list: { paddingHorizontal: 20, paddingBottom: 40, gap: 12 },
-  empty: { textAlign: 'center', paddingTop: 60, fontSize: 15, fontFamily: 'Rubik_500Medium' },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, padding: 16 },
-  name: { fontSize: 16, fontFamily: 'Rubik_600SemiBold' },
-  sub: { fontSize: 12, fontFamily: 'Rubik_400Regular', marginTop: 2 },
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 4 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 20, padding: 14, borderWidth: 1 },
+  cardMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  eventIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  name: { fontSize: 16, fontFamily: Fonts.semibold },
+  sub: { fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 },
+  typePillRow: { flexDirection: 'row', marginTop: 6 },
+  typePill: { paddingHorizontal: 10, height: 24, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  typePillText: { fontSize: 11, fontFamily: Fonts.semibold, textTransform: 'capitalize' },
   actionBtn: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   modal: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '88%' },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  modalTitle: { fontSize: 18, fontFamily: 'Rubik_700Bold' },
-  fieldLabel: { fontSize: 12, fontFamily: 'Rubik_500Medium', marginBottom: 6 },
-  input: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: 'Rubik_400Regular' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 },
+  fieldLabel: { fontSize: 12, fontFamily: Fonts.medium, marginBottom: 6 },
+  input: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: Fonts.regular, borderWidth: 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5 },
-  chipText: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
-  saveBtn: { paddingVertical: 16, borderRadius: 14, alignItems: 'center', marginTop: 4 },
-  saveText: { color: '#fff', fontSize: 16, fontFamily: 'Rubik_600SemiBold' },
   tierRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   tierLabel: { flex: 1 },
   tierAmount: { width: 90, textAlign: 'center' },
   tierDel: { padding: 2 },
   addTier: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed' },
-  addTierText: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
+  addTierText: { fontSize: 13, fontFamily: Fonts.semibold },
 });

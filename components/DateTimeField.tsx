@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import Colors from '@/constants/colors';
+import { Fonts } from '@/constants/typography';
 
 // Lightweight date + time picker — pure JS calendar grid + time steppers, no
 // native module (works on web + dev build without a rebuild). value/onChange = ISO string.
@@ -54,8 +55,8 @@ export default function DateTimeField({ label, value, onChange, theme, minDate, 
   return (
     <View style={{ marginBottom: 12 }}>
       <Text style={[styles.label, { color: theme.textMuted }]}>{label}</Text>
-      <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setOpen(true); }} style={[styles.field, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <Ionicons name="calendar-outline" size={18} color={value ? Colors.primary : theme.textMuted} />
+      <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setOpen(true); }} style={[styles.field, { backgroundColor: theme.card, borderColor: value ? Colors.electric + '55' : theme.border }]}>
+        <Ionicons name="calendar-outline" size={18} color={value ? Colors.electric : theme.textMuted} />
         <Text style={[styles.fieldText, { color: value ? theme.text : theme.textMuted }]}>{display || t('discover.pick_date')}</Text>
         {optional && value ? (
           <Pressable onPress={() => onChange(null)} hitSlop={8}><Ionicons name="close-circle" size={18} color={theme.textMuted} /></Pressable>
@@ -85,8 +86,8 @@ export default function DateTimeField({ label, value, onChange, theme, minDate, 
                 const disabled = isPast(c);
                 return (
                   <Pressable key={i} disabled={disabled} onPress={() => { Haptics.selectionAsync(); setDay(c); }} style={styles.cell}>
-                    <View style={[styles.dayInner, on && { backgroundColor: Colors.primary }]}>
-                      <Text style={[styles.dayText, { color: on ? '#fff' : disabled ? theme.textMuted + '55' : theme.text }]}>{c}</Text>
+                    <View style={[styles.dayInner, on && { backgroundColor: Colors.electric }]}>
+                      <Text style={[styles.dayText, { color: on ? '#04120B' : disabled ? theme.textMuted + '55' : theme.text }]}>{c}</Text>
                     </View>
                   </Pressable>
                 );
@@ -103,8 +104,8 @@ export default function DateTimeField({ label, value, onChange, theme, minDate, 
               </View>
             </View>
 
-            <Pressable onPress={confirm} disabled={day == null} style={[styles.confirm, { backgroundColor: day == null ? theme.border : Colors.primary }]}>
-              <Text style={styles.confirmText}>{t('workoutSession.done')}</Text>
+            <Pressable onPress={confirm} disabled={day == null} style={[styles.confirm, { backgroundColor: day == null ? theme.border : Colors.electric }]}>
+              <Text style={[styles.confirmText, { color: day == null ? theme.textMuted : '#04120B' }]}>{t('workoutSession.done')}</Text>
             </Pressable>
           </View>
         </View>
@@ -124,26 +125,26 @@ function TimeStepper({ value, onUp, onDown, theme }: { value: string; onUp: () =
 }
 
 const styles = StyleSheet.create({
-  label: { fontSize: 12, fontFamily: 'Rubik_500Medium', marginBottom: 6 },
+  label: { fontSize: 12, fontFamily: Fonts.medium, marginBottom: 6 },
   field: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, height: 50 },
-  fieldText: { flex: 1, fontSize: 15, fontFamily: 'Rubik_400Regular' },
+  fieldText: { flex: 1, fontSize: 15, fontFamily: Fonts.regular },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: { width: '100%', maxWidth: 360, borderRadius: 20, padding: 18 },
   monthRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   navBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  monthText: { fontSize: 16, fontFamily: 'Rubik_700Bold' },
+  monthText: { fontSize: 16, fontFamily: Fonts.bold },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  wd: { width: `${100 / 7}%` as any, textAlign: 'center', fontSize: 11, fontFamily: 'Rubik_600SemiBold', paddingVertical: 4 },
+  wd: { width: `${100 / 7}%` as any, textAlign: 'center', fontSize: 11, fontFamily: Fonts.semibold, paddingVertical: 4 },
   cell: { width: `${100 / 7}%` as any, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', padding: 2 },
   dayInner: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  dayText: { fontSize: 14, fontFamily: 'Rubik_500Medium' },
+  dayText: { fontSize: 14, fontFamily: Fonts.medium },
   timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 4 },
-  timeLabel: { fontSize: 14, fontFamily: 'Rubik_600SemiBold' },
+  timeLabel: { fontSize: 14, fontFamily: Fonts.semibold },
   timeCtrl: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  colon: { fontSize: 22, fontFamily: 'Rubik_700Bold' },
+  colon: { fontSize: 22, fontFamily: Fonts.monoBold },
   stepper: { alignItems: 'center' },
   stepBtn: { paddingVertical: 2 },
-  stepVal: { fontSize: 22, fontFamily: 'Rubik_700Bold', minWidth: 40, textAlign: 'center' },
+  stepVal: { fontSize: 22, fontFamily: Fonts.monoBold, minWidth: 40, textAlign: 'center' },
   confirm: { paddingVertical: 14, borderRadius: 14, alignItems: 'center', marginTop: 14 },
-  confirmText: { color: '#fff', fontSize: 15, fontFamily: 'Rubik_600SemiBold' },
+  confirmText: { fontSize: 15, fontFamily: Fonts.semibold },
 });

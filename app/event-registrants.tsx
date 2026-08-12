@@ -1,13 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, Platform, Linking, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
+import { Fonts, Type } from '@/constants/typography';
+import { Display, StatTile, CountUp, EmptyState, Skeleton } from '@/components/ui';
 import { eventsApi, type EventRegistrant, type ApiEvent } from '@/src/features/events/api';
 import { authApi } from '@/src/features/auth/api';
 
@@ -104,23 +108,39 @@ export default function EventRegistrantsScreen() {
   };
 
   const statusChip = (s: string) =>
-    s === 'confirmed' ? { c: Colors.primary, bg: Colors.primary + '20', k: 'reg_confirmed' }
-    : s === 'rejected' ? { c: Colors.accent, bg: Colors.accent + '20', k: 'rejected' }
-    : s === 'cancelled' ? { c: theme.textMuted, bg: theme.border, k: 'cancelled' }
-    : { c: '#E0A800', bg: '#FFD93D22', k: 'reg_pending' };
+    s === 'confirmed' ? { c: Colors.electric, k: 'reg_confirmed' }
+    : s === 'rejected' ? { c: Colors.semantic.danger, k: 'rejected' }
+    : s === 'cancelled' ? { c: theme.textMuted, k: 'cancelled' }
+    : { c: Colors.semantic.warn, k: 'reg_pending' };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 8 }]}>
-        <Pressable onPress={back} style={styles.backBtn}><Ionicons name="chevron-back" size={24} color={theme.text} /></Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>{t('discover.event_registrants')}</Text>
-        <View style={{ width: 40 }} />
+      <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 12 : insets.top + 12 }]}>
+        <Pressable onPress={back} style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]} hitSlop={8}>
+          <Ionicons name="chevron-back" size={22} color={theme.text} />
+        </Pressable>
+        <Display variant="d3" color={theme.text} style={styles.headerTitle}>{t('discover.event_registrants')}</Display>
+        <View style={styles.iconBtn} />
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={Colors.primary} /></View>
+        <View style={styles.loadWrap}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, marginBottom: 12 }]}>
+              <View style={styles.cardHead}>
+                <Skeleton width={44} height={44} radius={22} />
+                <View style={{ flex: 1, gap: 8 }}>
+                  <Skeleton width="55%" height={15} />
+                  <Skeleton width="35%" height={12} />
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
       ) : events.length === 0 ? (
-        <Text style={[styles.empty, { color: theme.textMuted }]}>{t('discover.no_managed_events')}</Text>
+        <Animated.View entering={FadeInDown.delay(100).duration(500)}>
+          <EmptyState icon="calendar-outline" title={t('discover.no_managed_events')} />
+        </Animated.View>
       ) : (
         <View style={{ flex: 1 }}>
           {/* event selector — one event at a time, never mixed */}
@@ -129,9 +149,9 @@ export default function EventRegistrantsScreen() {
               const on = ev.id === selEventId;
               const pend = pendingCount.get(ev.id) || 0;
               return (
-                <Pressable key={ev.id} onPress={() => { Haptics.selectionAsync(); setSelEventId(ev.id); }} style={[styles.evChip, { backgroundColor: on ? Colors.primary : theme.card, borderColor: on ? Colors.primary : theme.border }]}>
-                  <Text style={[styles.evChipText, { color: on ? '#fff' : theme.text }]} numberOfLines={1}>{ev.name}</Text>
-                  {pend > 0 && <View style={[styles.evBadge, { backgroundColor: on ? '#fff' : Colors.accent }]}><Text style={[styles.evBadgeText, { color: on ? Colors.primary : '#fff' }]}>{pend}</Text></View>}
+                <Pressable key={ev.id} onPress={() => { Haptics.selectionAsync(); setSelEventId(ev.id); }} style={[styles.evChip, { backgroundColor: on ? Colors.electric : theme.card, borderColor: on ? Colors.electric : theme.border }]}>
+                  <Text style={[styles.evChipText, { color: on ? '#04120B' : theme.textSecondary }]} numberOfLines={1}>{ev.name}</Text>
+                  {pend > 0 && <View style={[styles.evBadge, { backgroundColor: on ? '#04120B' : Colors.semantic.warn }]}><Text style={[styles.evBadgeText, { color: on ? Colors.electric : '#04120B' }]}>{pend}</Text></View>}
                 </Pressable>
               );
             })}
@@ -146,34 +166,42 @@ export default function EventRegistrantsScreen() {
               <ScrollView contentContainerStyle={styles.list}>
                 {!!ev.gymName && <Text style={[styles.gymCtx, { color: theme.textMuted }]}><Ionicons name="business-outline" size={12} color={theme.textMuted} /> {ev.gymName}</Text>}
                 <View style={styles.groupHead}>
-                  <Text style={[styles.groupTitle, { color: theme.text }]} numberOfLines={1}>{ev.name}</Text>
-                  <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setWalkEvent(ev); setQ(''); setHits([]); }} style={[styles.addBtn, { backgroundColor: Colors.primary + '18' }]}>
-                    <Ionicons name="person-add" size={15} color={Colors.primary} />
-                    <Text style={[styles.addBtnText, { color: Colors.primary }]}>{t('discover.add_walk_in')}</Text>
+                  <Display variant="d3" color={theme.text} numberOfLines={1} style={{ flex: 1 }}>{ev.name}</Display>
+                  <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setWalkEvent(ev); setQ(''); setHits([]); }} style={[styles.addBtn, { backgroundColor: Colors.electric + '18' }]}>
+                    <Ionicons name="person-add" size={15} color={Colors.electric} />
+                    <Text style={[styles.addBtnText, { color: Colors.electric }]}>{t('discover.add_walk_in')}</Text>
                   </Pressable>
                 </View>
-                <View style={[styles.summary, { backgroundColor: theme.card }]}>
-                  <View style={styles.sumItem}><Text style={[styles.sumV, { color: theme.text }]}>{confirmed.length}</Text><Text style={[styles.sumL, { color: theme.textMuted }]}>{t('discover.expected')}</Text></View>
-                  <View style={styles.sumItem}><Text style={[styles.sumV, { color: Colors.primary }]}>{paidRegs.length}</Text><Text style={[styles.sumL, { color: theme.textMuted }]}>{t('discover.paid')}</Text></View>
-                  <View style={styles.sumItem}><Text style={[styles.sumV, { color: theme.text }]}>{collected} {cur(ev)}</Text><Text style={[styles.sumL, { color: theme.textMuted }]}>{t('discover.collected')}</Text></View>
+
+                <View style={styles.summary}>
+                  <StatTile icon="people-outline" value={<CountUp value={confirmed.length} style={[styles.statVal, { color: theme.text }]} />} label={t('discover.expected')} />
+                  <StatTile icon="cash-outline" color={Colors.electric} value={<CountUp value={paidRegs.length} style={[styles.statVal, { color: theme.text }]} />} label={t('discover.paid')} />
+                  <StatTile icon="wallet-outline" color={Colors.electric} value={<Text style={[Type.statSm, { color: theme.text }]}>{collected} {cur(ev)}</Text>} label={t('discover.collected')} />
                 </View>
 
-                {selRegs.length === 0 && <Text style={[styles.empty, { color: theme.textMuted, paddingTop: 30 }]}>{t('discover.no_registrants')}</Text>}
-                {selRegs.map((r) => {
+                {selRegs.length === 0 && <EmptyState icon="people-outline" title={t('discover.no_registrants')} />}
+                {selRegs.map((r, i) => {
                   const cs = statusChip(r.status);
+                  const initial = (r.userName?.trim()?.charAt(0) || '?').toUpperCase();
                   return (
-                    <View key={r.id} style={[styles.card, { backgroundColor: theme.card }]}>
+                    <Animated.View key={r.id} entering={FadeInDown.delay(60 + i * 50).duration(400)} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                       <View style={styles.cardHead}>
+                        <View style={[styles.avatar, { backgroundColor: Colors.electric + '22' }]}>
+                          <Text style={[styles.avatarText, { color: Colors.electric }]}>{initial}</Text>
+                        </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={[styles.name, { color: theme.text }]}>
+                          <Text style={[Type.h2, { color: theme.text }]} numberOfLines={1}>
                             {r.userName}{r.addedBy ? <Text style={[styles.walkTag, { color: theme.textMuted }]}>  · {t('discover.walk_in')}</Text> : null}
                           </Text>
-                          {!!r.note && <Text style={[styles.sub, { color: theme.textMuted }]}>{r.note}</Text>}
+                          {!!r.note && <Text style={[styles.sub, { color: theme.textMuted }]} numberOfLines={1}>{r.note}</Text>}
                         </View>
                         <View style={styles.chipCol}>
-                          <View style={[styles.statusChip, { backgroundColor: cs.bg }]}><Text style={[styles.statusText, { color: cs.c }]}>{t(`discover.${cs.k}`)}</Text></View>
+                          <View style={[styles.statusChip, { backgroundColor: cs.c + '20' }]}>
+                            <View style={[styles.statusDot, { backgroundColor: cs.c }]} />
+                            <Text style={[styles.statusText, { color: cs.c }]}>{t(`discover.${cs.k}`)}</Text>
+                          </View>
                           {r.paid ? (
-                            <View style={[styles.paidChip, { backgroundColor: Colors.primary }]}><Ionicons name="cash" size={11} color="#fff" /><Text style={styles.paidChipText}>{r.amountPaid} {cur(ev)}</Text></View>
+                            <View style={[styles.paidChip, { backgroundColor: Colors.electric }]}><Ionicons name="cash" size={11} color="#04120B" /><Text style={styles.paidChipText}>{r.amountPaid} {cur(ev)}</Text></View>
                           ) : !ev.isFree ? (
                             <View style={[styles.paidChip, { backgroundColor: theme.background, borderWidth: 1, borderColor: theme.border }]}><Text style={[styles.paidChipText, { color: theme.textMuted }]}>{t('discover.unpaid')}</Text></View>
                           ) : null}
@@ -181,14 +209,14 @@ export default function EventRegistrantsScreen() {
                       </View>
 
                       <View style={styles.actions}>
-                        {r.status !== 'confirmed' && <Pressable onPress={() => setStatus(r.id, 'confirmed')} style={[styles.btn, { borderColor: Colors.primary }]}><Ionicons name="checkmark" size={14} color={Colors.primary} /><Text style={[styles.btnText, { color: Colors.primary }]}>{t('discover.approve')}</Text></Pressable>}
-                        {r.status !== 'rejected' && <Pressable onPress={() => setStatus(r.id, 'rejected')} style={[styles.btn, { borderColor: theme.border }]}><Ionicons name="close" size={14} color={theme.textMuted} /><Text style={[styles.btnText, { color: theme.textMuted }]}>{t('discover.reject')}</Text></Pressable>}
+                        {r.status !== 'confirmed' && <Pressable onPress={() => setStatus(r.id, 'confirmed')} style={[styles.pill, { borderColor: Colors.electric }]}><Ionicons name="checkmark" size={14} color={Colors.electric} /><Text style={[styles.pillText, { color: Colors.electric }]}>{t('discover.approve')}</Text></Pressable>}
+                        {r.status !== 'rejected' && <Pressable onPress={() => setStatus(r.id, 'rejected')} style={[styles.pill, { borderColor: theme.border }]}><Ionicons name="close" size={14} color={Colors.semantic.danger} /><Text style={[styles.pillText, { color: Colors.semantic.danger }]}>{t('discover.reject')}</Text></Pressable>}
                         {!ev.isFree && (r.paid
-                          ? <Pressable onPress={() => openPay(r, ev)} style={[styles.btn, { borderColor: theme.border }]}><Ionicons name="create-outline" size={14} color={theme.text} /><Text style={[styles.btnText, { color: theme.text }]}>{t('discover.edit_payment')}</Text></Pressable>
-                          : <Pressable onPress={() => openPay(r, ev)} style={[styles.btn, styles.btnFilled, { backgroundColor: Colors.primary, borderColor: Colors.primary }]}><Ionicons name="cash-outline" size={14} color="#fff" /><Text style={[styles.btnText, { color: '#fff' }]}>{t('discover.mark_paid')}</Text></Pressable>)}
-                        {!!r.userPhone && <Pressable onPress={() => Linking.openURL(`tel:${r.userPhone}`)} style={[styles.btn, { borderColor: theme.border }]}><Ionicons name="call-outline" size={14} color={theme.text} /></Pressable>}
+                          ? <Pressable onPress={() => openPay(r, ev)} style={[styles.pill, { borderColor: theme.border }]}><Ionicons name="create-outline" size={14} color={theme.text} /><Text style={[styles.pillText, { color: theme.text }]}>{t('discover.edit_payment')}</Text></Pressable>
+                          : <Pressable onPress={() => openPay(r, ev)} style={[styles.pill, styles.pillFilled, { backgroundColor: Colors.electric, borderColor: Colors.electric }]}><Ionicons name="cash-outline" size={14} color="#04120B" /><Text style={[styles.pillText, { color: '#04120B' }]}>{t('discover.mark_paid')}</Text></Pressable>)}
+                        {!!r.userPhone && <Pressable onPress={() => Linking.openURL(`tel:${r.userPhone}`)} style={[styles.pill, { borderColor: theme.border }]}><Ionicons name="call-outline" size={14} color={theme.text} /></Pressable>}
                       </View>
-                    </View>
+                    </Animated.View>
                   );
                 })}
               </ScrollView>
@@ -206,7 +234,7 @@ export default function EventRegistrantsScreen() {
             return (
               <View style={[styles.sheet, { backgroundColor: theme.card, paddingBottom: Platform.OS === 'web' ? 24 : insets.bottom + 16 }]}>
                 <View style={styles.sheetHandle} />
-                <Text style={[styles.sheetTitle, { color: theme.text }]}>{t('discover.record_payment')}</Text>
+                <Display variant="d3" color={theme.text}>{t('discover.record_payment')}</Display>
                 <Text style={[styles.sheetSub, { color: theme.textMuted }]}>{payReg.userName} · {ev?.name}</Text>
 
                 {(ev?.priceTiers?.length ?? 0) > 0 && (
@@ -216,9 +244,9 @@ export default function EventRegistrantsScreen() {
                       {ev!.priceTiers!.map((tr) => {
                         const on = payTier === tr.label;
                         return (
-                          <Pressable key={tr.label} onPress={() => pickTier(ev!, tr.label)} style={[styles.tier, { backgroundColor: on ? Colors.primary : theme.background, borderColor: on ? Colors.primary : theme.border }]}>
-                            <Text style={[styles.tierName, { color: on ? '#fff' : theme.text }]}>{tr.label}</Text>
-                            <Text style={[styles.tierAmt, { color: on ? '#fff' : theme.textMuted }]}>{tr.amount} {cur(ev)}</Text>
+                          <Pressable key={tr.label} onPress={() => pickTier(ev!, tr.label)} style={[styles.tier, { backgroundColor: on ? Colors.electric : theme.background, borderColor: on ? Colors.electric : theme.border }]}>
+                            <Text style={[styles.tierName, { color: on ? '#04120B' : theme.text }]}>{tr.label}</Text>
+                            <Text style={[styles.tierAmt, { color: on ? '#04120B' : theme.textMuted }]}>{tr.amount} {cur(ev)}</Text>
                           </Pressable>
                         );
                       })}
@@ -245,13 +273,13 @@ export default function EventRegistrantsScreen() {
                   </View>
                 ))}
 
-                <Pressable onPress={confirmPay} style={[styles.confirmBtn, { backgroundColor: Colors.primary }]}>
-                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                <Pressable onPress={confirmPay} style={[styles.confirmBtn, { backgroundColor: Colors.electric }]}>
+                  <Ionicons name="checkmark-circle" size={20} color="#04120B" />
                   <Text style={styles.confirmText}>{payReg.paid ? t('discover.update_payment') : t('discover.confirm_paid')}</Text>
                 </Pressable>
                 {payReg.paid && (
                   <Pressable onPress={() => { undoPay(payReg); setPayReg(null); }} style={styles.undoBtn}>
-                    <Text style={[styles.undoText, { color: Colors.accent }]}>{t('discover.mark_unpaid')}</Text>
+                    <Text style={[styles.undoText, { color: Colors.semantic.danger }]}>{t('discover.mark_unpaid')}</Text>
                   </Pressable>
                 )}
               </View>
@@ -266,23 +294,25 @@ export default function EventRegistrantsScreen() {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setWalkEvent(null)} />
           <View style={[styles.sheet, styles.walkSheet, { backgroundColor: theme.card, paddingBottom: Platform.OS === 'web' ? 24 : insets.bottom + 16 }]}>
             <View style={styles.sheetHandle} />
-            <Text style={[styles.sheetTitle, { color: theme.text }]}>{t('discover.add_walk_in')}</Text>
+            <Display variant="d3" color={theme.text}>{t('discover.add_walk_in')}</Display>
             <Text style={[styles.sheetSub, { color: theme.textMuted }]}>{walkEvent?.name}</Text>
             <View style={[styles.searchWrap, { backgroundColor: theme.background, borderColor: theme.border }]}>
               <Ionicons name="search" size={18} color={theme.textMuted} />
               <TextInput style={[styles.searchInput, { color: theme.text }]} value={q} onChangeText={setQ} placeholder={t('discover.search_user')} placeholderTextColor={theme.textMuted} autoFocus autoCapitalize="none" />
-              {searching && <ActivityIndicator size="small" color={Colors.primary} />}
+              {searching && <ActivityIndicator size="small" color={Colors.electric} />}
             </View>
             <ScrollView style={{ maxHeight: 320 }} keyboardShouldPersistTaps="handled">
               {q.trim().length >= 2 && hits.length === 0 && !searching && <Text style={[styles.empty, { color: theme.textMuted, paddingTop: 24 }]}>{t('discover.no_users')}</Text>}
               {hits.map((u) => (
                 <Pressable key={u.id} onPress={() => addWalkIn(u)} style={[styles.hitRow, { borderBottomColor: theme.border }]}>
-                  <View style={[styles.hitAvatar, { backgroundColor: Colors.primary + '20' }]}><Text style={[styles.hitInitial, { color: Colors.primary }]}>{u.name?.charAt(0) || '?'}</Text></View>
+                  {u.avatarUrl
+                    ? <Image source={{ uri: u.avatarUrl }} style={styles.hitAvatar} contentFit="cover" />
+                    : <View style={[styles.hitAvatar, { backgroundColor: Colors.electric + '22', alignItems: 'center', justifyContent: 'center' }]}><Text style={[styles.hitInitial, { color: Colors.electric }]}>{u.name?.charAt(0) || '?'}</Text></View>}
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.hitName, { color: theme.text }]}>{u.name}</Text>
                     <Text style={[styles.hitSub, { color: theme.textMuted }]}>@{u.username} · {u.email}</Text>
                   </View>
-                  <Ionicons name="add-circle" size={24} color={Colors.primary} />
+                  <Ionicons name="add-circle" size={24} color={Colors.electric} />
                 </Pressable>
               ))}
             </ScrollView>
@@ -295,71 +325,68 @@ export default function EventRegistrantsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12 },
-  backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontFamily: 'Rubik_600SemiBold' },
-  list: { paddingHorizontal: 20, paddingBottom: 40, gap: 8 },
-  empty: { textAlign: 'center', paddingTop: 60, fontSize: 15, fontFamily: 'Rubik_500Medium' },
+  loadWrap: { paddingHorizontal: 20, paddingTop: 8 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'transparent' },
+  headerTitle: { flex: 1, textAlign: 'center' },
+  list: { paddingHorizontal: 20, paddingBottom: 40, gap: 10 },
+  empty: { textAlign: 'center', paddingTop: 60, fontFamily: Fonts.medium, fontSize: 15 },
   evScroll: { flexGrow: 0, maxHeight: 52, marginBottom: 6 },
   evRow: { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
   evChip: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: 220, height: 38, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1 },
-  evChipText: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
+  evChipText: { fontFamily: Fonts.semibold, fontSize: 13 },
   evBadge: { minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
-  evBadgeText: { fontSize: 10, fontFamily: 'Rubik_700Bold' },
-  gymCtx: { fontSize: 12, fontFamily: 'Rubik_500Medium', marginBottom: 8 },
-  group: { marginBottom: 20 },
-  groupHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 10 },
-  groupTitle: { fontSize: 17, fontFamily: 'Rubik_700Bold', flex: 1 },
-  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
-  addBtnText: { fontSize: 12, fontFamily: 'Rubik_600SemiBold' },
-  summary: { flexDirection: 'row', borderRadius: 12, padding: 12, marginBottom: 10 },
-  sumItem: { flex: 1, alignItems: 'center', gap: 2 },
-  sumV: { fontSize: 16, fontFamily: 'Rubik_700Bold' },
-  sumL: { fontSize: 11, fontFamily: 'Rubik_400Regular' },
-  card: { borderRadius: 14, padding: 14, marginBottom: 8 },
-  cardHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
-  name: { fontSize: 15, fontFamily: 'Rubik_600SemiBold' },
-  walkTag: { fontSize: 11, fontFamily: 'Rubik_400Regular' },
-  sub: { fontSize: 12, fontFamily: 'Rubik_400Regular', marginTop: 2 },
-  chipCol: { alignItems: 'flex-end', gap: 5 },
-  statusChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  statusText: { fontSize: 11, fontFamily: 'Rubik_600SemiBold' },
-  paidChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  paidChipText: { fontSize: 11, fontFamily: 'Rubik_700Bold', color: '#fff' },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  btn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1.5, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7 },
-  btnFilled: { borderWidth: 1.5 },
-  btnText: { fontSize: 12, fontFamily: 'Rubik_600SemiBold' },
+  evBadgeText: { fontFamily: Fonts.bold, fontSize: 10 },
+  gymCtx: { fontFamily: Fonts.medium, fontSize: 12, marginBottom: 8 },
+  groupHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 10 },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
+  addBtnText: { fontFamily: Fonts.semibold, fontSize: 12 },
+  summary: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  statVal: { fontSize: 18 },
+  card: { borderRadius: 20, padding: 16, borderWidth: 1 },
+  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontFamily: Fonts.bold, fontSize: 18 },
+  walkTag: { fontFamily: Fonts.regular, fontSize: 11 },
+  sub: { fontFamily: Fonts.regular, fontSize: 12, marginTop: 2 },
+  chipCol: { alignItems: 'flex-end', gap: 6 },
+  statusChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, height: 26, borderRadius: 999 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontFamily: Fonts.semibold, fontSize: 11 },
+  paidChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  paidChipText: { fontFamily: Fonts.bold, fontSize: 11, color: '#04120B' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1.5, borderRadius: 999, paddingHorizontal: 14, height: 34 },
+  pillFilled: { borderWidth: 1.5 },
+  pillText: { fontFamily: Fonts.semibold, fontSize: 12 },
   // modals
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 10 },
   walkSheet: { minHeight: 420 },
   sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(140,140,160,0.4)', marginBottom: 14 },
-  sheetTitle: { fontSize: 18, fontFamily: 'Rubik_700Bold' },
-  sheetSub: { fontSize: 13, fontFamily: 'Rubik_400Regular', marginTop: 2, marginBottom: 16 },
-  fieldLbl: { fontSize: 12, fontFamily: 'Rubik_600SemiBold', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  sheetSub: { fontFamily: Fonts.regular, fontSize: 13, marginTop: 4, marginBottom: 16 },
+  fieldLbl: { fontFamily: Fonts.semibold, fontSize: 12, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
   tierRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   tier: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, alignItems: 'center', gap: 2 },
-  tierName: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
-  tierAmt: { fontSize: 11, fontFamily: 'Rubik_400Regular' },
+  tierName: { fontFamily: Fonts.semibold, fontSize: 13 },
+  tierAmt: { fontFamily: Fonts.regular, fontSize: 11 },
   amountWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, paddingHorizontal: 16, height: 54, marginBottom: 12 },
-  amountInput: { flex: 1, fontSize: 22, fontFamily: 'Rubik_700Bold' },
-  amountCur: { fontSize: 14, fontFamily: 'Rubik_500Medium' },
+  amountInput: { flex: 1, fontFamily: Fonts.monoBold, fontSize: 22 },
+  amountCur: { fontFamily: Fonts.medium, fontSize: 14 },
   histToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
-  histToggleText: { fontSize: 12, fontFamily: 'Rubik_500Medium' },
+  histToggleText: { fontFamily: Fonts.medium, fontSize: 12 },
   histRow: { paddingVertical: 6, paddingLeft: 20 },
-  histText: { fontSize: 12, fontFamily: 'Rubik_500Medium' },
-  histMeta: { fontSize: 10, fontFamily: 'Rubik_400Regular', marginTop: 1 },
-  confirmBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 16, marginTop: 8 },
-  confirmText: { color: '#fff', fontSize: 16, fontFamily: 'Rubik_600SemiBold' },
+  histText: { fontFamily: Fonts.medium, fontSize: 12 },
+  histMeta: { fontFamily: Fonts.regular, fontSize: 10, marginTop: 1 },
+  confirmBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 999, marginTop: 8 },
+  confirmText: { fontFamily: Fonts.bold, fontSize: 16, color: '#04120B' },
   undoBtn: { alignItems: 'center', paddingVertical: 12 },
-  undoText: { fontSize: 13, fontFamily: 'Rubik_600SemiBold' },
+  undoText: { fontFamily: Fonts.semibold, fontSize: 13 },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, height: 48, marginBottom: 8 },
-  searchInput: { flex: 1, fontSize: 15, fontFamily: 'Rubik_400Regular' },
+  searchInput: { flex: 1, fontFamily: Fonts.regular, fontSize: 15 },
   hitRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
-  hitAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  hitInitial: { fontSize: 17, fontFamily: 'Rubik_700Bold' },
-  hitName: { fontSize: 15, fontFamily: 'Rubik_500Medium' },
-  hitSub: { fontSize: 12, fontFamily: 'Rubik_400Regular', marginTop: 1 },
+  hitAvatar: { width: 40, height: 40, borderRadius: 20 },
+  hitInitial: { fontFamily: Fonts.bold, fontSize: 17 },
+  hitName: { fontFamily: Fonts.medium, fontSize: 15 },
+  hitSub: { fontFamily: Fonts.regular, fontSize: 12, marginTop: 1 },
 });

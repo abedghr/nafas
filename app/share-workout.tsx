@@ -16,6 +16,8 @@ import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useApp, LogExercise } from '@/lib/app-context';
 import { alertDialog } from '@/lib/dialog';
+import { Display, Button } from '@/components/ui';
+import { Fonts, Type } from '@/constants/typography';
 import Colors from '@/constants/colors';
 
 type CardStyle = 'dark' | 'gradient' | 'light';
@@ -65,15 +67,15 @@ interface CardStyleConfig {
 function getCardStyleConfig(style: CardStyle, isDark: boolean): CardStyleConfig {
   if (style === 'dark') {
     return {
-      backgroundColor: '#0A0A0F',
+      backgroundColor: '#07070B',
       textColor: '#FFFFFF',
       secondaryTextColor: '#9B9BB0',
       borderColor: '#2A2A3E',
-      accentColor: '#00C896',
+      accentColor: Colors.electric,
     };
   } else if (style === 'gradient') {
     return {
-      backgroundColor: '#00C896',
+      backgroundColor: Colors.electric,
       textColor: '#FFFFFF',
       secondaryTextColor: '#E0E0E0',
       borderColor: '#009B78',
@@ -85,7 +87,7 @@ function getCardStyleConfig(style: CardStyle, isDark: boolean): CardStyleConfig 
       textColor: '#111118',
       secondaryTextColor: '#6B6B80',
       borderColor: '#E5E5EE',
-      accentColor: '#00C896',
+      accentColor: Colors.electric,
     };
   }
 }
@@ -119,7 +121,7 @@ function ShareCard({
       </View>
 
       {/* Title and date */}
-      <Text style={[styles.workoutName, { color: styleConfig.textColor }]}>{currentLog.name}</Text>
+      <Display variant="d2" color={styleConfig.textColor}>{currentLog.name}</Display>
       <Text style={[styles.dateTime, { color: styleConfig.secondaryTextColor }]}>
         {formatDate(currentLog.date)}{currentLog.startTime && !isNaN(new Date(currentLog.startTime).getTime()) ? ` · ${formatTime(currentLog.startTime)}` : ''}
       </Text>
@@ -177,7 +179,7 @@ function ShareCard({
   if (isGradient) {
     return (
       <LinearGradient
-        colors={['#00C896', '#0A0A0F']}
+        colors={[Colors.electric, '#07070B']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.card]}
@@ -254,9 +256,7 @@ export default function ShareWorkoutScreen() {
         <View style={styles.emptyState}>
           <Ionicons name="alert-circle-outline" size={48} color={theme.textMuted} />
           <Text style={[styles.emptyText, { color: theme.textSecondary }]}>{t('workoutSession.workoutNotFound')}</Text>
-          <TouchableOpacity onPress={handleDone} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>{t('workoutSession.goBack')}</Text>
-          </TouchableOpacity>
+          <Button variant="solid" label={t('workoutSession.goBack')} onPress={handleDone} />
         </View>
       </View>
     );
@@ -279,71 +279,59 @@ export default function ShareWorkoutScreen() {
 
         {/* Style Picker */}
         <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.stylePickerContainer}>
-          <Text style={[styles.stylePickerLabel, { color: theme.text }]}>{t('workoutSession.cardStyle')}</Text>
+          <Text style={[styles.stylePickerLabel, { color: theme.textSecondary }]}>{t('workoutSession.cardStyle')}</Text>
           <View style={styles.stylePicker}>
-            {(['dark', 'gradient', 'light'] as const).map((style) => (
-              <TouchableOpacity
-                key={style}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setCardStyle(style);
-                }}
-                style={[
-                  styles.styleButton,
-                  cardStyle === style && { borderColor: Colors.primary, borderWidth: 2 },
-                  cardStyle !== style && { borderWidth: 1, borderColor: theme.border },
-                  { backgroundColor: cardStyle === style ? theme.card : theme.surface },
-                ]}
-              >
-                <Text
+            {(['dark', 'gradient', 'light'] as const).map((style) => {
+              const active = cardStyle === style;
+              return (
+                <TouchableOpacity
+                  key={style}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setCardStyle(style);
+                  }}
                   style={[
-                    styles.styleButtonText,
-                    { color: cardStyle === style ? Colors.primary : theme.textSecondary },
+                    styles.styleButton,
+                    {
+                      backgroundColor: active ? Colors.electric : theme.card,
+                      borderColor: active ? Colors.electric : theme.border,
+                    },
                   ]}
                 >
-                  {t(`workoutSession.cardStyleOption.${style}`)}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.styleButtonText,
+                      { color: active ? '#04120B' : theme.textSecondary },
+                    ]}
+                  >
+                    {t(`workoutSession.cardStyleOption.${style}`)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </Animated.View>
 
         {/* Action Buttons */}
         <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.actionsContainer}>
-          <TouchableOpacity
+          <Button
+            variant="solid"
+            icon="share-social-outline"
+            label={t('workoutSession.postToCommunity')}
             onPress={handlePostToCommunity}
-            style={[
-              styles.actionButton,
-              styles.primaryButton,
-              { backgroundColor: Colors.primary },
-            ]}
-          >
-            <Ionicons name="share-social-outline" size={20} color="#fff" style={styles.buttonIcon} />
-            <Text style={styles.primaryButtonText}>{t('workoutSession.postToCommunity')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
+          />
+          <Button
+            variant="ghost"
+            icon="download-outline"
+            label={t('workoutSession.saveToGallery')}
             onPress={handleSaveToGallery}
-            style={[
-              styles.actionButton,
-              styles.secondaryButton,
-              { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 },
-            ]}
-          >
-            <Ionicons name="download-outline" size={20} color={theme.text} style={styles.buttonIcon} />
-            <Text style={[styles.secondaryButtonText, { color: theme.text }]}>{t('workoutSession.saveToGallery')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
+          />
+          <Button
+            variant="ghost"
+            icon="checkmark-outline"
+            label={t('workoutSession.done')}
             onPress={handleDone}
-            style={[
-              styles.actionButton,
-              { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 },
-            ]}
-          >
-            <Ionicons name="checkmark-outline" size={20} color={theme.text} style={styles.buttonIcon} />
-            <Text style={[styles.secondaryButtonText, { color: theme.text }]}>{t('workoutSession.done')}</Text>
-          </TouchableOpacity>
+          />
         </Animated.View>
       </ScrollView>
     </View>
@@ -361,7 +349,7 @@ const styles = StyleSheet.create({
   card: {
     marginTop: 32,
     marginBottom: 32,
-    borderRadius: 16,
+    borderRadius: 24,
     overflow: 'hidden',
     ...Platform.select({
       ios: {
@@ -383,16 +371,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   nafasLogo: {
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  workoutName: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontFamily: Fonts.displayAr,
+    fontSize: 22,
   },
   dateTime: {
+    fontFamily: Fonts.medium,
     fontSize: 14,
+    marginTop: 4,
     marginBottom: 16,
   },
   divider: {
@@ -408,35 +393,35 @@ const styles = StyleSheet.create({
   statItem: {
     alignItems: 'center',
     flex: 1,
+    gap: 4,
   },
   statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontFamily: Fonts.monoBold,
+    fontSize: 20,
   },
   statLabel: {
-    fontSize: 12,
-    fontWeight: '500',
+    ...Type.caption,
+    textTransform: 'uppercase',
   },
   exercisesText: {
+    fontFamily: Fonts.medium,
     fontSize: 13,
-    fontWeight: '500',
     lineHeight: 20,
     marginVertical: 4,
   },
   topLiftText: {
+    fontFamily: Fonts.semibold,
     fontSize: 14,
-    fontWeight: '600',
     marginVertical: 4,
   },
   comparisonText: {
+    fontFamily: Fonts.bold,
     fontSize: 14,
-    fontWeight: '600',
     marginVertical: 4,
   },
   usernameText: {
+    fontFamily: Fonts.medium,
     fontSize: 14,
-    fontWeight: '500',
     marginVertical: 4,
   },
   emptyState: {
@@ -444,29 +429,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 64,
     paddingHorizontal: 32,
+    gap: 8,
   },
   emptyText: {
+    fontFamily: Fonts.medium,
     fontSize: 16,
     marginTop: 16,
-    marginBottom: 24,
-  },
-  backBtn: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: Colors.primary,
-    borderRadius: 8,
-  },
-  backBtnText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
+    marginBottom: 16,
   },
   stylePickerContainer: {
     marginBottom: 24,
   },
   stylePickerLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...Type.overline,
     marginBottom: 12,
   },
   stylePicker: {
@@ -477,49 +452,16 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 999,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   styleButtonText: {
+    fontFamily: Fonts.semibold,
     fontSize: 13,
-    fontWeight: '600',
   },
   actionsContainer: {
     gap: 12,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-  },
-  primaryButton: {
-    shadowColor: Colors.primary,
-    ...Platform.select({
-      ios: {
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondaryButton: {},
-  secondaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  buttonIcon: {
-    marginRight: 8,
   },
 });
