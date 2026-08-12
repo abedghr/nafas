@@ -116,6 +116,13 @@ export default function ProfileScreen() {
           colors={[Colors.electric + '30', 'transparent']}
           style={[styles.headerGradient, { paddingTop: Platform.OS === 'web' ? 67 + 24 : insets.top + 24 }]}
         >
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/settings' as any); }}
+            hitSlop={10}
+            style={[styles.gearBtn, { top: (Platform.OS === 'web' ? 67 : insets.top) + 8, backgroundColor: theme.card + 'cc', borderColor: theme.border }]}
+          >
+            <Ionicons name="settings-outline" size={19} color={theme.text} />
+          </Pressable>
           <View style={styles.profileHeader}>
             <View style={[styles.avatarLarge, { backgroundColor: theme.card, borderColor: Colors.electric }]}>
               <Text style={[styles.avatarLargeText, { color: Colors.electric }]}>
@@ -215,65 +222,17 @@ export default function ProfileScreen() {
         )}
 
         <Animated.View entering={FadeInDown.duration(400).delay(200)}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary, paddingHorizontal: 20 }]}>{t('profile.settings')}</Text>
-          <View style={[styles.settingsGroup, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <SettingsItem
-              icon="moon-outline"
-              label={t('profile.dark_mode')}
-              isDark={isDark}
-              onPress={toggleTheme}
-              right={
-                <Pressable
-                  onPress={toggleTheme}
-                  style={[styles.themeTrack, { backgroundColor: isDark ? Colors.electric : theme.border, justifyContent: isDark ? 'flex-end' : 'flex-start' }]}
-                >
-                  <View style={styles.themeKnob}>
-                    <Ionicons name={isDark ? 'moon' : 'sunny'} size={12} color={isDark ? Colors.electric : '#F5A623'} />
-                  </View>
-                </Pressable>
-              }
-            />
-            <SettingsItem
-              icon="language-outline"
-              label={t('profile.language')}
-              isDark={isDark}
-              onPress={toggleLanguage}
-              right={
-                <View style={styles.rowValueRow}>
-                  <Text style={[styles.rowValue, { color: theme.textMuted }]}>{language === 'en' ? 'English' : 'العربية'}</Text>
-                  <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
-                </View>
-              }
-            />
-            <SettingsItem
-              icon="barbell-outline"
-              label={t('profilex.weightUnit')}
-              isDark={isDark}
-              last
-              right={
-                <View style={styles.unitChipRow}>
-                  {(['kg', 'lb'] as WeightUnit[]).map(u => (
-                    <Pressable
-                      key={u}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setWeightUnit(u); }}
-                      style={[styles.unitChip, { backgroundColor: weightUnit === u ? Colors.electric : theme.cardAlt }]}
-                    >
-                      <Text style={[styles.unitChipText, { color: weightUnit === u ? '#04120B' : theme.textSecondary }]}>{u.toUpperCase()}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              }
-            />
-          </View>
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.duration(400).delay(260)}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary, paddingHorizontal: 20 }]}>{t('profile.account', { defaultValue: 'Account' })}</Text>
-          <View style={[styles.settingsGroup, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <SettingsItem icon="person-outline" label={t('profile.edit')} isDark={isDark} onPress={() => router.push('/edit-profile' as any)} />
-            <SettingsItem icon="log-out-outline" label={t('profile.logout')} isDark={isDark} destructive onPress={handleLogout} />
-            <SettingsItem icon="trash-outline" label={t('profile.delete_account')} isDark={isDark} destructive last onPress={handleDeleteAccount} />
-          </View>
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/settings' as any); }}
+            style={({ pressed }) => [styles.settingsGroup, styles.settingsEntry, { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.9 : 1 }]}
+          >
+            <View style={[styles.settingsIconBg, { backgroundColor: Colors.electric + '15' }]}>
+              <Ionicons name="settings-outline" size={17} color={Colors.electric} />
+            </View>
+            <Text style={[styles.settingsLabel, { color: theme.text }]}>{t('profile.settings')}</Text>
+            <View style={{ flex: 1 }} />
+            <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
+          </Pressable>
         </Animated.View>
       </ScrollView>
     </View>
@@ -329,6 +288,8 @@ const styles = StyleSheet.create({
   interestTagText: { fontSize: 13, fontFamily: 'Rubik_500Medium' },
   // inset grouped-list (standard settings pattern)
   settingsGroup: { marginHorizontal: 20, marginBottom: 8, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  settingsEntry: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 15, marginTop: 4 },
+  gearBtn: { position: 'absolute', right: 20, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   settingsItem: {
     flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 13, minHeight: 56,
   },
