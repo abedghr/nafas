@@ -158,6 +158,7 @@ const en = {
     athlete: 'Athlete',
     coach: 'Coach',
     delete_account: 'Delete Account',
+    account: 'Account',
     delete_account_confirm: 'This permanently deletes your account and all your data. This cannot be undone.',
   },
   common: {
@@ -522,6 +523,7 @@ const ar = {
     athlete: '\u0631\u064A\u0627\u0636\u064A',
     coach: '\u0645\u062F\u0631\u0628',
     delete_account: '\u062D\u0630\u0641 \u0627\u0644\u062D\u0633\u0627\u0628',
+    account: '\u0627\u0644\u062D\u0633\u0627\u0628',
     delete_account_confirm: '\u0633\u064A\u0624\u062F\u064A \u0647\u0630\u0627 \u0625\u0644\u0649 \u062D\u0630\u0641 \u062D\u0633\u0627\u0628\u0643 \u0648\u062C\u0645\u064A\u0639 \u0628\u064A\u0627\u0646\u0627\u062A\u0643 \u0646\u0647\u0627\u0626\u064A\u0627\u064B. \u0644\u0627 \u064A\u0645\u0643\u0646 \u0627\u0644\u062A\u0631\u0627\u062C\u0639.',
   },
   common: {

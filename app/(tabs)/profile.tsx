@@ -40,22 +40,23 @@ function PhysStat({ label, value, theme }: { label: string; value: string; theme
   );
 }
 
-function SettingsItem({ icon, label, right, onPress, isDark }: any) {
+// Inset grouped-list row (standard settings pattern): tinted icon + label + trailing
+// value/chevron/control, with a hairline divider between rows inside a group card.
+function SettingsItem({ icon, label, right, onPress, isDark, destructive, last }: any) {
   const theme = isDark ? Colors.dark : Colors.light;
+  const tint = destructive ? Colors.semantic.danger : Colors.electric;
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.settingsItem,
-        { backgroundColor: theme.card, opacity: pressed ? 0.9 : 1 },
-      ]}
+      style={({ pressed }) => [styles.settingsItem, { backgroundColor: pressed ? theme.cardAlt : 'transparent' }]}
     >
-      <View style={[styles.settingsIconBg, { backgroundColor: Colors.electric + '15' }]}>
-        <Ionicons name={icon} size={18} color={Colors.electric} />
+      <View style={[styles.settingsIconBg, { backgroundColor: tint + '15' }]}>
+        <Ionicons name={icon} size={17} color={tint} />
       </View>
-      <Text style={[styles.settingsLabel, { color: theme.text }]}>{label}</Text>
+      <Text style={[styles.settingsLabel, { color: destructive ? Colors.semantic.danger : theme.text }]}>{label}</Text>
       <View style={{ flex: 1 }} />
-      {right || <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />}
+      {right || (!destructive && <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />)}
+      {!last && <View style={[styles.rowDivider, { backgroundColor: theme.border }]} />}
     </Pressable>
   );
 }
@@ -178,7 +179,7 @@ export default function ProfileScreen() {
               <View style={styles.interestTags}>
                 {user.interests.map(interest => {
                   const sport = sportInterests.find(s => s.id === interest);
-                  const sportColor = (Colors.sport as any)[interest] || Colors.electric;
+                  const sportColor = Colors.electric;
                   return (
                     <View key={interest} style={[styles.interestTag, { backgroundColor: sportColor + '15' }]}>
                       <Ionicons name={(sport?.icon || 'fitness-outline') as any} size={14} color={sportColor} />
@@ -194,7 +195,7 @@ export default function ProfileScreen() {
         {user?.type === 'coach' && (
           <Animated.View entering={FadeInDown.duration(400).delay(150)}>
             <Text style={[styles.sectionTitle, { color: theme.text, paddingHorizontal: 20 }]}>{t('discover.my_coaching')}</Text>
-            <View style={styles.settingsGroup}>
+            <View style={[styles.settingsGroup, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <SettingsItem icon="clipboard-outline" label={t('discover.manage_plans')} isDark={isDark} onPress={() => router.push('/coaching' as any)} />
               <SettingsItem icon="people-outline" label={t('discover.leads')} isDark={isDark} onPress={() => router.push('/coaching' as any)} />
             </View>
@@ -204,7 +205,7 @@ export default function ProfileScreen() {
         {(managesGyms || organizesEvents) && (
           <Animated.View entering={FadeInDown.duration(400).delay(160)}>
             <Text style={[styles.sectionTitle, { color: theme.text, paddingHorizontal: 20 }]}>{t('discover.gym_owner')}</Text>
-            <View style={styles.settingsGroup}>
+            <View style={[styles.settingsGroup, { backgroundColor: theme.card, borderColor: theme.border }]}>
               {ownsGyms && <SettingsItem icon="people-outline" label={t('discover.gym_leads')} isDark={isDark} onPress={() => router.push('/gym-leads' as any)} />}
               {managesGyms && <SettingsItem icon="business-outline" label={t('discover.manage_gym')} isDark={isDark} onPress={() => router.push('/manage-gym' as any)} />}
               {organizesEvents && <SettingsItem icon="trophy-outline" label={t('discover.manage_events')} isDark={isDark} onPress={() => router.push('/manage-events' as any)} />}
@@ -214,8 +215,8 @@ export default function ProfileScreen() {
         )}
 
         <Animated.View entering={FadeInDown.duration(400).delay(200)}>
-          <Text style={[styles.sectionTitle, { color: theme.text, paddingHorizontal: 20 }]}>{t('profile.settings')}</Text>
-          <View style={styles.settingsGroup}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary, paddingHorizontal: 20 }]}>{t('profile.settings')}</Text>
+          <View style={[styles.settingsGroup, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <SettingsItem
               icon="moon-outline"
               label={t('profile.dark_mode')}
@@ -227,7 +228,7 @@ export default function ProfileScreen() {
                   style={[styles.themeTrack, { backgroundColor: isDark ? Colors.electric : theme.border, justifyContent: isDark ? 'flex-end' : 'flex-start' }]}
                 >
                   <View style={styles.themeKnob}>
-                    <Ionicons name={isDark ? 'moon' : 'sunny'} size={13} color={isDark ? Colors.electric : '#F5A623'} />
+                    <Ionicons name={isDark ? 'moon' : 'sunny'} size={12} color={isDark ? Colors.electric : '#F5A623'} />
                   </View>
                 </Pressable>
               }
@@ -238,10 +239,9 @@ export default function ProfileScreen() {
               isDark={isDark}
               onPress={toggleLanguage}
               right={
-                <View style={[styles.langBadge, { backgroundColor: Colors.electric + '15' }]}>
-                  <Text style={[styles.langText, { color: Colors.electric }]}>
-                    {language === 'en' ? 'EN' : 'AR'}
-                  </Text>
+                <View style={styles.rowValueRow}>
+                  <Text style={[styles.rowValue, { color: theme.textMuted }]}>{language === 'en' ? 'English' : 'العربية'}</Text>
+                  <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
                 </View>
               }
             />
@@ -249,45 +249,31 @@ export default function ProfileScreen() {
               icon="barbell-outline"
               label={t('profilex.weightUnit')}
               isDark={isDark}
-              onPress={() => setWeightUnit(weightUnit === 'kg' ? 'lb' : 'kg')}
+              last
               right={
                 <View style={styles.unitChipRow}>
                   {(['kg', 'lb'] as WeightUnit[]).map(u => (
                     <Pressable
                       key={u}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setWeightUnit(u);
-                      }}
-                      style={[
-                        styles.unitChip,
-                        { backgroundColor: weightUnit === u ? Colors.electric : theme.surface },
-                      ]}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setWeightUnit(u); }}
+                      style={[styles.unitChip, { backgroundColor: weightUnit === u ? Colors.electric : theme.cardAlt }]}
                     >
-                      <Text style={[styles.unitChipText, { color: weightUnit === u ? '#fff' : theme.textSecondary }]}>
-                        {u.toUpperCase()}
-                      </Text>
+                      <Text style={[styles.unitChipText, { color: weightUnit === u ? '#04120B' : theme.textSecondary }]}>{u.toUpperCase()}</Text>
                     </Pressable>
                   ))}
                 </View>
               }
             />
-            <SettingsItem icon="person-outline" label={t('profile.edit')} isDark={isDark} onPress={() => router.push('/edit-profile' as any)} />
           </View>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.duration(400).delay(300)}>
-          <Pressable
-            onPress={handleLogout}
-            style={[styles.logoutButton, { backgroundColor: '#FF4458' + '15' }]}
-          >
-            <Ionicons name="log-out-outline" size={20} color="#FF4458" />
-            <Text style={styles.logoutText}>{t('profile.logout')}</Text>
-          </Pressable>
-          <Pressable onPress={handleDeleteAccount} style={styles.deleteAccountBtn}>
-            <Ionicons name="trash-outline" size={15} color={theme.textMuted} />
-            <Text style={[styles.deleteAccountText, { color: theme.textMuted }]}>{t('profile.delete_account')}</Text>
-          </Pressable>
+        <Animated.View entering={FadeInDown.duration(400).delay(260)}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary, paddingHorizontal: 20 }]}>{t('profile.account', { defaultValue: 'Account' })}</Text>
+          <View style={[styles.settingsGroup, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <SettingsItem icon="person-outline" label={t('profile.edit')} isDark={isDark} onPress={() => router.push('/edit-profile' as any)} />
+            <SettingsItem icon="log-out-outline" label={t('profile.logout')} isDark={isDark} destructive onPress={handleLogout} />
+            <SettingsItem icon="trash-outline" label={t('profile.delete_account')} isDark={isDark} destructive last onPress={handleDeleteAccount} />
+          </View>
         </Animated.View>
       </ScrollView>
     </View>
@@ -296,13 +282,13 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  headerGradient: { paddingBottom: 24 },
-  profileHeader: { alignItems: 'center', gap: 8 },
+  headerGradient: { paddingBottom: 20 },
+  profileHeader: { alignItems: 'center', gap: 6 },
   avatarLarge: {
-    width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3,
+    width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2,
   },
-  avatarLargeText: { fontSize: 36, fontFamily: 'Rubik_700Bold' },
+  avatarLargeText: { fontSize: 30, fontFamily: 'Rubik_700Bold' },
   profileName: { fontSize: 22, fontFamily: 'Rubik_700Bold' },
   profileUsername: { fontSize: 14, fontFamily: 'Rubik_400Regular' },
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
@@ -341,27 +327,19 @@ const styles = StyleSheet.create({
     paddingVertical: 8, borderRadius: 12,
   },
   interestTagText: { fontSize: 13, fontFamily: 'Rubik_500Medium' },
-  settingsGroup: { paddingHorizontal: 20, gap: 8 },
+  // inset grouped-list (standard settings pattern)
+  settingsGroup: { marginHorizontal: 20, marginBottom: 8, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   settingsItem: {
-    flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 14, gap: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 13, minHeight: 56,
   },
-  settingsIconBg: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  settingsIconBg: { width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   settingsLabel: { fontSize: 15, fontFamily: 'Rubik_500Medium' },
-  themeTrack: { width: 52, height: 30, borderRadius: 15, padding: 2, flexDirection: 'row', alignItems: 'center' },
-  themeKnob: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  langBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  langText: { fontSize: 13, fontFamily: 'Rubik_700Bold' },
-  unitChipRow: { flexDirection: 'row', gap: 6 },
-  unitChip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8 },
-  unitChipText: { fontSize: 13, fontFamily: 'Rubik_700Bold' },
-  logoutButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    marginHorizontal: 20, marginTop: 24, padding: 16, borderRadius: 14,
-  },
-  logoutText: { fontSize: 15, fontFamily: 'Rubik_600SemiBold', color: '#FF4458' },
-  deleteAccountBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginTop: 14, paddingVertical: 10,
-  },
-  deleteAccountText: { fontSize: 13, fontFamily: 'Rubik_500Medium' },
+  rowDivider: { position: 'absolute', left: 58, right: 0, bottom: 0, height: StyleSheet.hairlineWidth },
+  rowValueRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  rowValue: { fontSize: 14, fontFamily: 'Rubik_500Medium' },
+  themeTrack: { width: 48, height: 28, borderRadius: 14, padding: 2, flexDirection: 'row', alignItems: 'center' },
+  themeKnob: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  unitChipRow: { flexDirection: 'row', gap: 4, backgroundColor: 'transparent' },
+  unitChip: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 8 },
+  unitChipText: { fontSize: 12, fontFamily: 'Rubik_700Bold' },
 });
