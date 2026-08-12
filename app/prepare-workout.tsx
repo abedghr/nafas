@@ -22,6 +22,8 @@ import ExerciseRow from '@/components/ExerciseRow';
 import ExerciseFilterBar from '@/components/ExerciseFilterBar';
 import { matchExercise } from '@/lib/exercise-search';
 import { muscleLabel, equipLabel } from '@/lib/exercise-i18n';
+import { Display, Button as UIButton } from '@/components/ui';
+import { Fonts } from '@/constants/typography';
 import type { SetConfig, TemplateExercise, WorkoutType, WorkoutTemplate } from '@/lib/app-context';
 import { WORKOUT_TYPES, templateSig } from '@/lib/app-context';
 
@@ -1445,7 +1447,7 @@ export default function PrepareWorkoutScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12} style={s.backBtn}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
-        <Text style={[s.headerTitle, { color: theme.text }]}>{t('workoutPrep.newWorkout')}</Text>
+        <Display variant="d3" color={theme.text}>{t('workoutPrep.newWorkout')}</Display>
         <View style={{ width: 32 }} />
       </View>
 
@@ -1628,20 +1630,13 @@ export default function PrepareWorkoutScreen() {
             <Text style={[s.templateBtnText, { color: (inProgram || editingId || alreadySaved) ? Colors.primary : theme.text }]}>{inProgram ? t('programs.saveToProgram', { defaultValue: 'Save to Program' }) : editingId ? t('workoutPrep.update', { defaultValue: 'Update' }) : alreadySaved ? t('workoutPrep.saved') : t('workoutPrep.save')}</Text>
           </Pressable>
 
-          <Pressable
+          <UIButton
+            variant="solid"
+            icon="flash"
+            label={t('workoutPrep.startWorkout')}
             onPress={handleStartWorkout}
-            style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.9 : 1 }]}
-          >
-            <LinearGradient
-              colors={[Colors.primary, Colors.primaryDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={s.startBtn}
-            >
-              <Ionicons name="flash" size={18} color="#fff" />
-              <Text style={s.startBtnText}>{t('workoutPrep.startWorkout')}</Text>
-            </LinearGradient>
-          </Pressable>
+            style={{ flex: 1 }}
+          />
         </View>
       </View>
 

@@ -13,6 +13,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useApp } from '@/lib/app-context';
 import { toDisplayWeight, fromDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
 import { muscleLabel } from '@/lib/exercise-i18n';
+import { Display } from '@/components/ui';
 import Colors from '@/constants/colors';
 import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
@@ -1759,7 +1760,7 @@ export default function LiveWorkoutScreen() {
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{session.workoutName}</Text>
+          <Display variant="d3" color={theme.text} numberOfLines={1}>{session.workoutName}</Display>
           <View style={styles.timerRow}>
             <View style={styles.liveDot} />
             <Text style={[styles.headerTimer, { color: Colors.primary }]}>{elapsed}</Text>
@@ -1770,10 +1771,10 @@ export default function LiveWorkoutScreen() {
           style={[styles.finishBtn]}
         >
           <LinearGradient
-            colors={[Colors.primary, Colors.primaryDark]}
+            colors={[Colors.electric, Colors.electricPressed]}
             style={styles.finishBtnGrad}
           >
-            <Text style={styles.finishBtnText}>{t('workoutSession.finish')}</Text>
+            <Text style={[styles.finishBtnText, { color: '#04120B' }]}>{t('workoutSession.finish')}</Text>
           </LinearGradient>
         </Pressable>
       </View>

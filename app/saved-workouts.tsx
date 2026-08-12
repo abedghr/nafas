@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Platform,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -16,9 +16,14 @@ import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useApp, WorkoutTemplate, WorkoutLog } from '@/lib/app-context';
 import { confirmDialog } from '@/lib/dialog';
+import { Display, Chip, EmptyState } from '@/components/ui';
+import { Fonts, Type } from '@/constants/typography';
 import Colors from '@/constants/colors';
 
 type Tab = 'templates' | 'history';
+
+// Branded gradient used as the photo-led fallback tile on each card (matches PhotoTile).
+const TILE_GRADIENT = ['#1A3A30', '#0C201A'] as const;
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -76,64 +81,48 @@ export default function SavedWorkoutsScreen() {
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
+  const tabs: { id: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+    { id: 'templates', label: t('workoutSession.templates'), icon: 'bookmark-outline' },
+    { id: 'history', label: t('workoutSession.history'), icon: 'time-outline' },
+  ];
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: topPadding + 12 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={26} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>{t('workoutSession.myWorkouts')}</Text>
-        <View style={{ width: 26 }} />
+        <Pressable
+          onPress={() => router.back()}
+          style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+          hitSlop={8}
+        >
+          <Ionicons name="chevron-back" size={22} color={theme.text} />
+        </Pressable>
+        <Display variant="d3" color={theme.text} style={styles.headerTitle}>
+          {t('workoutSession.myWorkouts')}
+        </Display>
+        <View style={styles.iconBtn} />
       </View>
 
       <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.tabContainer}>
-        <View style={[styles.tabBar, { backgroundColor: theme.surface }]}>
-          <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'templates' && styles.tabButtonActive]}
-            onPress={() => setActiveTab('templates')}
-          >
-            <LinearGradient
-              colors={activeTab === 'templates' ? [Colors.primary, '#00A87A'] : ['transparent', 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.tabGradient}
-            >
-              <Ionicons
-                name="bookmark-outline"
-                size={16}
-                color={activeTab === 'templates' ? '#FFF' : theme.textMuted}
-              />
-              <Text style={[
-                styles.tabText,
-                { color: activeTab === 'templates' ? '#FFF' : theme.textMuted }
-              ]}>
-                {t('workoutSession.templates')}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'history' && styles.tabButtonActive]}
-            onPress={() => setActiveTab('history')}
-          >
-            <LinearGradient
-              colors={activeTab === 'history' ? [Colors.primary, '#00A87A'] : ['transparent', 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.tabGradient}
-            >
-              <Ionicons
-                name="time-outline"
-                size={16}
-                color={activeTab === 'history' ? '#FFF' : theme.textMuted}
-              />
-              <Text style={[
-                styles.tabText,
-                { color: activeTab === 'history' ? '#FFF' : theme.textMuted }
-              ]}>
-                {t('workoutSession.history')}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
+        <View style={[styles.tabBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          {tabs.map(tab => {
+            const active = activeTab === tab.id;
+            return (
+              <Pressable
+                key={tab.id}
+                style={[styles.tabButton, active && { backgroundColor: Colors.electric }]}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveTab(tab.id); }}
+              >
+                <Ionicons
+                  name={tab.icon}
+                  size={16}
+                  color={active ? '#04120B' : theme.textMuted}
+                />
+                <Text style={[styles.tabText, { color: active ? '#04120B' : theme.textMuted }]}>
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       </Animated.View>
 
@@ -143,14 +132,12 @@ export default function SavedWorkoutsScreen() {
       >
         {activeTab === 'templates' ? (
           sortedTemplates.length === 0 ? (
-            <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.emptyState}>
-              <View style={[styles.emptyIconCircle, { backgroundColor: theme.card }]}>
-                <Ionicons name="bookmark-outline" size={36} color={theme.textMuted} />
-              </View>
-              <Text style={[styles.emptyTitle, { color: theme.textSecondary }]}>{t('workoutSession.noTemplatesYet')}</Text>
-              <Text style={[styles.emptySubtext, { color: theme.textMuted }]}>
-                {t('workoutSession.noTemplatesSubtext')}
-              </Text>
+            <Animated.View entering={FadeInDown.delay(200).duration(500)}>
+              <EmptyState
+                icon="bookmark-outline"
+                title={t('workoutSession.noTemplatesYet')}
+                subtitle={t('workoutSession.noTemplatesSubtext')}
+              />
             </Animated.View>
           ) : (
             sortedTemplates.map((template, index) => {
@@ -160,74 +147,77 @@ export default function SavedWorkoutsScreen() {
                   key={template.id}
                   entering={FadeInDown.delay(150 + index * 80).duration(500)}
                 >
-                  <TouchableOpacity
-                    style={[styles.card, { backgroundColor: theme.card }]}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.card,
+                      { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.9 : 1 },
+                    ]}
                     onPress={() => handleTemplatePress(template)}
                     onLongPress={() => handleDeleteTemplate(template)}
-                    activeOpacity={0.7}
                   >
-                    <View style={styles.cardHeader}>
-                      <View style={styles.cardTitleRow}>
-                        <Ionicons name="barbell-outline" size={20} color={Colors.primary} />
-                        <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1}>
-                          {template.name}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        onPress={() => handleDeleteTemplate(template)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    <View style={styles.cardTop}>
+                      <LinearGradient
+                        colors={TILE_GRADIENT}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.thumb}
                       >
-                        <Ionicons name="trash-outline" size={18} color={theme.textMuted} />
-                      </TouchableOpacity>
-                    </View>
+                        <Ionicons name="barbell" size={24} color={Colors.electric} />
+                      </LinearGradient>
 
-                    {template.workoutType && (
-                      <View style={{ flexDirection: 'row', marginBottom: 6 }}>
-                        <View style={[styles.tag, { backgroundColor: Colors.accent + '18' }]}>
-                          <Text style={[styles.tagText, { color: Colors.accent }]}>{template.workoutType}</Text>
+                      <View style={styles.cardTitleCol}>
+                        <Display variant="d3" color={theme.text} numberOfLines={1}>
+                          {template.name}
+                        </Display>
+                        <View style={styles.metaRow}>
+                          <Ionicons name="calendar-outline" size={13} color={theme.textMuted} />
+                          <Text style={[styles.metaText, { color: theme.textMuted }]}>
+                            {formatDate(template.createdAt)}
+                          </Text>
+                          <Text style={[styles.metaDot, { color: theme.textMuted }]}>·</Text>
+                          <Ionicons name="list-outline" size={13} color={theme.textMuted} />
+                          <Text style={[styles.metaText, { color: theme.textMuted }]}>
+                            {t('workoutSession.exerciseCount', { count: template.exercises.length })}
+                          </Text>
                         </View>
                       </View>
-                    )}
 
-                    <View style={styles.cardMeta}>
-                      <View style={styles.metaItem}>
-                        <Ionicons name="calendar-outline" size={13} color={theme.textMuted} />
-                        <Text style={[styles.metaText, { color: theme.textMuted }]}>
-                          {formatDate(template.createdAt)}
-                        </Text>
-                      </View>
-                      <View style={styles.metaItem}>
-                        <Ionicons name="list-outline" size={13} color={theme.textMuted} />
-                        <Text style={[styles.metaText, { color: theme.textMuted }]}>
-                          {t('workoutSession.exerciseCount', { count: template.exercises.length })}
-                        </Text>
-                      </View>
+                      <Pressable
+                        onPress={() => handleDeleteTemplate(template)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        style={styles.trashBtn}
+                      >
+                        <Ionicons name="trash-outline" size={18} color={theme.textMuted} />
+                      </Pressable>
                     </View>
 
-                    {muscles.length > 0 && (
-                      <View style={styles.tagRow}>
-                        {muscles.map((muscle) => (
-                          <View key={muscle} style={[styles.tag, { backgroundColor: Colors.primary + '18' }]}>
-                            <Text style={[styles.tagText, { color: Colors.primary }]}>{muscle}</Text>
+                    {(template.workoutType || muscles.length > 0) && (
+                      <View style={styles.chipRow}>
+                        {template.workoutType && (
+                          <View style={[styles.typePill, { backgroundColor: Colors.electric + '1A' }]}>
+                            <Text style={[styles.typePillText, { color: Colors.electric }]}>
+                              {template.workoutType}
+                            </Text>
                           </View>
+                        )}
+                        {muscles.map((muscle) => (
+                          <Chip key={muscle} label={muscle} />
                         ))}
                       </View>
                     )}
-                  </TouchableOpacity>
+                  </Pressable>
                 </Animated.View>
               );
             })
           )
         ) : (
           sortedLogs.length === 0 ? (
-            <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.emptyState}>
-              <View style={[styles.emptyIconCircle, { backgroundColor: theme.card }]}>
-                <Ionicons name="fitness-outline" size={36} color={theme.textMuted} />
-              </View>
-              <Text style={[styles.emptyTitle, { color: theme.textSecondary }]}>{t('workoutSession.noWorkoutsYet')}</Text>
-              <Text style={[styles.emptySubtext, { color: theme.textMuted }]}>
-                {t('workoutSession.noWorkoutsSubtext')}
-              </Text>
+            <Animated.View entering={FadeInDown.delay(200).duration(500)}>
+              <EmptyState
+                icon="fitness-outline"
+                title={t('workoutSession.noWorkoutsYet')}
+                subtitle={t('workoutSession.noWorkoutsSubtext')}
+              />
             </Animated.View>
           ) : (
             sortedLogs.map((log, index) => {
@@ -237,75 +227,79 @@ export default function SavedWorkoutsScreen() {
                   key={log.id}
                   entering={FadeInDown.delay(150 + index * 80).duration(500)}
                 >
-                  <TouchableOpacity
-                    style={[styles.card, { backgroundColor: theme.card }]}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.card,
+                      { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.9 : 1 },
+                    ]}
                     onPress={() => handleLogPress(log)}
-                    activeOpacity={0.7}
                   >
-                    <View style={styles.cardHeader}>
-                      <View style={styles.cardTitleRow}>
-                        <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
-                        <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1}>
+                    <View style={styles.cardTop}>
+                      <LinearGradient
+                        colors={TILE_GRADIENT}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.thumb}
+                      >
+                        <Ionicons name="checkmark-circle" size={24} color={Colors.electric} />
+                      </LinearGradient>
+
+                      <View style={styles.cardTitleCol}>
+                        <Display variant="d3" color={theme.text} numberOfLines={1}>
                           {log.name}
-                        </Text>
+                        </Display>
+                        <View style={styles.metaRow}>
+                          <Ionicons name="calendar-outline" size={13} color={theme.textMuted} />
+                          <Text style={[styles.metaText, { color: theme.textMuted }]}>
+                            {formatDate(log.date)}
+                          </Text>
+                          <Text style={[styles.metaDot, { color: theme.textMuted }]}>·</Text>
+                          <Ionicons name="time-outline" size={13} color={theme.textMuted} />
+                          <Text style={[styles.metaText, { color: theme.textMuted }]}>
+                            {formatDuration(log.durationMinutes)}
+                          </Text>
+                        </View>
                       </View>
+
                       <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
                     </View>
 
-                    {log.workoutType && (
-                      <View style={{ flexDirection: 'row', marginBottom: 6 }}>
-                        <View style={[styles.tag, { backgroundColor: Colors.accent + '18' }]}>
-                          <Text style={[styles.tagText, { color: Colors.accent }]}>{log.workoutType}</Text>
-                        </View>
-                      </View>
-                    )}
-
-                    <View style={styles.cardMeta}>
-                      <View style={styles.metaItem}>
-                        <Ionicons name="calendar-outline" size={13} color={theme.textMuted} />
-                        <Text style={[styles.metaText, { color: theme.textMuted }]}>
-                          {formatDate(log.date)}
-                        </Text>
-                      </View>
-                      <View style={styles.metaItem}>
-                        <Ionicons name="time-outline" size={13} color={theme.textMuted} />
-                        <Text style={[styles.metaText, { color: theme.textMuted }]}>
-                          {formatDuration(log.durationMinutes)}
-                        </Text>
-                      </View>
-                    </View>
-
                     <View style={styles.logStatsRow}>
-                      <View style={[styles.logStat, { backgroundColor: theme.background + '80' }]}>
+                      <View style={[styles.logStat, { backgroundColor: theme.cardAlt }]}>
                         <Text style={[styles.logStatValue, { color: theme.text }]}>
                           {formatVolume(log.totalVolumeKg)}
                         </Text>
                         <Text style={[styles.logStatLabel, { color: theme.textMuted }]}>{t('workoutSession.volume')}</Text>
                       </View>
-                      <View style={[styles.logStat, { backgroundColor: theme.background + '80' }]}>
+                      <View style={[styles.logStat, { backgroundColor: theme.cardAlt }]}>
                         <Text style={[styles.logStatValue, { color: theme.text }]}>
                           {log.exercises.length}
                         </Text>
                         <Text style={[styles.logStatLabel, { color: theme.textMuted }]}>{t('workoutSession.exercises')}</Text>
                       </View>
-                      <View style={[styles.logStat, { backgroundColor: theme.background + '80' }]}>
-                        <Text style={[styles.logStatValue, { color: theme.text }]}>
+                      <View style={[styles.logStat, { backgroundColor: theme.cardAlt }]}>
+                        <Text style={[styles.logStatValue, { color: Colors.electric }]}>
                           {log.completedSets}/{log.totalSets}
                         </Text>
                         <Text style={[styles.logStatLabel, { color: theme.textMuted }]}>{t('workoutSession.sets')}</Text>
                       </View>
                     </View>
 
-                    {muscles.length > 0 && (
-                      <View style={styles.tagRow}>
-                        {muscles.map((muscle) => (
-                          <View key={muscle} style={[styles.tag, { backgroundColor: Colors.primary + '18' }]}>
-                            <Text style={[styles.tagText, { color: Colors.primary }]}>{muscle}</Text>
+                    {(log.workoutType || muscles.length > 0) && (
+                      <View style={styles.chipRow}>
+                        {log.workoutType && (
+                          <View style={[styles.typePill, { backgroundColor: Colors.electric + '1A' }]}>
+                            <Text style={[styles.typePillText, { color: Colors.electric }]}>
+                              {log.workoutType}
+                            </Text>
                           </View>
+                        )}
+                        {muscles.map((muscle) => (
+                          <Chip key={muscle} label={muscle} />
                         ))}
                       </View>
                     )}
-                  </TouchableOpacity>
+                  </Pressable>
                 </Animated.View>
               );
             })
@@ -327,141 +321,123 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
-  backButton: {
-    padding: 4,
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700' as const,
-    letterSpacing: -0.3,
+    flex: 1,
+    textAlign: 'center',
   },
   tabContainer: {
     paddingHorizontal: 20,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   tabBar: {
     flexDirection: 'row',
-    borderRadius: 14,
+    borderRadius: 999,
     padding: 4,
+    borderWidth: 1,
   },
   tabButton: {
     flex: 1,
-    borderRadius: 11,
-    overflow: 'hidden',
-  },
-  tabButtonActive: {},
-  tabGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 10,
-    borderRadius: 11,
+    borderRadius: 999,
   },
   tabText: {
+    fontFamily: Fonts.semibold,
     fontSize: 14,
-    fontWeight: '600' as const,
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 8,
   },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 80,
-    gap: 12,
-  },
-  emptyIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '600' as const,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    textAlign: 'center',
-    paddingHorizontal: 40,
-    lineHeight: 20,
-  },
   card: {
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
   },
-  cardHeader: {
+  cardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
+    gap: 12,
   },
-  cardTitleRow: {
-    flexDirection: 'row',
+  thumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'center',
+  },
+  cardTitleCol: {
     flex: 1,
-    marginRight: 8,
+    gap: 4,
   },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    flex: 1,
-  },
-  cardMeta: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 10,
-  },
-  metaItem: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+    flexWrap: 'wrap',
   },
   metaText: {
+    fontFamily: Fonts.medium,
     fontSize: 12,
-    fontWeight: '500' as const,
   },
-  tagRow: {
+  metaDot: {
+    fontFamily: Fonts.medium,
+    fontSize: 12,
+    marginHorizontal: 1,
+  },
+  trashBtn: {
+    padding: 2,
+  },
+  chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 4,
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
   },
-  tag: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+  typePill: {
+    paddingHorizontal: 12,
+    height: 34,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  tagText: {
-    fontSize: 11,
-    fontWeight: '600' as const,
+  typePillText: {
+    fontFamily: Fonts.semibold,
+    fontSize: 13,
     textTransform: 'capitalize',
   },
   logStatsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 10,
+    marginTop: 14,
   },
   logStat: {
     flex: 1,
-    borderRadius: 10,
-    paddingVertical: 8,
+    borderRadius: 14,
+    paddingVertical: 10,
     paddingHorizontal: 10,
     alignItems: 'center',
+    gap: 3,
   },
   logStatValue: {
-    fontSize: 13,
-    fontWeight: '700' as const,
+    fontFamily: Fonts.monoBold,
+    fontSize: 15,
   },
   logStatLabel: {
-    fontSize: 10,
-    fontWeight: '500' as const,
-    marginTop: 2,
+    ...Type.caption,
   },
 });

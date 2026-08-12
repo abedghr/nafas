@@ -17,6 +17,9 @@ import { useTranslation } from 'react-i18next';
 import { useApp, WorkoutLog, LogExercise, templateSig } from '@/lib/app-context';
 import { toDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
 import Colors from '@/constants/colors';
+import { Display, StatTile, CountUp, Button } from '@/components/ui';
+import { Fonts, Type } from '@/constants/typography';
+import { Spring } from '@/constants/motion';
 
 function formatDuration(minutes: number): string {
   const h = Math.floor(minutes / 60);
@@ -167,14 +170,49 @@ export default function WorkoutSummaryScreen() {
     );
   }
 
-  // 6 stats → clean 2×3 grid. Pre-workout moved to a hero chip (was a lone full-width tile).
-  const stats = [
-    { label: t('workoutSession.duration'), value: formatDuration(currentLog.durationMinutes), icon: 'time-outline' as const },
-    { label: t('workoutSession.exercises'), value: String(currentLog.exercises.length), icon: 'barbell-outline' as const },
-    { label: t('workoutSession.totalSets'), value: String(currentLog.totalSets), icon: 'layers-outline' as const },
-    { label: t('workoutSession.completed'), value: `${currentLog.completedSets}${currentLog.skippedSets > 0 ? ` (${t('workoutSession.nSkipped', { n: currentLog.skippedSets })})` : ''}`, icon: 'checkmark-circle-outline' as const },
-    { label: t('workoutSession.totalReps'), value: String(currentLog.totalReps), icon: 'repeat-outline' as const },
-    { label: t('workoutSession.volume'), value: formatVolume(currentLog.totalVolumeKg, weightUnit), icon: 'trending-up-outline' as const },
+  // Big kinetic totals. Mono Type.stat numbers wrapped in CountUp; StatTile grid.
+  // Same computed values as before — only the presentation changed.
+  const statNumStyle = { ...Type.stat, color: theme.text };
+  const statTiles: { icon: keyof typeof Ionicons.glyphMap; label: string; node: React.ReactNode }[] = [
+    {
+      icon: 'time-outline',
+      label: t('workoutSession.duration'),
+      node: <CountUp value={currentLog.durationMinutes} format={(n) => formatDuration(Math.round(n))} style={statNumStyle} />,
+    },
+    {
+      icon: 'barbell-outline',
+      label: t('workoutSession.exercises'),
+      node: <CountUp value={currentLog.exercises.length} style={statNumStyle} />,
+    },
+    {
+      icon: 'layers-outline',
+      label: t('workoutSession.totalSets'),
+      node: <CountUp value={currentLog.totalSets} style={statNumStyle} />,
+    },
+    {
+      icon: 'checkmark-circle-outline',
+      label: t('workoutSession.completed'),
+      node: (
+        <View style={styles.completedRow}>
+          <CountUp value={currentLog.completedSets} style={statNumStyle} />
+          {currentLog.skippedSets > 0 && (
+            <Text style={[styles.skipNote, { color: theme.textMuted }]}>
+              {t('workoutSession.nSkipped', { n: currentLog.skippedSets })}
+            </Text>
+          )}
+        </View>
+      ),
+    },
+    {
+      icon: 'repeat-outline',
+      label: t('workoutSession.totalReps'),
+      node: <CountUp value={currentLog.totalReps} style={statNumStyle} />,
+    },
+    {
+      icon: 'trending-up-outline',
+      label: t('workoutSession.volume'),
+      node: <CountUp value={currentLog.totalVolumeKg} format={(n) => formatVolume(n, weightUnit)} style={statNumStyle} />,
+    },
   ];
 
   return (
@@ -185,46 +223,48 @@ export default function WorkoutSummaryScreen() {
       >
         <Animated.View entering={FadeInDown.delay(100).duration(600)} style={styles.heroSection}>
           <LinearGradient
-            colors={['#00C89640', '#00C89610', 'transparent']}
+            colors={[Colors.electric + '30', Colors.electric + '10', 'transparent']}
             style={styles.heroBg}
           />
           <View style={styles.trophyContainer}>
             <LinearGradient
-              colors={[Colors.primary, '#00A87A']}
+              colors={[Colors.electric, Colors.electricPressed]}
               style={styles.trophyCircle}
             >
-              <Ionicons name="trophy" size={40} color="#FFF" />
+              <Ionicons name="trophy" size={40} color="#04120B" />
             </LinearGradient>
           </View>
-          <Text style={[styles.heroTitle, { color: theme.text }]}>{t('workoutSession.workoutComplete')}</Text>
-          <Text style={[styles.heroSubtitle, { color: theme.textSecondary }]}>
+          <Display variant="d2" color={theme.text} style={styles.heroTitle}>{t('workoutSession.workoutComplete')}</Display>
+          <Text style={[styles.heroSubtitle, { color: theme.text }]}>
             {currentLog.name}
           </Text>
           <Text style={[styles.heroDate, { color: theme.textMuted }]}>
             {formatDate(currentLog.date)}{currentLog.startTime && !isNaN(new Date(currentLog.startTime).getTime()) ? ` · ${formatTime(currentLog.startTime)}` : ''}
           </Text>
           {currentLog.preWorkout && (
-            <View style={[styles.preChip, { backgroundColor: Colors.primary + '1A', borderColor: Colors.primary + '40' }]}>
-              <Ionicons name="flash" size={13} color={Colors.primary} />
-              <Text style={[styles.preChipText, { color: Colors.primary }]}>{t('workoutSession.preWorkout')}</Text>
+            <View style={[styles.preChip, { backgroundColor: Colors.electric + '1A', borderColor: Colors.electric + '40' }]}>
+              <Ionicons name="flash" size={13} color={Colors.electric} />
+              <Text style={[styles.preChipText, { color: Colors.electric }]}>{t('workoutSession.preWorkout')}</Text>
             </View>
           )}
         </Animated.View>
 
         {newPrs.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(200).duration(600)}>
-            <LinearGradient colors={['#FFD70026', '#FFD70008']} style={[styles.prCelebration, { borderColor: '#FFD70055' }]}>
+          <Animated.View
+            entering={FadeInDown.delay(200).springify().damping(Spring.bouncy.damping).stiffness(Spring.bouncy.stiffness).mass(Spring.bouncy.mass)}
+          >
+            <LinearGradient colors={[Colors.electric + '26', Colors.electric + '08']} style={[styles.prCelebration, { borderColor: Colors.electric + '55' }]}>
               <View style={styles.prCelebHeader}>
                 <Text style={styles.prCelebEmoji}>🎉</Text>
-                <Text style={[styles.prCelebTitle, { color: '#FFD700' }]}>
+                <Text style={[styles.prCelebTitle, { color: Colors.electric }]}>
                   {newPrs.length === 1 ? t('workoutSession.newPr') : t('workoutSession.newPrs', { count: newPrs.length })}
                 </Text>
               </View>
               {newPrs.map((pr) => (
                 <View key={pr.name} style={styles.prCelebRow}>
-                  <Ionicons name="trophy" size={14} color="#FFD700" />
+                  <Ionicons name="trophy" size={14} color={Colors.electric} />
                   <Text style={[styles.prCelebName, { color: theme.text }]} numberOfLines={1}>{pr.name}</Text>
-                  <Text style={[styles.prCelebWeight, { color: '#FFD700' }]}>{toDisplayWeight(pr.weight, weightUnit)} {unitLabel(weightUnit)}</Text>
+                  <Text style={[styles.prCelebWeight, { color: Colors.electric }]}>{toDisplayWeight(pr.weight, weightUnit)} {unitLabel(weightUnit)}</Text>
                   {pr.prev > 0 && (
                     <Text style={[styles.prCelebPrev, { color: theme.textMuted }]}>{t('workoutSession.prevBest', { weight: toDisplayWeight(pr.prev, weightUnit), unit: unitLabel(weightUnit) })}</Text>
                   )}
@@ -237,14 +277,8 @@ export default function WorkoutSummaryScreen() {
         <Animated.View entering={FadeInDown.delay(250).duration(600)}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('workoutSession.workoutStats')}</Text>
           <View style={styles.statsGrid}>
-            {stats.map((stat, i) => (
-              <View key={i} style={[styles.statCard, { backgroundColor: theme.card }]}>
-                <View style={styles.statIconRow}>
-                  <Ionicons name={stat.icon} size={18} color={Colors.primary} />
-                </View>
-                <Text style={[styles.statValue, { color: theme.text }]}>{stat.value}</Text>
-                <Text style={[styles.statLabel, { color: theme.textMuted }]}>{stat.label}</Text>
-              </View>
+            {statTiles.map((st, i) => (
+              <StatTile key={i} icon={st.icon} label={st.label} value={st.node} style={styles.statTile} />
             ))}
           </View>
         </Animated.View>
@@ -313,8 +347,8 @@ export default function WorkoutSummaryScreen() {
                           <Text style={[styles.comboBadgeText, { color: Colors.accent }]}>{t('workoutSession.combo')}</Text>
                         </View>
                         {row.comboUnbroken && (
-                          <View style={[styles.comboBadge, { backgroundColor: Colors.primary + '18' }]}>
-                            <Text style={[styles.comboBadgeText, { color: Colors.primary }]}>{t('workoutSession.unbroken')}</Text>
+                          <View style={[styles.comboBadge, { backgroundColor: Colors.electric + '18' }]}>
+                            <Text style={[styles.comboBadgeText, { color: Colors.electric }]}>{t('workoutSession.unbroken')}</Text>
                           </View>
                         )}
                         <Text style={[styles.comboHeadLabel, { color: theme.textSecondary }]} numberOfLines={1}>{row.comboLabel}</Text>
@@ -325,7 +359,7 @@ export default function WorkoutSummaryScreen() {
                       <Text style={[styles.tableCell, styles.dataCol, { color: theme.textSecondary }]}>{row.today}</Text>
                       <Text style={[styles.tableCell, styles.dataCol, { color: theme.textMuted }]}>{row.lastTime}</Text>
                       <Text style={[styles.tableCell, styles.changeCol, {
-                        color: row.change === null ? theme.textMuted : row.change > 0 ? '#4ADE80' : row.change < 0 ? '#F87171' : theme.textMuted
+                        color: row.change === null ? theme.textMuted : row.change > 0 ? Colors.electric : row.change < 0 ? Colors.semantic.danger : theme.textMuted
                       }]}>
                         {row.change === null ? '-' : row.change > 0 ? `+${toDisplayWeight(row.change, weightUnit)} ${unitLabel(weightUnit)}` : `${toDisplayWeight(row.change, weightUnit)} ${unitLabel(weightUnit)}`}
                       </Text>
@@ -348,12 +382,12 @@ export default function WorkoutSummaryScreen() {
             >
               <View style={styles.insightBadge}>
                 <LinearGradient
-                  colors={[Colors.primary, '#00A87A']}
+                  colors={[Colors.electric, Colors.electricPressed]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.badgeGradient}
                 >
-                  <Ionicons name="sparkles" size={14} color="#FFF" />
+                  <Ionicons name="sparkles" size={14} color="#04120B" />
                   <Text style={styles.badgeText}>{t('workoutSession.aiCoach')}</Text>
                 </LinearGradient>
               </View>
@@ -367,20 +401,14 @@ export default function WorkoutSummaryScreen() {
         {/* actions live in-flow (not a floating bar) so nothing overlaps the content */}
         <Animated.View entering={FadeInDown.delay(650).duration(500)} style={[styles.buttonRow, { marginTop: 24 }]}>
           {showSaveTemplate ? (
-            <TouchableOpacity style={[styles.secondaryBtn, { borderColor: theme.border }]} onPress={handleSaveTemplate}>
-              <Ionicons name="bookmark-outline" size={20} color={Colors.primary} />
-              <Text style={[styles.secondaryBtnText, { color: theme.text }]}>{t('workoutSession.saveTemplate')}</Text>
-            </TouchableOpacity>
+            <Button variant="ghost" icon="bookmark-outline" label={t('workoutSession.saveTemplate')} onPress={handleSaveTemplate} style={styles.actionBtn} />
           ) : savedNow ? (
-            <View style={[styles.secondaryBtn, { borderColor: Colors.primary }]}>
-              <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
-              <Text style={[styles.secondaryBtnText, { color: Colors.primary }]}>{t('workoutPrep.saved')}</Text>
+            <View style={[styles.savedChip, { borderColor: Colors.electric }]}>
+              <Ionicons name="checkmark-circle" size={20} color={Colors.electric} />
+              <Text style={[styles.savedChipText, { color: Colors.electric }]}>{t('workoutPrep.saved')}</Text>
             </View>
           ) : null}
-          <TouchableOpacity style={[styles.secondaryBtn, { borderColor: theme.border }]} onPress={handleShare}>
-            <Ionicons name="share-outline" size={20} color={Colors.primary} />
-            <Text style={[styles.secondaryBtnText, { color: theme.text }]}>{t('workoutSession.share')}</Text>
-          </TouchableOpacity>
+          <Button variant="ghost" icon="share-outline" label={t('workoutSession.share')} onPress={handleShare} style={styles.actionBtn} />
         </Animated.View>
       </ScrollView>
 
@@ -389,17 +417,7 @@ export default function WorkoutSummaryScreen() {
         style={[styles.bottomBar, { paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 12 }]}
       >
         <Animated.View entering={FadeInDown.delay(800).duration(500)}>
-          <TouchableOpacity style={styles.doneBtn} onPress={handleDone}>
-            <LinearGradient
-              colors={[Colors.primary, '#00A87A']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.doneBtnGradient}
-            >
-              <Ionicons name="checkmark-circle" size={22} color="#FFF" />
-              <Text style={styles.doneBtnText}>{t('workoutSession.done')}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          <Button variant="primary" label={t('workoutSession.done')} playIcon="checkmark" onPress={handleDone} />
         </Animated.View>
       </LinearGradient>
     </View>
@@ -418,7 +436,7 @@ function ComparisonRow({ label, current, diff, suffix, pct, invertColor, theme }
   const isPositive = invertColor ? diff < 0 : diff > 0;
   const isNegative = invertColor ? diff > 0 : diff < 0;
   const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '';
-  const color = isPositive ? '#4ADE80' : isNegative ? '#F87171' : theme.textMuted;
+  const color = isPositive ? Colors.electric : isNegative ? Colors.semantic.danger : theme.textMuted;
   const sign = diff > 0 ? '+' : '';
 
   return (
@@ -449,19 +467,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emptyText: {
+    fontFamily: Fonts.medium,
     fontSize: 16,
   },
   backBtn: {
     marginTop: 8,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.electric,
     paddingHorizontal: 24,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 999,
   },
   backBtnText: {
-    color: '#FFF',
+    color: '#04120B',
+    fontFamily: Fonts.bold,
     fontSize: 15,
-    fontWeight: '600' as const,
   },
   heroSection: {
     alignItems: 'center',
@@ -486,16 +505,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   heroTitle: {
-    fontSize: 26,
-    fontWeight: '800' as const,
-    letterSpacing: -0.5,
+    textAlign: 'center',
   },
   heroSubtitle: {
+    fontFamily: Fonts.semibold,
     fontSize: 17,
-    fontWeight: '600' as const,
     marginTop: 6,
   },
   heroDate: {
+    fontFamily: Fonts.regular,
     fontSize: 13,
     marginTop: 4,
   },
@@ -510,45 +528,42 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   preChipText: {
+    fontFamily: Fonts.bold,
     fontSize: 12,
-    fontWeight: '700' as const,
   },
   sectionTitle: {
+    fontFamily: Fonts.bold,
     fontSize: 18,
-    fontWeight: '700' as const,
     marginBottom: 12,
     marginTop: 20,
   },
   prCelebration: { borderRadius: 16, borderWidth: 1, padding: 16, marginTop: 8 },
   prCelebHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   prCelebEmoji: { fontSize: 20 },
-  prCelebTitle: { fontSize: 16, fontWeight: '800' as const },
+  prCelebTitle: { fontFamily: Fonts.bold, fontSize: 16 },
   prCelebRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5 },
-  prCelebName: { flex: 1, fontSize: 14, fontWeight: '600' as const },
-  prCelebWeight: { fontSize: 15, fontWeight: '800' as const },
-  prCelebPrev: { fontSize: 11, fontWeight: '500' as const },
+  prCelebName: { flex: 1, fontFamily: Fonts.semibold, fontSize: 14 },
+  prCelebWeight: { fontFamily: Fonts.monoBold, fontSize: 15 },
+  prCelebPrev: { fontFamily: Fonts.medium, fontSize: 11 },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
   },
-  statCard: {
-    width: '31%' as any,
+  statTile: {
+    flexBasis: '47%',
     flexGrow: 1,
-    minWidth: 100,
-    borderRadius: 14,
-    padding: 14,
+    minWidth: 150,
+  },
+  completedRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
     gap: 6,
+    flexWrap: 'wrap',
   },
-  statIconRow: {
-    marginBottom: 2,
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-  },
-  statLabel: {
-    fontSize: 12,
+  skipNote: {
+    fontFamily: Fonts.medium,
+    fontSize: 11,
   },
   card: {
     borderRadius: 16,
@@ -560,13 +575,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   firstTimeText: {
+    fontFamily: Fonts.medium,
     fontSize: 15,
-    fontWeight: '500' as const,
     flex: 1,
   },
   comparisonHeader: {
+    fontFamily: Fonts.semibold,
     fontSize: 13,
-    fontWeight: '600' as const,
     marginBottom: 16,
   },
   comparisonRows: {
@@ -578,25 +593,25 @@ const styles = StyleSheet.create({
   },
   compLabel: {
     width: 80,
+    fontFamily: Fonts.medium,
     fontSize: 13,
-    fontWeight: '500' as const,
   },
   compCurrent: {
     flex: 1,
+    fontFamily: Fonts.semibold,
     fontSize: 14,
-    fontWeight: '600' as const,
   },
   compDiffContainer: {
     flex: 1,
     alignItems: 'flex-end',
   },
   compDiff: {
+    fontFamily: Fonts.semibold,
     fontSize: 13,
-    fontWeight: '600' as const,
   },
   tableTitle: {
+    fontFamily: Fonts.semibold,
     fontSize: 15,
-    fontWeight: '600' as const,
     marginBottom: 12,
   },
   tableHeader: {
@@ -606,8 +621,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#2A2A3E',
   },
   tableHeaderCell: {
+    fontFamily: Fonts.semibold,
     fontSize: 11,
-    fontWeight: '600' as const,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -629,9 +644,10 @@ const styles = StyleSheet.create({
   },
   comboHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4, paddingTop: 10, paddingBottom: 4 },
   comboBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
-  comboBadgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase' },
-  comboHeadLabel: { flex: 1, fontSize: 11, fontWeight: '600' },
+  comboBadgeText: { fontFamily: Fonts.bold, fontSize: 9, letterSpacing: 0.4, textTransform: 'uppercase' },
+  comboHeadLabel: { flex: 1, fontFamily: Fonts.semibold, fontSize: 11 },
   tableCell: {
+    fontFamily: Fonts.regular,
     fontSize: 13,
   },
   insightCard: {
@@ -651,11 +667,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   badgeText: {
-    color: '#FFF',
+    color: '#04120B',
+    fontFamily: Fonts.bold,
     fontSize: 12,
-    fontWeight: '700' as const,
   },
   insightText: {
+    fontFamily: Fonts.regular,
     fontSize: 14,
     lineHeight: 22,
   },
@@ -672,35 +689,21 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 10,
   },
-  secondaryBtn: {
+  actionBtn: {
+    flex: 1,
+  },
+  savedChip: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     borderWidth: 1,
-    borderRadius: 14,
-    paddingVertical: 12,
+    borderRadius: 999,
+    height: 48,
   },
-  secondaryBtnText: {
+  savedChipText: {
+    fontFamily: Fonts.semibold,
     fontSize: 14,
-    fontWeight: '600' as const,
-  },
-  doneBtn: {
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  doneBtnGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  doneBtnText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700' as const,
   },
 });

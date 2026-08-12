@@ -1,13 +1,14 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
+import { View, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp, type Program } from '@/lib/app-context';
 import { confirmDialog } from '@/lib/dialog';
+import { Button, Chip, ProgressRing, EmptyState, Display } from '@/components/ui';
 import Colors from '@/constants/colors';
 
 export default function ProgramsScreen() {
@@ -42,60 +43,66 @@ export default function ProgramsScreen() {
   return (
     <View style={[s.container, { backgroundColor: theme.background }]}>
       <View style={[s.header, { paddingTop: topPad + 8 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={s.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          style={[s.backBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+        >
+          <Ionicons name="arrow-back" size={20} color={theme.text} />
         </Pressable>
-        <Text style={[s.headerTitle, { color: theme.text }]}>{t('programs.title')}</Text>
-        <View style={{ width: 32 }} />
+        <Display variant="d3" color={theme.text}>{t('programs.title')}</Display>
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: insets.bottom + 40 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: insets.bottom + 40 }}
       >
-        <Pressable onPress={handleNewProgram} style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1, marginBottom: 16 }]}>
-          <LinearGradient
-            colors={[Colors.primary, Colors.primaryDark]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={s.newBtn}
-          >
-            <Ionicons name="add" size={20} color="#fff" />
-            <Text style={s.newBtnText}>{t('programs.newProgram')}</Text>
-          </LinearGradient>
-        </Pressable>
+        <Animated.View entering={FadeInDown.duration(450)} style={{ marginBottom: 20 }}>
+          <Button
+            variant="primary"
+            label={t('programs.newProgram')}
+            playIcon="add"
+            onPress={handleNewProgram}
+          />
+        </Animated.View>
 
         {programs.length === 0 ? (
-          <View style={[s.emptyCard, { backgroundColor: theme.card }]}>
-            <Ionicons name="calendar-outline" size={40} color={theme.textMuted} />
-            <Text style={[s.emptyTitle, { color: theme.textSecondary }]}>{t('programs.noPrograms')}</Text>
-            <Text style={[s.emptySub, { color: theme.textMuted }]}>{t('programs.noProgramsSub')}</Text>
-          </View>
+          <EmptyState
+            icon="calendar-outline"
+            title={t('programs.noPrograms')}
+            subtitle={t('programs.noProgramsSub')}
+          />
         ) : (
-          programs.map(p => (
-            <Pressable
-              key={p.id}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(('/program/' + p.id) as any);
-              }}
-              style={({ pressed }) => [s.programCard, { backgroundColor: theme.card, opacity: pressed ? 0.85 : 1 }]}
-            >
-              <View style={[s.programIcon, { backgroundColor: Colors.primary + '15' }]}>
-                <Ionicons name="calendar-outline" size={20} color={Colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[s.programName, { color: theme.text }]} numberOfLines={1}>{p.name}</Text>
-                <Text style={[s.programMeta, { color: theme.textMuted }]} numberOfLines={1}>
-                  {t('programs.weeksCount', { n: p.weeks })} · {t('programs.plannedDays', { n: plannedCount(p) })}
-                </Text>
-              </View>
-              <Pressable onPress={() => handleDelete(p)} hitSlop={10} style={s.trashBtn}>
-                <Ionicons name="trash-outline" size={18} color="#F87171" />
-              </Pressable>
-              <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
-            </Pressable>
-          ))
+          programs.map((p, index) => {
+            const planned = plannedCount(p);
+            const progress = p.weeks > 0 ? Math.min(1, planned / (p.weeks * 7)) : 0;
+            return (
+              <Animated.View key={p.id} entering={FadeInDown.duration(350).delay(index * 70)}>
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push(('/program/' + p.id) as any);
+                  }}
+                  style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] }]}
+                >
+                  <View style={[s.programCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <ProgressRing value={progress} size={56} stroke={5} color={Colors.electric} />
+                    <View style={{ flex: 1 }}>
+                      <Display variant="d3" color={theme.text} numberOfLines={1}>{p.name}</Display>
+                      <View style={s.chipRow}>
+                        <Chip label={t('programs.weeksCount', { n: p.weeks })} icon="calendar-outline" />
+                        <Chip label={t('programs.plannedDays', { n: planned })} icon="barbell-outline" />
+                      </View>
+                    </View>
+                    <Pressable onPress={() => handleDelete(p)} hitSlop={10} style={s.trashBtn}>
+                      <Ionicons name="trash-outline" size={18} color={Colors.semantic.danger} />
+                    </Pressable>
+                  </View>
+                </Pressable>
+              </Animated.View>
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -106,24 +113,13 @@ const s = StyleSheet.create({
   container: { flex: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingBottom: 12,
+    paddingHorizontal: 20, paddingBottom: 12,
   },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700' },
-  newBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, paddingVertical: 14, borderRadius: 14,
-  },
-  newBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  emptyCard: { borderRadius: 16, padding: 32, alignItems: 'center', gap: 8 },
-  emptyTitle: { fontSize: 16, fontWeight: '600' },
-  emptySub: { fontSize: 13, textAlign: 'center', lineHeight: 19 },
+  backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   programCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderRadius: 16, padding: 14, marginBottom: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1,
   },
-  programIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  programName: { fontSize: 15, fontWeight: '600' },
-  programMeta: { fontSize: 12, marginTop: 2 },
-  trashBtn: { padding: 4 },
+  chipRow: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
+  trashBtn: { padding: 6 },
 });
