@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, Pressable, StyleSheet, ScrollView, Platform, Linking, ActivityIndicator, Image, Modal, TextInput,
+  View, Text, Pressable, StyleSheet, ScrollView, Platform, Linking, ActivityIndicator, Modal, TextInput,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -12,9 +13,11 @@ import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
 import { Fonts, Type } from '@/constants/typography';
-import { Display, HeroCard, Chip, SectionHeader, Button, EmptyState } from '@/components/ui';
+import { Display, HeroCard, Chip, SectionHeader, Button, StatTile, EmptyState } from '@/components/ui';
 import { gymsApi, classesApi, reviewsApi, type ApiGym, type ClassItem, type GymReview } from '@/src/features/gyms/api';
 import { eventsApi, type ApiEvent } from '@/src/features/events/api';
+
+type TabKey = 'about' | 'classes' | 'team' | 'posts';
 
 export default function GymProfileScreen() {
   const { t } = useTranslation();
@@ -22,11 +25,9 @@ export default function GymProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isDark } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
-  const [activeTab, setActiveTab] = useState<'info' | 'schedule'>('info');
+  const [activeTab, setActiveTab] = useState<TabKey>('about');
   const [gym, setGym] = useState<ApiGym | null>(null);
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
-  const [requested, setRequested] = useState(false);
-  const [membership, setMembership] = useState<'member' | 'pending' | null>(null);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [gymEvents, setGymEvents] = useState<ApiEvent[]>([]);
   const [reviews, setReviews] = useState<GymReview[]>([]);
@@ -57,10 +58,6 @@ export default function GymProfileScreen() {
     gymsApi.get(String(id))
       .then(g => { if (active) { setGym(g); setStatus('ok'); } })
       .catch(() => { if (active) setStatus('error'); });
-    gymsApi.myGyms().then(list => {
-      const mine = list.find(x => x.gymId === String(id));
-      if (active && mine) setMembership(mine.kind === 'membership' && mine.status === 'active' ? 'member' : 'pending');
-    }).catch(() => {});
     loadClasses();
     loadReviews();
     eventsApi.forGym(String(id)).then(setGymEvents).catch(() => {});
@@ -81,30 +78,17 @@ export default function GymProfileScreen() {
     }
   };
 
-  // joined = active member; pending = a request awaiting approval (cancellable)
-  const isMember = membership === 'member';
-  const isPending = membership === 'pending' || requested;
-  const locked = isMember || isPending; // can't send a new request while member/pending
-
   const back = () => (router.canGoBack() ? router.back() : router.replace('/events'));
   const handleCall = () => { if (gym?.phone) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Linking.openURL(`tel:${gym.phone}`); } };
+  const handleWhatsapp = () => {
+    if (!gym?.whatsapp) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Linking.openURL(`https://wa.me/${gym.whatsapp.replace(/[^0-9]/g, '')}`);
+  };
   const handleDirections = () => {
     if (gym?.lat == null || gym?.lng == null) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${gym.lat},${gym.lng}`);
-  };
-  // join/subscribe — records a pending request (no payment until P8); tapping
-  // again while pending cancels (rolls back) the request.
-  const handleJoin = (plan?: string) => {
-    if (!gym || manages || isMember) return; // owner/manager or active member can't request
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    if (isPending) {
-      setRequested(false); setMembership(null);
-      gymsApi.cancelJoin(gym.id).catch(() => setMembership('pending'));
-    } else {
-      setRequested(true);
-      gymsApi.join(gym.id, plan).catch(() => setRequested(false));
-    }
   };
 
   if (status !== 'ok' || !gym) {
@@ -125,6 +109,16 @@ export default function GymProfileScreen() {
     );
   }
 
+  const tabs: { key: TabKey; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
+    { key: 'about', icon: 'information-circle-outline', label: t('discover.about', { defaultValue: 'About' }) },
+    { key: 'classes', icon: 'barbell-outline', label: t('discover.classes', { defaultValue: 'Classes' }) },
+    { key: 'team', icon: 'people-outline', label: t('discover.team', { defaultValue: 'Team' }) },
+    { key: 'posts', icon: 'images-outline', label: t('discover.posts', { defaultValue: 'Posts' }) },
+  ];
+
+  const canCall = !!gym.phone;
+  const canWhatsapp = !!gym.whatsapp;
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 + 16 : insets.top + 8 }]}>
@@ -135,7 +129,7 @@ export default function GymProfileScreen() {
         <View style={styles.iconBtn} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 110 }]}>
         <Animated.View entering={FadeInDown.delay(80).duration(500)}>
           <HeroCard image={gym.coverUrl ? { uri: gym.coverUrl } : undefined} height={236} style={{ marginBottom: 16 }}>
             <View style={styles.heroMeta}>
@@ -150,40 +144,35 @@ export default function GymProfileScreen() {
           </HeroCard>
         </Animated.View>
 
-        {(gym.lat != null && gym.lng != null || !!gym.whatsapp) && (
-          <Animated.View entering={FadeInDown.delay(120).duration(500)} style={styles.actionRow}>
-            {gym.lat != null && gym.lng != null && (
-              <Chip label={t('discover.directions')} icon="navigate-outline" onPress={handleDirections} />
-            )}
-            {!!gym.whatsapp && (
-              <Chip label={t('discover.whatsapp')} icon="logo-whatsapp" onPress={() => Linking.openURL(`https://wa.me/${gym.whatsapp!.replace(/[^0-9]/g, '')}`)} />
-            )}
-          </Animated.View>
-        )}
-
         <Animated.View entering={FadeInDown.delay(150).duration(500)} style={styles.tabContainer}>
           <View style={[styles.tabBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            {(['info', 'schedule'] as const).map((tab) => {
-              const isActive = activeTab === tab;
+            {tabs.map(({ key, icon, label }) => {
+              const isActive = activeTab === key;
               return (
-                <Pressable key={tab} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveTab(tab); }}
+                <Pressable key={key} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveTab(key); }}
                   style={[styles.tabButton, isActive && { backgroundColor: Colors.electric }]}>
-                  <Ionicons name={tab === 'info' ? 'information-circle-outline' : 'time-outline'} size={16} color={isActive ? '#04120B' : theme.textMuted} />
-                  <Text style={[styles.tabText, { color: isActive ? '#04120B' : theme.textMuted }]}>{t(`discover.${tab}`)}</Text>
+                  <Ionicons name={icon} size={16} color={isActive ? '#04120B' : theme.textMuted} />
+                  <Text style={[styles.tabText, { color: isActive ? '#04120B' : theme.textMuted }]} numberOfLines={1}>{label}</Text>
                 </Pressable>
               );
             })}
           </View>
         </Animated.View>
 
-        {activeTab === 'info' ? (
+        {activeTab === 'about' && (
           <>
             {!!gym.description && (
               <View style={styles.block}>
-                <SectionHeader title={t('discover.info')} />
+                <SectionHeader title={t('discover.about', { defaultValue: 'About' })} />
                 <Text style={[styles.descriptionText, { color: theme.textSecondary }]}>{gym.description}</Text>
               </View>
             )}
+
+            <View style={styles.statRow}>
+              <StatTile icon="people-outline" value={String(gym.memberCount)} label={t('discover.members')} />
+              <StatTile icon="star" color="#FFD700" value={String(gym.rating)} label={t('discover.rating', { defaultValue: 'Rating' })} />
+              <StatTile icon="chatbox-ellipses-outline" value={String(gym.reviewsCount)} label={t('discover.reviews')} />
+            </View>
 
             {!!gym.workingHours && (
               <View style={[styles.hoursCard, { backgroundColor: theme.card }]}>
@@ -193,6 +182,32 @@ export default function GymProfileScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.hoursLabel, { color: theme.textMuted }]}>{t('discover.working_hours')}</Text>
                   <Text style={[styles.hoursValue, { color: theme.text }]}>{gym.workingHours}</Text>
+                </View>
+              </View>
+            )}
+
+            {gym.types.length > 0 && (
+              <View style={styles.block}>
+                <View style={styles.chipWrap}>
+                  {gym.types.map((ty) => <Chip key={ty} label={ty} />)}
+                </View>
+              </View>
+            )}
+
+            {gym.facilities.length > 0 && (
+              <View style={styles.block}>
+                <SectionHeader title={t('discover.facilities')} />
+                <View style={styles.facGrid}>
+                  {gym.facilities.map((facility) => (
+                    <View key={facility.id} style={[styles.facCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                      <View style={[styles.facIcon, { backgroundColor: Colors.electric + '18' }]}>
+                        {facility.logoUrl
+                          ? <Image source={{ uri: facility.logoUrl }} style={styles.facImg} contentFit="contain" />
+                          : <Ionicons name={(facility.icon || 'checkmark-circle-outline') as any} size={18} color={Colors.electric} />}
+                      </View>
+                      <Text style={[styles.facTitle, { color: theme.text }]} numberOfLines={2}>{facility.title}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
             )}
@@ -212,75 +227,6 @@ export default function GymProfileScreen() {
               </Pressable>
             )}
 
-            {gym.facilities.length > 0 && (
-              <View style={styles.block}>
-                <SectionHeader title={t('discover.facilities')} />
-                <View style={styles.chipWrap}>
-                  {gym.facilities.map((facility) => (
-                    <Chip key={facility.id} label={facility.title} icon={(facility.icon || 'checkmark-circle-outline') as any} />
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {!!gym.coaches?.length && (
-              <View style={styles.block}>
-                <SectionHeader title={t('discover.coaches')} />
-                <View style={styles.coachRow}>
-                  {gym.coaches.map((co) => (
-                    <Pressable key={co.id} onPress={() => router.push(`/coach-profile/${co.id}` as any)} style={[styles.coachCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                      {co.avatarUrl
-                        ? <Image source={{ uri: co.avatarUrl }} style={styles.coachAvatar} />
-                        : <View style={[styles.coachAvatar, { backgroundColor: Colors.electric + '20', alignItems: 'center', justifyContent: 'center' }]}><Ionicons name="person" size={20} color={Colors.electric} /></View>}
-                      <Text style={[styles.coachName, { color: theme.text }]} numberOfLines={1}>{co.name}</Text>
-                      {co.id === gym.headCoachId && <View style={[styles.headCoachBadge, { backgroundColor: Colors.electric + '20' }]}><Ionicons name="ribbon" size={10} color={Colors.electric} /><Text style={styles.headCoachText}>{t('discover.head_coach')}</Text></View>}
-                      <Text style={[styles.coachHeadline, { color: theme.textMuted }]} numberOfLines={1}>{co.headline}</Text>
-                      <View style={styles.coachRating}><Ionicons name="star" size={11} color="#FFD700" /><Text style={[styles.coachRatingText, { color: theme.textSecondary }]}>{co.rating}</Text></View>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {classes.length > 0 && (
-              <View style={styles.block}>
-                <SectionHeader title={t('discover.classes')} />
-                {classes.map((c) => {
-                  const full = c.capacity > 0 && c.enrolledCount >= c.capacity;
-                  const cCancelable = c.myStatus === 'enrolled' || c.myStatus === 'pending';
-                  const label = c.myStatus === 'enrolled' ? t('discover.enrolled')
-                    : c.myStatus === 'pending' ? t('discover.pending_approval')
-                    : c.myStatus === 'rejected' ? t('discover.rejected')
-                    : full ? t('discover.class_full') : t('discover.join_class');
-                  return (
-                    <View key={c.id} style={[styles.classCard, { backgroundColor: theme.card }]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.clsTitle, { color: theme.text }]}>{c.title}</Text>
-                        <View style={styles.classMetaRow}>
-                          {!!c.dayOfWeek && <Text style={[styles.classMeta, { color: theme.textMuted }]}>{t(`discover.weekdays.${c.dayOfWeek}`)}</Text>}
-                          {!!c.startTime && <Text style={[styles.classMeta, { color: theme.textMuted }]}>· {c.startTime}</Text>}
-                          {!!c.duration && <Text style={[styles.classMeta, { color: theme.textMuted }]}>· {c.duration}</Text>}
-                        </View>
-                        {!!c.coachName && <Text style={[styles.clsCoach, { color: theme.textSecondary }]}><Ionicons name="person-outline" size={11} color={theme.textMuted} /> {c.coachName}</Text>}
-                        {c.capacity > 0 && <Text style={[styles.classMeta, { color: theme.textMuted }]}>{c.enrolledCount}/{c.capacity} {t('discover.enrolled_count')}</Text>}
-                      </View>
-                      {manages ? (
-                        <View style={[styles.classJoinBtn, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}>
-                          <Text style={[styles.classJoinText, { color: theme.textMuted }]}>—</Text>
-                        </View>
-                      ) : (
-                        <Pressable onPress={() => joinClass(c)} disabled={full && !cCancelable}
-                          style={[styles.classJoinBtn, { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.myStatus === 'enrolled' ? Colors.electric : c.myStatus ? theme.background : full ? theme.background : Colors.electric + '20', borderColor: Colors.electric, borderWidth: c.myStatus === 'enrolled' ? 0 : 1 }]}>
-                          <Text style={[styles.classJoinText, { color: c.myStatus === 'enrolled' ? '#04120B' : full || c.myStatus ? theme.textMuted : Colors.electric }]}>{label}</Text>
-                          {cCancelable && <Ionicons name="close" size={12} color={c.myStatus === 'enrolled' ? '#04120B' : theme.textMuted} />}
-                        </Pressable>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-
             {gymEvents.length > 0 && (
               <View style={styles.block}>
                 <SectionHeader title={t('discover.events')} />
@@ -293,26 +239,6 @@ export default function GymProfileScreen() {
                     </View>
                     <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
                   </Pressable>
-                ))}
-              </View>
-            )}
-
-            {gym.subscriptions.length > 0 && (
-              <View style={styles.block}>
-                <SectionHeader title={t('discover.membership_plans')} />
-                {gym.subscriptions.map((sub) => (
-                  <View key={sub.name} style={[styles.subCard, { backgroundColor: theme.card }]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.subName, { color: theme.text }]}>{sub.name}</Text>
-                      <View style={styles.subPriceRow}>
-                        <Text style={[styles.subPrice, { color: Colors.electric }]}>{sub.price.amount}</Text>
-                        <Text style={[styles.subCurrency, { color: theme.textSecondary }]}> {sub.price.currency}</Text>
-                      </View>
-                    </View>
-                    <Pressable onPress={() => handleJoin(sub.name)} style={[styles.subscribeBtn, { opacity: manages || isMember ? 0.5 : 1 }]} disabled={manages || isMember}>
-                      <Text style={styles.subscribeBtnText}>{manages ? '—' : isMember ? t('discover.member') : isPending ? t('discover.cancel_request') : t('discover.subscribe')}</Text>
-                    </Pressable>
-                  </View>
                 ))}
               </View>
             )}
@@ -342,87 +268,108 @@ export default function GymProfileScreen() {
                 {!!r.comment && <Text style={[styles.reviewComment, { color: theme.textSecondary }]}>{r.comment}</Text>}
               </View>
             ))}
-
-            {!!gym.phone && (
-              <View style={[styles.contactCard, { backgroundColor: theme.card }]}>
-                <View style={styles.contactRow}>
-                  <View style={[styles.hoursIcon, { backgroundColor: Colors.electric + '18' }]}>
-                    <Ionicons name="call-outline" size={18} color={Colors.electric} />
-                  </View>
-                  <Text style={[styles.contactPhone, { color: theme.text }]}>{gym.phone}</Text>
-                </View>
-                <Pressable onPress={handleCall} style={styles.callBtn}><Ionicons name="call" size={18} color="#04120B" /></Pressable>
-              </View>
-            )}
           </>
-        ) : (
-          gym.schedule.length > 0 ? gym.schedule.map((item, index) => (
-            <Animated.View key={item.day} entering={FadeInDown.delay(60 * (index + 1)).duration(400)} style={[styles.scheduleCard, { backgroundColor: theme.card }]}>
-              <View style={styles.scheduleHeader}>
-                <Text style={[styles.scheduleDay, { color: theme.text }]}>{item.day}</Text>
-                {item.closed ? (
-                  <View style={[styles.hoursPill, { backgroundColor: theme.background }]}>
-                    <Text style={[styles.closedText, { color: theme.textMuted }]}>{t('discover.closed')}</Text>
+        )}
+
+        {activeTab === 'classes' && (
+          classes.length > 0 ? classes.map((c) => {
+            const full = c.capacity > 0 && c.enrolledCount >= c.capacity;
+            const cCancelable = c.myStatus === 'enrolled' || c.myStatus === 'pending';
+            const label = c.myStatus === 'enrolled' ? t('discover.enrolled')
+              : c.myStatus === 'pending' ? t('discover.pending_approval')
+              : c.myStatus === 'rejected' ? t('discover.rejected')
+              : full ? t('discover.class_full') : t('discover.join_class');
+            return (
+              <View key={c.id} style={[styles.classCard, { backgroundColor: theme.card }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.clsTitle, { color: theme.text }]}>{c.title}</Text>
+                  <View style={styles.classMetaRow}>
+                    {!!c.dayOfWeek && <Text style={[styles.classMeta, { color: theme.textMuted }]}>{t(`discover.weekdays.${c.dayOfWeek}`)}</Text>}
+                    {!!c.startTime && <Text style={[styles.classMeta, { color: theme.textMuted }]}>· {c.startTime}</Text>}
+                    {!!c.duration && <Text style={[styles.classMeta, { color: theme.textMuted }]}>· {c.duration}</Text>}
                   </View>
-                ) : (item.open || item.close) ? (
-                  <View style={[styles.hoursPill, { backgroundColor: Colors.electric + '14' }]}>
-                    <Ionicons name="time-outline" size={12} color={Colors.electric} />
-                    <Text style={[styles.hoursPillText, { color: Colors.electric }]}>{item.open} – {item.close}</Text>
-                  </View>
-                ) : null}
-              </View>
-              {!item.closed && (
-                item.classes.length > 0 ? (
-                  <View style={styles.classList}>
-                    {item.classes.map((cls, ci) => (
-                      <View key={ci} style={[styles.classRow, { borderTopColor: theme.border }]}>
-                        <View style={styles.classTimeCol}>
-                          <Text style={[styles.classTime, { color: theme.text }]}>{cls.time}</Text>
-                          <Text style={[styles.classDuration, { color: theme.textMuted }]}>{cls.duration}</Text>
-                        </View>
-                        <View style={[styles.classBar, { backgroundColor: Colors.electric }]} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.className, { color: theme.text }]}>{cls.name}</Text>
-                          {!!cls.coach && (
-                            <View style={styles.classCoachRow}>
-                              <Ionicons name="person-outline" size={11} color={theme.textMuted} />
-                              <Text style={[styles.classCoach, { color: theme.textMuted }]}>{cls.coach}</Text>
-                            </View>
-                          )}
-                        </View>
-                      </View>
-                    ))}
+                  {!!c.coachName && <Text style={[styles.clsCoach, { color: theme.textSecondary }]}><Ionicons name="person-outline" size={11} color={theme.textMuted} /> {c.coachName}</Text>}
+                  {c.capacity > 0 && <Text style={[styles.classMeta, { color: theme.textMuted }]}>{c.enrolledCount}/{c.capacity} {t('discover.enrolled_count')}</Text>}
+                </View>
+                {manages ? (
+                  <View style={[styles.classJoinBtn, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}>
+                    <Text style={[styles.classJoinText, { color: theme.textMuted }]}>—</Text>
                   </View>
                 ) : (
-                  <Text style={[styles.noClasses, { color: theme.textMuted }]}>{t('discover.no_classes')}</Text>
-                )
-              )}
-            </Animated.View>
-          )) : (
+                  <Pressable onPress={() => joinClass(c)} disabled={full && !cCancelable}
+                    style={[styles.classJoinBtn, { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.myStatus === 'enrolled' ? Colors.electric : c.myStatus ? theme.background : full ? theme.background : Colors.electric + '20', borderColor: Colors.electric, borderWidth: c.myStatus === 'enrolled' ? 0 : 1 }]}>
+                    <Text style={[styles.classJoinText, { color: c.myStatus === 'enrolled' ? '#04120B' : full || c.myStatus ? theme.textMuted : Colors.electric }]}>{label}</Text>
+                    {cCancelable && <Ionicons name="close" size={12} color={c.myStatus === 'enrolled' ? '#04120B' : theme.textMuted} />}
+                  </Pressable>
+                )}
+              </View>
+            );
+          }) : (
             <View style={styles.emptyTabContainer}>
-              <EmptyState icon="calendar-outline" title="—" />
+              <EmptyState icon="barbell-outline" title={t('discover.no_classes_yet', { defaultValue: 'No classes yet' })} subtitle={t('discover.no_classes_sub', { defaultValue: 'This gym has not scheduled any classes yet.' })} />
             </View>
           )
         )}
+
+        {activeTab === 'team' && (
+          gym.coaches && gym.coaches.length > 0 ? gym.coaches.map((co, index) => (
+            <Animated.View key={co.id} entering={FadeInDown.delay(60 * (index + 1)).duration(400)}>
+              <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/coach-profile/${co.id}` as any); }} style={[styles.teamCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                {co.avatarUrl
+                  ? <Image source={{ uri: co.avatarUrl }} style={styles.teamAvatar} />
+                  : <View style={[styles.teamAvatar, { backgroundColor: Colors.electric + '20', alignItems: 'center', justifyContent: 'center' }]}><Ionicons name="person" size={22} color={Colors.electric} /></View>}
+                <View style={{ flex: 1 }}>
+                  <View style={styles.teamNameRow}>
+                    <Text style={[styles.teamName, { color: theme.text }]} numberOfLines={1}>{co.name}</Text>
+                    {co.id === gym.headCoachId && (
+                      <View style={[styles.headCoachBadge, { backgroundColor: Colors.electric + '20' }]}>
+                        <Ionicons name="ribbon" size={10} color={Colors.electric} />
+                        <Text style={styles.headCoachText}>{t('discover.head_coach')}</Text>
+                      </View>
+                    )}
+                  </View>
+                  {!!co.headline && <Text style={[styles.teamHeadline, { color: theme.textMuted }]} numberOfLines={1}>{co.headline}</Text>}
+                  <View style={styles.teamRating}><Ionicons name="star" size={12} color="#FFD700" /><Text style={[styles.teamRatingText, { color: theme.textSecondary }]}>{co.rating}</Text></View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+              </Pressable>
+            </Animated.View>
+          )) : (
+            <View style={styles.emptyTabContainer}>
+              <EmptyState icon="people-outline" title={t('discover.no_team', { defaultValue: 'No team yet' })} subtitle={t('discover.no_team_sub', { defaultValue: 'This gym has not added any coaches yet.' })} />
+            </View>
+          )
+        )}
+
+        {activeTab === 'posts' && (
+          <View style={styles.emptyTabContainer}>
+            <EmptyState
+              icon="images-outline"
+              title={t('discover.no_posts', { defaultValue: 'No posts yet' })}
+              subtitle={t('discover.no_posts_sub', { defaultValue: "This gym hasn't shared any posts or highlights yet." })}
+            />
+          </View>
+        )}
       </ScrollView>
 
-      <View style={[styles.bottomBar, { backgroundColor: theme.background, paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 12, borderTopColor: theme.border }]}>
-        {manages ? (
-          <View style={[styles.managePill, { backgroundColor: theme.card }]}>
-            <Ionicons name="shield-checkmark" size={18} color={theme.textMuted} style={{ marginRight: 8 }} />
-            <Text style={[styles.manageText, { color: theme.textMuted }]}>{t('discover.you_manage_gym')}</Text>
-          </View>
-        ) : (
-          <Button
-            variant="solid"
-            label={isMember ? t('discover.member') : isPending ? t('discover.cancel_request') : t('discover.join_now')}
-            icon={isMember ? 'checkmark' : isPending ? 'close-circle' : 'flash'}
-            onPress={() => handleJoin()}
-            disabled={isMember}
-            style={isPending ? { backgroundColor: Colors.semantic.danger } : isMember ? { backgroundColor: theme.cardAlt } : undefined}
-          />
-        )}
-      </View>
+      {(canCall || canWhatsapp) && (
+        <View style={[styles.bottomBar, { backgroundColor: theme.background, paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 12, borderTopColor: theme.border }]}>
+          {canCall && (
+            <Button
+              variant="solid"
+              label={t('discover.call_gym', { defaultValue: 'Call gym' })}
+              icon="call"
+              onPress={handleCall}
+              style={{ flex: 1 }}
+            />
+          )}
+          {canWhatsapp && (
+            <Pressable onPress={handleWhatsapp} style={styles.waBtn}>
+              <Ionicons name="logo-whatsapp" size={24} color="#04120B" />
+            </Pressable>
+          )}
+        </View>
+      )}
 
       <Modal visible={reviewOpen} transparent animationType="slide" onRequestClose={() => setReviewOpen(false)}>
         <View style={styles.modalWrap}>
@@ -464,20 +411,28 @@ const styles = StyleSheet.create({
   heroAddr: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
   heroAddrText: { fontFamily: Fonts.medium, fontSize: 13, color: '#E6F5EE', flexShrink: 1 },
 
-  actionRow: { flexDirection: 'row', gap: 10, marginBottom: 16, flexWrap: 'wrap' },
-
   tabContainer: { marginBottom: 20 },
   tabBar: { flexDirection: 'row', borderRadius: 999, padding: 4, borderWidth: 1 },
-  tabButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 999 },
-  tabText: { fontSize: 14, fontFamily: Fonts.semibold },
+  tabButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 10, borderRadius: 999 },
+  tabText: { fontSize: 13, fontFamily: Fonts.semibold },
 
   block: { marginBottom: 24 },
   descriptionText: { fontSize: 14, fontFamily: Fonts.regular, lineHeight: 22 },
+
+  statRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
 
   hoursCard: { borderRadius: 16, padding: 14, marginBottom: 24, flexDirection: 'row', alignItems: 'center', gap: 12 },
   hoursIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   hoursLabel: { fontSize: 12, fontFamily: Fonts.regular, marginBottom: 2 },
   hoursValue: { fontSize: 15, fontFamily: Fonts.semibold },
+
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+
+  facGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  facCard: { width: '47.5%', flexBasis: '47.5%', flexGrow: 1, borderRadius: 16, padding: 14, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  facIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  facImg: { width: 22, height: 22 },
+  facTitle: { flex: 1, fontSize: 13, fontFamily: Fonts.semibold },
 
   mapCard: { height: 120, borderRadius: 16, overflow: 'hidden', marginBottom: 24, justifyContent: 'flex-end' },
   mapPin: { position: 'absolute', top: '50%', left: '50%', marginLeft: -18, marginTop: -26, width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.electric, alignItems: 'center', justifyContent: 'center' },
@@ -486,17 +441,10 @@ const styles = StyleSheet.create({
   mapDirBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.electric, borderRadius: 999, paddingHorizontal: 12, height: 30 },
   mapDirText: { fontFamily: Fonts.bold, fontSize: 12, color: '#04120B' },
 
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-
-  coachRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  coachCard: { width: '47%', flexBasis: '47%', borderRadius: 16, padding: 12, alignItems: 'center', gap: 4, borderWidth: 1 },
-  coachAvatar: { width: 48, height: 48, borderRadius: 24, marginBottom: 4 },
-  coachName: { fontSize: 13, fontFamily: Fonts.semibold },
-  headCoachBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginTop: 2 },
-  headCoachText: { fontSize: 9, fontFamily: Fonts.semibold, color: Colors.electric },
-  coachHeadline: { fontSize: 10, fontFamily: Fonts.regular, textAlign: 'center' },
-  coachRating: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  coachRatingText: { fontSize: 11, fontFamily: Fonts.medium },
+  eventCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, marginBottom: 10 },
+  eventIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  eventName: { fontSize: 15, fontFamily: Fonts.semibold },
+  eventMeta: { fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 },
 
   classCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, marginBottom: 10 },
   clsTitle: { fontSize: 15, fontFamily: Fonts.semibold },
@@ -506,18 +454,15 @@ const styles = StyleSheet.create({
   classJoinBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   classJoinText: { fontSize: 12, fontFamily: Fonts.semibold },
 
-  eventCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, marginBottom: 10 },
-  eventIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  eventName: { fontSize: 15, fontFamily: Fonts.semibold },
-  eventMeta: { fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 },
-
-  subCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 16, padding: 16, marginBottom: 10 },
-  subName: { fontSize: 15, fontFamily: Fonts.semibold, marginBottom: 4 },
-  subPriceRow: { flexDirection: 'row', alignItems: 'baseline' },
-  subPrice: { fontSize: 20, fontFamily: Fonts.monoBold },
-  subCurrency: { fontSize: 13, fontFamily: Fonts.regular },
-  subscribeBtn: { borderWidth: 1.5, borderColor: Colors.electric, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 8 },
-  subscribeBtnText: { color: Colors.electric, fontSize: 13, fontFamily: Fonts.semibold },
+  teamCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 12, marginBottom: 10, borderWidth: 1 },
+  teamAvatar: { width: 52, height: 52, borderRadius: 26 },
+  teamNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  teamName: { fontSize: 15, fontFamily: Fonts.semibold },
+  headCoachBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  headCoachText: { fontSize: 9, fontFamily: Fonts.semibold, color: Colors.electric },
+  teamHeadline: { fontSize: 12, fontFamily: Fonts.regular, marginTop: 3 },
+  teamRating: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 5 },
+  teamRatingText: { fontSize: 12, fontFamily: Fonts.medium },
 
   reviewsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   writeReviewBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
@@ -530,33 +475,10 @@ const styles = StyleSheet.create({
   reviewStars: { flexDirection: 'row', gap: 2, marginTop: 3 },
   reviewComment: { fontSize: 13, fontFamily: Fonts.regular, marginTop: 10, lineHeight: 19 },
 
-  contactCard: { borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 10 },
-  contactRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  contactPhone: { fontSize: 15, fontFamily: Fonts.medium },
-  callBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.electric, justifyContent: 'center', alignItems: 'center' },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1 },
+  waBtn: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#25D366', alignItems: 'center', justifyContent: 'center' },
 
-  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1 },
-  managePill: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 16, borderRadius: 999 },
-  manageText: { fontSize: 15, fontFamily: Fonts.semibold },
-
-  emptyTabContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
-
-  scheduleCard: { borderRadius: 16, padding: 16, marginBottom: 10 },
-  scheduleHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  scheduleDay: { fontSize: 16, fontFamily: Fonts.semibold },
-  hoursPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  hoursPillText: { fontSize: 12, fontFamily: Fonts.semibold },
-  closedText: { fontSize: 12, fontFamily: Fonts.medium },
-  classList: { marginTop: 10, gap: 2 },
-  classRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: 1 },
-  classTimeCol: { width: 64 },
-  classTime: { fontSize: 13, fontFamily: Fonts.semibold },
-  classDuration: { fontSize: 11, fontFamily: Fonts.regular, marginTop: 1 },
-  classBar: { width: 3, alignSelf: 'stretch', borderRadius: 2 },
-  className: { fontSize: 14, fontFamily: Fonts.medium },
-  classCoachRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  classCoach: { fontSize: 11, fontFamily: Fonts.regular },
-  noClasses: { fontSize: 12, fontFamily: Fonts.regular, marginTop: 8 },
+  emptyTabContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 24 },
 
   modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   modal: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34 },
