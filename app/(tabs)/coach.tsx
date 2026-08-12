@@ -12,6 +12,8 @@ import * as Crypto from 'expo-crypto';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
+import { AppHeader, HeroCard, StatTile, ActivityRings, CountUp, Button } from '@/components/ui';
+import { Fonts, Type } from '@/constants/typography';
 import { toDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
 import Colors from '@/constants/colors';
 import { aiTips } from '@/lib/mock-data';
@@ -375,24 +377,13 @@ export default function CoachScreen() {
     <View style={[s.container, { backgroundColor: theme.background }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         <View style={{ paddingTop: topPad }}>
-          <View style={s.header}>
-            <View>
-              <View style={s.headerTitleRow}>
-                <LinearGradient colors={[Colors.primary, '#48CAE4']} style={s.aiBadge}>
-                  <Ionicons name="sparkles" size={14} color="#fff" />
-                  <Text style={s.aiBadgeText}>AI</Text>
-                </LinearGradient>
-                <Text style={[s.headerTitle, { color: theme.text }]}>{t('workoutTab.headerTitle')}</Text>
-              </View>
-              <Text style={[s.headerSub, { color: theme.textMuted }]}>{t('workoutTab.headerSub')}</Text>
-            </View>
-            <Pressable
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowPlanModal(true); }}
-              style={[s.headerBtn, { backgroundColor: theme.card }]}
-            >
-              <Ionicons name="calendar-outline" size={20} color={Colors.primary} />
-            </Pressable>
-          </View>
+          <AppHeader
+            style={s.header}
+            name={user?.name || t('workoutTab.athlete')}
+            greeting={new Date().getHours() < 12 ? t('workoutTab.goodMorning') : new Date().getHours() < 18 ? t('workoutTab.goodAfternoon') : t('workoutTab.goodEvening')}
+            actionIcon="calendar-outline"
+            onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowPlanModal(true); }}
+          />
 
           <CompleteProfileBanner />
 
@@ -441,64 +432,48 @@ export default function CoachScreen() {
                 </Animated.View>
               )}
 
-              <Animated.View entering={FadeInDown.duration(500)}>
-                <View style={[s.heroSection, { backgroundColor: theme.card }]}>
-                  <View style={s.heroTopRow}>
-                    <LinearGradient colors={[Colors.primary, '#48CAE4']} style={s.heroBadge}>
-                      <Ionicons name="sparkles" size={18} color="#fff" />
-                    </LinearGradient>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={[s.heroGreeting, { color: theme.textMuted }]}>
-                        {new Date().getHours() < 12 ? t('workoutTab.goodMorning') : new Date().getHours() < 18 ? t('workoutTab.goodAfternoon') : t('workoutTab.goodEvening')}
-                      </Text>
-                      <Text style={[s.heroName, { color: theme.text }]}>{user?.name || t('workoutTab.athlete')}</Text>
-                    </View>
-                  </View>
-                  <Text style={[s.heroMotivation, { color: theme.textSecondary }]}>
-                    {streak >= 3 ? t('workoutTab.heroStreakMotivation', { n: streak }) : t('workoutTab.heroReadyMotivation')}
-                  </Text>
-
-                  <Pressable
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/prepare-workout' as any); }}
-                    style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
-                  >
-                    <LinearGradient
-                      colors={[Colors.primary, Colors.primaryDark]}
-                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                      style={s.primaryCta}
-                    >
-                      <Ionicons name="flash" size={20} color="#fff" />
-                      <Text style={s.primaryCtaText}>{t('workoutTab.startWorkout')}</Text>
-                    </LinearGradient>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saved-workouts' as any); }}
-                    style={({ pressed }) => [s.secondaryCta, { borderColor: Colors.primary + '40', opacity: pressed ? 0.8 : 1 }]}
-                  >
-                    <Ionicons name="library-outline" size={18} color={Colors.primary} />
-                    <Text style={[s.secondaryCtaText, { color: Colors.primary }]}>{t('workoutTab.myWorkouts')}</Text>
-                  </Pressable>
-                </View>
+              <Animated.View entering={FadeInDown.duration(500)} style={{ paddingHorizontal: 20 }}>
+                <HeroCard
+                  title={t('workoutTab.startWorkout')}
+                  subtitle={streak >= 3 ? t('workoutTab.heroStreakMotivation', { n: streak }) : t('workoutTab.heroReadyMotivation')}
+                  ctaLabel={t('workoutTab.startWorkout')}
+                  onCta={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/prepare-workout' as any); }}
+                  height={210}
+                />
+                <Button
+                  variant="ghost"
+                  icon="library-outline"
+                  label={t('workoutTab.myWorkouts')}
+                  onPress={() => router.push('/saved-workouts' as any)}
+                  style={{ marginTop: 12 }}
+                />
               </Animated.View>
 
-              <View style={s.quickStatsRow}>
-                {[
-                  { icon: 'flame-outline' as const, label: t('workoutTab.statThisWeek'), value: weeklyWorkouts.toString(), color: Colors.accent },
-                  { icon: 'barbell-outline' as const, label: t('workoutTab.statVolume'), value: formatVolume(weeklyVolumeFromLogs, weightUnit), color: Colors.primary },
-                  { icon: 'flash-outline' as const, label: t('workoutTab.statStreak'), value: `${streak}d`, color: '#FFD93D' },
-                ].map((stat, i) => (
-                  <Animated.View key={stat.label} entering={FadeInDown.duration(400).delay(100 + i * 80)} style={s.quickStatWrap}>
-                    <View style={[s.quickStatCard, { backgroundColor: theme.card }]}>
-                      <View style={[s.quickStatIcon, { backgroundColor: stat.color + '15' }]}>
-                        <Ionicons name={stat.icon} size={18} color={stat.color} />
+              <Animated.View entering={FadeInDown.duration(500).delay(120)}>
+                <View style={[s.ringsCard, { backgroundColor: theme.card }]}>
+                  <ActivityRings
+                    size={116}
+                    rings={[
+                      { value: Math.min(1, weeklyWorkouts / 5), color: Colors.ring.green },
+                      { value: Math.min(1, weeklyVolumeFromLogs / 20000), color: Colors.ring.amber },
+                      { value: Math.min(1, streak / 7), color: Colors.ring.blue },
+                    ]}
+                  />
+                  <View style={s.ringsLegend}>
+                    {[
+                      { color: Colors.ring.green, node: <CountUp value={weeklyWorkouts} style={s.legendVal} />, label: t('workoutTab.statThisWeek') },
+                      { color: Colors.ring.amber, node: <CountUp value={weeklyVolumeFromLogs} format={(n) => formatVolume(n, weightUnit)} style={s.legendVal} />, label: t('workoutTab.statVolume') },
+                      { color: Colors.ring.blue, node: <CountUp value={streak} format={(n) => `${Math.round(n)}d`} style={s.legendVal} />, label: t('workoutTab.statStreak') },
+                    ].map((r, i) => (
+                      <View key={i} style={s.legendRow}>
+                        <View style={[s.legendDot, { backgroundColor: r.color }]} />
+                        {r.node}
+                        <Text style={[s.legendLabel, { color: theme.textMuted }]} numberOfLines={1}>{r.label}</Text>
                       </View>
-                      <Text style={[s.quickStatValue, { color: theme.text }]}>{stat.value}</Text>
-                      <Text style={[s.quickStatLabel, { color: theme.textMuted }]}>{stat.label}</Text>
-                    </View>
-                  </Animated.View>
-                ))}
-              </View>
+                    ))}
+                  </View>
+                </View>
+              </Animated.View>
 
               <Pressable
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/programs' as any); }}
@@ -895,6 +870,12 @@ const s = StyleSheet.create({
     paddingVertical: 12, borderRadius: 12, borderWidth: 1,
   },
   secondaryCtaText: { fontSize: 14, fontFamily: 'Rubik_600SemiBold' },
+  ringsCard: { flexDirection: 'row', alignItems: 'center', gap: 20, marginHorizontal: 20, marginTop: 14, padding: 18, borderRadius: 20 },
+  ringsLegend: { flex: 1, gap: 12 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  legendDot: { width: 9, height: 9, borderRadius: 5 },
+  legendVal: { fontFamily: 'SpaceMono_700Bold', fontSize: 15, color: '#fff' },
+  legendLabel: { fontFamily: 'Rubik_500Medium', fontSize: 12, flexShrink: 1 },
   quickStatsRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 4 },
   quickStatWrap: { flex: 1 },
   quickStatCard: { borderRadius: 14, padding: 12, alignItems: 'center', gap: 4 },

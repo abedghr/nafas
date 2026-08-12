@@ -8,6 +8,9 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { AppProvider, useApp } from "@/lib/app-context";
 import { useFonts, Rubik_400Regular, Rubik_500Medium, Rubik_600SemiBold, Rubik_700Bold } from "@expo-google-fonts/rubik";
+import { BebasNeue_400Regular } from "@expo-google-fonts/bebas-neue";
+import { Cairo_600SemiBold, Cairo_700Bold, Cairo_900Black } from "@expo-google-fonts/cairo";
+import { SpaceMono_400Regular, SpaceMono_700Bold } from "@expo-google-fonts/space-mono";
 import "@/lib/i18n";
 
 SplashScreen.preventAutoHideAsync();
@@ -77,6 +80,13 @@ export default function RootLayout() {
     Rubik_500Medium,
     Rubik_600SemiBold,
     Rubik_700Bold,
+    // display (Latin, uppercase condensed) + Arabic display + numeric mono
+    BebasNeue_400Regular,
+    Cairo_600SemiBold,
+    Cairo_700Bold,
+    Cairo_900Black,
+    SpaceMono_400Regular,
+    SpaceMono_700Bold,
   });
 
   useEffect(() => {

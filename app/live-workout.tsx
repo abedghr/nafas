@@ -21,6 +21,7 @@ import ExerciseRow from '@/components/ExerciseRow';
 import ExerciseFilterBar from '@/components/ExerciseFilterBar';
 import { matchExercise } from '@/lib/exercise-search';
 import * as Crypto from 'expo-crypto';
+import { confirmDialog } from '@/lib/dialog';
 import type { SetConfig, ActiveSession, LogExercise, LogSetData } from '@/lib/app-context';
 
 const { width: SW } = Dimensions.get('window');
@@ -1725,6 +1726,26 @@ export default function LiveWorkoutScreen() {
     });
   }, [session, user, addWorkoutLog, setActiveSession]);
 
+  // Throw the session away: no log is written, so nothing reaches history, PRs or
+  // streaks. The mirror of handleFinish minus the log — same teardown, because a
+  // left-running rest/autosave interval would outlive the screen either way.
+  const handleDiscard = useCallback(async () => {
+    const ok = await confirmDialog({
+      title: t('workoutSession.discardWorkoutQuestion'),
+      message: t('workoutSession.discardWorkoutWarning'),
+      confirmText: t('workoutSession.discard'),
+      cancelText: t('workoutSession.keepGoing'),
+      destructive: true,
+    });
+    if (!ok) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setShowFinishModal(false);
+    if (restTimerRef.current) clearInterval(restTimerRef.current);
+    if (autoSaveRef.current) clearInterval(autoSaveRef.current);
+    setActiveSession(null);
+    router.replace('/(tabs)' as any);
+  }, [setActiveSession, t]);
+
   if (!session) return null;
 
   return (
@@ -2003,6 +2024,12 @@ export default function LiveWorkoutScreen() {
               style={[styles.keepGoingBtn, { borderColor: theme.border }]}
             >
               <Text style={[styles.keepGoingText, { color: theme.text }]}>{t('workoutSession.keepGoing')}</Text>
+            </Pressable>
+            {/* Last and least prominent: leaving with nothing saved is the one
+                choice here that cannot be undone. */}
+            <Pressable onPress={handleDiscard} style={styles.discardBtn}>
+              <Ionicons name="trash-outline" size={15} color="#FF4458" />
+              <Text style={styles.discardText}>{t('workoutSession.discardWorkout')}</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -2292,6 +2319,11 @@ const styles = StyleSheet.create({
     borderWidth: 1, marginTop: 10,
   },
   keepGoingText: { fontSize: 15, fontWeight: '600' as const },
+  discardBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 12, marginTop: 4,
+  },
+  discardText: { fontSize: 14, fontWeight: '600' as const, color: '#FF4458' },
   menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   menuSheet: { borderRadius: 16, width: SW * 0.7, overflow: 'hidden' },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 16 },
