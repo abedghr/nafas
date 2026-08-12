@@ -14,12 +14,15 @@ import { muscleLabel } from '@/lib/exercise-i18n';
 // Real demonstration photos are hidden for now — the media tile is a Nafas-brand
 // placeholder (green gradient squircle + exercise-type glyph), identical treatment
 // for every exercise until real images land.
-export default function ExerciseRow({ ex, onPress, theme, trailing, divider = true }: {
+export default function ExerciseRow({ ex, onPress, theme, trailing, divider = true, onInfo }: {
   ex: any;
   onPress: () => void;
   theme: typeof Colors.dark;
   trailing?: React.ReactNode;
   divider?: boolean;
+  // when the picker is inside a RN <Modal>, pass this so the info-arrow can close
+  // the modal before navigating (else exercise-progress renders behind the modal)
+  onInfo?: (name: string) => void;
 }) {
   const { language } = useApp();
   const isAr = language === 'ar';
@@ -58,7 +61,8 @@ export default function ExerciseRow({ ex, onPress, theme, trailing, divider = tr
           onPress={(e) => {
             e.stopPropagation();
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push(`/exercise-progress?name=${encodeURIComponent(ex.name)}` as any);
+            if (onInfo) onInfo(ex.name);
+            else router.push(`/exercise-progress?name=${encodeURIComponent(ex.name)}` as any);
           }}
           style={({ pressed }) => [s.progressBtn, { borderColor: theme.border, opacity: pressed ? 0.6 : 1 }]}
         >

@@ -830,6 +830,7 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
                     key={ex.id + i}
                     ex={ex}
                     theme={theme}
+                    onInfo={(name) => { onClose(); router.push(`/exercise-progress?name=${encodeURIComponent(name)}` as any); }}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       onSelect(ex);
