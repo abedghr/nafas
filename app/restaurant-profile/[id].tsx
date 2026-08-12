@@ -166,15 +166,11 @@ export default function RestaurantProfileScreen() {
         )}
       </ScrollView>
 
-      <View style={[styles.bottomBar, { backgroundColor: theme.background, paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 12, borderTopColor: theme.border }]}>
-        <Button
-          variant="solid"
-          icon={reserved ? 'checkmark' : 'calendar-outline'}
-          label={reserved ? t('discover.request_sent') : t('discover.reserve')}
-          onPress={handleReserve}
-          disabled={reserved}
-        />
-      </View>
+      {!!r.phone && (
+        <View style={[styles.bottomBar, { backgroundColor: theme.background, paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 12, borderTopColor: theme.border }]}>
+          <Button variant="solid" icon="call" label={t('discover.call_restaurant', { defaultValue: 'Call restaurant' })} onPress={handleCall} />
+        </View>
+      )}
     </View>
   );
 }

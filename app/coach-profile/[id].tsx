@@ -196,7 +196,6 @@ export default function CoachProfileScreen() {
                       <Text style={[Type.h2, { color: theme.text }]}>{p.name}</Text>
                       {!!p.duration && <Text style={[Type.small, { color: theme.textMuted, marginTop: 2 }]}>{p.duration}</Text>}
                     </View>
-                    {p.price && <Text style={s.planPrice}>{p.price.amount} {p.price.currency}</Text>}
                   </View>
                   {p.includes.length > 0 && (
                     <View style={s.planIncludes}>
@@ -224,11 +223,6 @@ export default function CoachProfileScreen() {
       </ScrollView>
 
       <View style={[s.bottomBar, { backgroundColor: theme.background, paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 12, borderTopColor: theme.border }]}>
-        {c.pricePerSession && !booked && (
-          <Text style={[s.priceLine, { color: theme.textSecondary }]}>
-            <Text style={{ color: Colors.electric, fontFamily: Fonts.monoBold }}>{c.pricePerSession.amount} {c.pricePerSession.currency}</Text> {t('discover.per_session')}
-          </Text>
-        )}
         <Button
           variant="solid"
           icon={booked ? 'checkmark' : 'calendar-outline'}
