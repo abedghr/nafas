@@ -38,6 +38,8 @@ export const workoutApi = {
   acceptInvite: (id: string) => apiFetch(`/program-invites/${id}/accept`, { method: "POST", auth: true }),
   declineInvite: (id: string) => apiFetch(`/program-invites/${id}/decline`, { method: "POST", auth: true }),
   claimProgram: (code: string) => apiFetch("/program-shares/claim", { method: "POST", auth: true, body: { code } }),
+  programShares: (id: string) => apiFetch<{ shares: any[]; activeUsers: number; total: number }>(`/programs/${id}/shares`, { auth: true }),
+  revokeShare: (shareId: string) => apiFetch(`/program-shares/${shareId}/revoke`, { method: "POST", auth: true }),
   searchUsers: (q: string) => apiFetch<{ data: any[] }>(`/users/search?q=${encodeURIComponent(q)}`, { auth: true }).then((r) => r.data),
 
   logs: () => apiFetch<{ data: any[] }>("/workout-logs", { auth: true }).then((r) => r.data),

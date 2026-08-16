@@ -345,6 +345,20 @@ export default function ProgramBuilderScreen() {
           </View>
         )}
 
+        {/* owner: who has this program */}
+        {!isEdit && shareable && (
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(('/program-shares/' + program.id) as any); }}
+            style={({ pressed }) => [s.manageRow, { backgroundColor: theme.card, opacity: pressed ? 0.9 : 1 }]}
+          >
+            <View style={[s.dayBadge, { width: 34, height: 34, backgroundColor: Colors.electric + '18' }]}>
+              <Ionicons name="people-outline" size={17} color={Colors.electric} />
+            </View>
+            <Text style={[s.dayTitle, { flex: 1, color: theme.text }]}>{t('programs.whoHasThis', { defaultValue: 'Who has this' })}</Text>
+            <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
+          </Pressable>
+        )}
+
         {/* weeks grid */}
         {Array.from({ length: program.weeks }, (_, w) => (
           <View key={w} style={[s.weekCard, { backgroundColor: theme.card }]}>
@@ -875,6 +889,7 @@ const s = StyleSheet.create({
   weekCard: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12 },
   weekTitle: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, marginTop: 2 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  manageRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 12, marginBottom: 12 },
   viewSummary: { borderRadius: 16, padding: 16, marginBottom: 12, gap: 8 },
   useHint: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   useHintText: { fontSize: 11.5, fontWeight: '700' },
