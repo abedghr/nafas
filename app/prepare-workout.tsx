@@ -1163,6 +1163,7 @@ export default function PrepareWorkoutScreen() {
   const insets = useSafeAreaInsets();
   const { templateId, run, programId, weekIndex, dayIndex } = useLocalSearchParams<{ templateId?: string; run?: string; programId?: string; weekIndex?: string; dayIndex?: string }>();
   const inProgram = !!programId;
+  const isRunning = !!run; // running a program day (start live) vs authoring a program day (save only)
   const {
     workoutTemplates, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, setActiveSession,
     customExercises, addCustomExercise, user, workoutTypes, programs, updateProgram,
@@ -1622,17 +1623,20 @@ export default function PrepareWorkoutScreen() {
         </Pressable>
 
         <View style={s.bottomRow}>
-          {/* program mode = authoring a program day → only Save to Program, no live start */}
-          <Pressable
-            onPress={inProgram ? handleSaveToProgram : handleSaveTemplate}
-            disabled={!inProgram && alreadySaved && !editingId}
-            style={({ pressed }) => [s.templateBtn, inProgram && { flex: 1 }, { opacity: (!inProgram && alreadySaved && !editingId) ? 0.6 : pressed ? 0.9 : 1, backgroundColor: inProgram ? Colors.electric : theme.card, borderColor: inProgram ? Colors.electric : (editingId || alreadySaved) ? Colors.primary : theme.border }]}
-          >
-            <Ionicons name={inProgram ? 'calendar-outline' : editingId ? 'save-outline' : alreadySaved ? 'checkmark-circle' : 'bookmark-outline'} size={16} color={inProgram ? '#04120B' : Colors.primary} />
-            <Text style={[s.templateBtnText, { color: inProgram ? '#04120B' : (editingId || alreadySaved) ? Colors.primary : theme.text }]}>{inProgram ? t('programs.saveToProgram', { defaultValue: 'Save to Program' }) : editingId ? t('workoutPrep.update', { defaultValue: 'Update' }) : alreadySaved ? t('workoutPrep.saved') : t('workoutPrep.save')}</Text>
-          </Pressable>
+          {/* running a program day → Start live (no save). authoring a day → Save to Program.
+              normal workout → Save template + Start. */}
+          {!isRunning && (
+            <Pressable
+              onPress={inProgram ? handleSaveToProgram : handleSaveTemplate}
+              disabled={!inProgram && alreadySaved && !editingId}
+              style={({ pressed }) => [s.templateBtn, inProgram && { flex: 1 }, { opacity: (!inProgram && alreadySaved && !editingId) ? 0.6 : pressed ? 0.9 : 1, backgroundColor: inProgram ? Colors.electric : theme.card, borderColor: inProgram ? Colors.electric : (editingId || alreadySaved) ? Colors.primary : theme.border }]}
+            >
+              <Ionicons name={inProgram ? 'calendar-outline' : editingId ? 'save-outline' : alreadySaved ? 'checkmark-circle' : 'bookmark-outline'} size={16} color={inProgram ? '#04120B' : Colors.primary} />
+              <Text style={[s.templateBtnText, { color: inProgram ? '#04120B' : (editingId || alreadySaved) ? Colors.primary : theme.text }]}>{inProgram ? t('programs.saveToProgram', { defaultValue: 'Save to Program' }) : editingId ? t('workoutPrep.update', { defaultValue: 'Update' }) : alreadySaved ? t('workoutPrep.saved') : t('workoutPrep.save')}</Text>
+            </Pressable>
+          )}
 
-          {!inProgram && (
+          {(!inProgram || isRunning) && (
             <UIButton
               variant="solid"
               icon="flash"

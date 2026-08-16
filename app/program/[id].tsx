@@ -182,6 +182,10 @@ export default function ProgramBuilderScreen() {
     return p.canShare === true || !p.userId || p.userId === user?.id;
   }, [program, user]);
 
+  // view = use the program (start each day); edit = author it. Default to use.
+  const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const isEdit = mode === 'edit';
+
   const [shareOpen, setShareOpen] = useState(false);
   const [shareQuery, setShareQuery] = useState('');
   const [shareResults, setShareResults] = useState<{ id: string; name: string; username: string; avatarUrl?: string }[]>([]);
@@ -277,18 +281,21 @@ export default function ProgramBuilderScreen() {
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
         <Text style={[s.headerTitle, { color: theme.text }]} numberOfLines={1}>{program.name}</Text>
-        {shareable ? (
+        <View style={s.headerActions}>
           <Pressable
-            onPress={openShare}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMode(isEdit ? 'view' : 'edit'); }}
             hitSlop={12}
-            accessibilityLabel={t('programs.share', { defaultValue: 'Share' })}
+            accessibilityLabel={isEdit ? t('programs.done', { defaultValue: 'Done' }) : t('profile.edit')}
             style={({ pressed }) => [s.backBtn, { opacity: pressed ? 0.6 : 1 }]}
           >
-            <Ionicons name="share-social-outline" size={22} color={Colors.electric} />
+            <Ionicons name={isEdit ? 'checkmark' : 'create-outline'} size={22} color={isEdit ? Colors.electric : theme.text} />
           </Pressable>
-        ) : (
-          <View style={{ width: 32 }} />
-        )}
+          {shareable && !isEdit && (
+            <Pressable onPress={openShare} hitSlop={12} accessibilityLabel={t('programs.share', { defaultValue: 'Share' })} style={({ pressed }) => [s.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
+              <Ionicons name="share-social-outline" size={22} color={Colors.electric} />
+            </Pressable>
+          )}
+        </View>
       </View>
 
       <ScrollView
@@ -297,40 +304,55 @@ export default function ProgramBuilderScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* program meta */}
-        <View style={[s.metaCard, { backgroundColor: theme.card }]}>
-          <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{t('programs.programName')}</Text>
-          <TextInput
-            style={[s.fieldInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-            value={name}
-            onChangeText={setName}
-            onBlur={() => commit({ name: name.trim() || program.name })}
-            placeholder={t('programs.newProgram')}
-            placeholderTextColor={theme.textMuted}
-          />
+        {isEdit ? (
+          <View style={[s.metaCard, { backgroundColor: theme.card }]}>
+            <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{t('programs.programName')}</Text>
+            <TextInput
+              style={[s.fieldInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
+              value={name}
+              onChangeText={setName}
+              onBlur={() => commit({ name: name.trim() || program.name })}
+              placeholder={t('programs.newProgram')}
+              placeholderTextColor={theme.textMuted}
+            />
 
-          <View style={s.weeksRow}>
-            <Text style={[s.fieldLabel, { color: theme.textSecondary, marginBottom: 0 }]}>{t('programs.weeks')}</Text>
-            <Text style={[s.weeksVal, { color: theme.text }]}>{t('programs.weeksCount', { n: program.weeks })}</Text>
+            <View style={s.weeksRow}>
+              <Text style={[s.fieldLabel, { color: theme.textSecondary, marginBottom: 0 }]}>{t('programs.weeks')}</Text>
+              <Text style={[s.weeksVal, { color: theme.text }]}>{t('programs.weeksCount', { n: program.weeks })}</Text>
+            </View>
+
+            <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{t('programs.notesOptional')}</Text>
+            <TextInput
+              style={[s.fieldInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border, height: 64, textAlignVertical: 'top' }]}
+              value={notes}
+              onChangeText={setNotes}
+              onBlur={() => commit({ notes: notes.trim() })}
+              placeholder={t('programs.programNotesPlaceholder')}
+              placeholderTextColor={theme.textMuted}
+              multiline
+            />
           </View>
-
-          <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{t('programs.notesOptional')}</Text>
-          <TextInput
-            style={[s.fieldInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border, height: 64, textAlignVertical: 'top' }]}
-            value={notes}
-            onChangeText={setNotes}
-            onBlur={() => commit({ notes: notes.trim() })}
-            placeholder={t('programs.programNotesPlaceholder')}
-            placeholderTextColor={theme.textMuted}
-            multiline
-          />
-        </View>
+        ) : (
+          <View style={[s.viewSummary, { backgroundColor: theme.card }]}>
+            <View style={s.weeksRow}>
+              <Text style={[s.weeksVal, { color: theme.text }]}>{t('programs.weeksCount', { n: program.weeks })}</Text>
+              <View style={[s.useHint, { backgroundColor: Colors.electric + '18' }]}>
+                <Ionicons name="play" size={11} color={Colors.electric} />
+                <Text style={[s.useHintText, { color: Colors.electric }]}>{t('programs.tapDayToStart', { defaultValue: 'Tap a day to start' })}</Text>
+              </View>
+            </View>
+            {!!program.notes && <Text style={[s.viewNotes, { color: theme.textSecondary }]}>{program.notes}</Text>}
+          </View>
+        )}
 
         {/* weeks grid */}
         {Array.from({ length: program.weeks }, (_, w) => (
           <View key={w} style={[s.weekCard, { backgroundColor: theme.card }]}>
             <View style={s.weekHeader}>
-              <Text style={[s.weekTitle, { color: Colors.primary }]}>{t('programs.weekN', { n: w + 1 })}</Text>
-              {program.weeks > 1 && (
+              <Text style={[s.weekTitle, { color: Colors.primary }]}>
+                {t('programs.weekN', { n: w + 1 })}{!isEdit && weekMetaFor(w)?.name ? ` · ${weekMetaFor(w)!.name}` : ''}
+              </Text>
+              {isEdit && program.weeks > 1 && (
                 <Pressable
                   onPress={() => removeWeek(w)}
                   hitSlop={8}
@@ -341,13 +363,17 @@ export default function ProgramBuilderScreen() {
                 </Pressable>
               )}
             </View>
-            <WeekMetaFields
-              key={`wm-${program.id}-${w}`}
-              meta={weekMetaFor(w)}
-              theme={theme}
-              onCommitName={(v) => commitWeekMeta(w, { name: v })}
-              onCommitNotes={(v) => commitWeekMeta(w, { notes: v })}
-            />
+            {isEdit ? (
+              <WeekMetaFields
+                key={`wm-${program.id}-${w}`}
+                meta={weekMetaFor(w)}
+                theme={theme}
+                onCommitName={(v) => commitWeekMeta(w, { name: v })}
+                onCommitNotes={(v) => commitWeekMeta(w, { notes: v })}
+              />
+            ) : (!!weekMetaFor(w)?.notes && (
+              <Text style={[s.viewNotes, { color: theme.textMuted, marginTop: 0, marginBottom: 8 }]}>{weekMetaFor(w)!.notes}</Text>
+            ))}
             {DAY_KEYS.map((dk, dIdx) => {
               const day = findDay(w, dIdx);
               const tmplName = templateName(day?.templateId);
@@ -374,13 +400,16 @@ export default function ProgramBuilderScreen() {
                 ? t('programs.restDay')
                 : tmplName || (inlineCount > 0 ? (day?.name || t('programs.buildWorkout')) : (day?.label || t('programs.addWorkout', { defaultValue: 'Add workout' })));
               const empty = !day?.restDay && !planned && !day?.label;
+              // view = tap a planned day to start it; edit = tap to author it
+              const onRow = isEdit ? () => openDay(w, dIdx) : (planned ? () => startDay(day!) : undefined);
               return (
                 <Pressable
                   key={dk}
-                  onPress={() => openDay(w, dIdx)}
+                  onPress={onRow}
+                  disabled={!onRow}
                   style={({ pressed }) => [
                     s.dayRow2,
-                    { backgroundColor: pressed ? theme.cardAlt : 'transparent', borderColor: theme.border },
+                    { backgroundColor: pressed && onRow ? theme.cardAlt : 'transparent', borderColor: theme.border, opacity: !isEdit && empty ? 0.55 : 1 },
                     planned && { borderColor: Colors.electric + '55' },
                   ]}
                 >
@@ -392,43 +421,41 @@ export default function ProgramBuilderScreen() {
                     <Text style={[s.dayBadgeText, { color: planned ? '#04120B' : theme.textMuted }]}>{t(`workoutTab.${dk}`)}</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[s.dayTitle, { color: empty ? theme.textMuted : day?.restDay ? theme.textSecondary : theme.text }]} numberOfLines={1}>{title}</Text>
+                    <Text style={[s.dayTitle, { color: empty ? theme.textMuted : day?.restDay ? theme.textSecondary : theme.text }]} numberOfLines={1}>{empty && !isEdit ? '—' : title}</Text>
                     {planned && inlineCount > 0 && (
                       <Text style={[s.daySub, { color: theme.textMuted }]} numberOfLines={1}>{t('programs.exercisesN', { n: inlineCount })}</Text>
                     )}
                   </View>
-                  {planned ? (
-                    <Pressable
-                      onPress={() => startDay(day!)}
-                      hitSlop={8}
-                      style={({ pressed }) => [s.startBtn, { backgroundColor: Colors.electric, opacity: pressed ? 0.85 : 1 }]}
-                    >
+                  {planned && !isEdit ? (
+                    <View style={[s.startBtn, { backgroundColor: Colors.electric }]}>
                       <Ionicons name="play" size={11} color="#04120B" />
                       <Text style={[s.startBtnText, { color: '#04120B' }]}>{t('programs.startDay')}</Text>
-                    </Pressable>
+                    </View>
                   ) : day?.restDay ? (
                     <Ionicons name="moon" size={15} color={theme.textSecondary} />
-                  ) : (
-                    <Ionicons name="add-circle-outline" size={18} color={Colors.electric} />
-                  )}
+                  ) : isEdit ? (
+                    <Ionicons name={empty ? 'add-circle-outline' : 'chevron-forward'} size={empty ? 18 : 15} color={empty ? Colors.electric : theme.textMuted} />
+                  ) : null}
                 </Pressable>
               );
             })}
           </View>
         ))}
 
-        {/* add week */}
-        <Pressable
-          onPress={addWeek}
-          disabled={program.weeks >= 52}
-          style={({ pressed }) => [
-            s.addWeekBtn,
-            { backgroundColor: theme.card, borderColor: Colors.primary + '40', opacity: program.weeks >= 52 ? 0.4 : pressed ? 0.85 : 1 },
-          ]}
-        >
-          <Ionicons name="add" size={18} color={Colors.primary} />
-          <Text style={[s.addWeekText, { color: Colors.primary }]}>{t('programs.addWeek')}</Text>
-        </Pressable>
+        {/* add week — edit mode only */}
+        {isEdit && (
+          <Pressable
+            onPress={addWeek}
+            disabled={program.weeks >= 52}
+            style={({ pressed }) => [
+              s.addWeekBtn,
+              { backgroundColor: theme.card, borderColor: Colors.primary + '40', opacity: program.weeks >= 52 ? 0.4 : pressed ? 0.85 : 1 },
+            ]}
+          >
+            <Ionicons name="add" size={18} color={Colors.primary} />
+            <Text style={[s.addWeekText, { color: Colors.primary }]}>{t('programs.addWeek')}</Text>
+          </Pressable>
+        )}
       </ScrollView>
 
       {/* day editor bottom sheet */}
@@ -847,6 +874,11 @@ const s = StyleSheet.create({
   stepVal: { fontSize: 16, fontWeight: '700', minWidth: 28, textAlign: 'center' },
   weekCard: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12 },
   weekTitle: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, marginTop: 2 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  viewSummary: { borderRadius: 16, padding: 16, marginBottom: 12, gap: 8 },
+  useHint: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  useHintText: { fontSize: 11.5, fontWeight: '700' },
+  viewNotes: { fontSize: 13, fontWeight: '500', lineHeight: 19 },
   dayRow2: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 10, borderRadius: 12, borderWidth: 1, marginBottom: 6 },
   dayBadge: { width: 46, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   dayBadgeText: { fontSize: 12, fontWeight: '800' },
