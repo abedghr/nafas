@@ -141,9 +141,47 @@ export const programsService = {
     if (s.fromUserId === userId) return { error: "own_program" as const };
     const newId = await this._snapshot(s.programId, userId, s.fromUserId, s.accessExpiresAt);
     if (!newId) return { error: "not_found" as const };
-    await db.update(programShares).set({ status: "accepted", acceptedAt: new Date(), toUserId: userId })
+    await db.update(programShares).set({ status: "accepted", acceptedAt: new Date(), toUserId: userId, acceptedProgramId: newId })
       .where(eq(programShares.id, s.id));
     return { program: await this.get(userId, newId) };
+  },
+
+  // owner dashboard: all shares of one of my original programs, with recipient info + expiry state
+  async shares(userId: string, programId: string) {
+    const [p] = await db.select().from(programs).where(and(eq(programs.id, programId), eq(programs.userId, userId)));
+    if (!p || p.sourceOwnerId) return { error: "not_found" as const };
+    const rows = await db.select({
+      id: programShares.id, status: programShares.status, code: programShares.code,
+      createdAt: programShares.createdAt, acceptedAt: programShares.acceptedAt,
+      claimExpiresAt: programShares.claimExpiresAt, accessExpiresAt: programShares.accessExpiresAt,
+      toUserId: programShares.toUserId,
+      recipientName: users.name, recipientUsername: users.username, recipientAvatar: users.avatarUrl,
+    })
+      .from(programShares)
+      .leftJoin(users, eq(users.id, programShares.toUserId))
+      .where(eq(programShares.programId, programId))
+      .orderBy(desc(programShares.createdAt));
+    const now = Date.now();
+    const list = rows.map((r) => ({
+      ...r,
+      accessExpired: r.status === "accepted" && !!r.accessExpiresAt && r.accessExpiresAt.getTime() < now,
+      claimExpired: r.status === "pending" && !!r.claimExpiresAt && r.claimExpiresAt.getTime() < now,
+    }));
+    const activeUsers = list.filter((r) => r.status === "accepted" && !r.accessExpired).length;
+    return { data: { shares: list, activeUsers, total: list.length } };
+  },
+
+  // owner revokes a share. pending → uncllaimable; accepted → expire the recipient's copy now.
+  async revoke(userId: string, shareId: string) {
+    const [s] = await db.select().from(programShares).where(eq(programShares.id, shareId));
+    if (!s) return { error: "not_found" as const };
+    const [p] = await db.select().from(programs).where(and(eq(programs.id, s.programId), eq(programs.userId, userId)));
+    if (!p) return { error: "not_found" as const };
+    if (s.status === "accepted" && s.acceptedProgramId) {
+      await db.update(programs).set({ accessExpiresAt: new Date() }).where(eq(programs.id, s.acceptedProgramId));
+    }
+    await db.update(programShares).set({ status: "revoked" }).where(eq(programShares.id, s.id));
+    return { ok: true };
   },
 
   // deep-copy a program + its days into a new row owned by the recipient

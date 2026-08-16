@@ -70,3 +70,18 @@ programsRouter.post("/program-shares/claim", validate({ body: ClaimSchema }), as
   if ("error" in r && r.error) return res.status(r.error === "expired" ? 410 : r.error === "own_program" ? 400 : 404).json({ code: r.error.toUpperCase(), message: "" });
   res.status(201).json(r.program);
 });
+
+// owner share dashboard + revoke
+registry.registerPath({ method: "get", path: "/api/programs/{id}/shares", tags: ["Programs"], summary: "Who has this program (owner)", security: sec, request: { params: idParam }, responses: { 200: json(z.any()) } });
+programsRouter.get("/programs/:id/shares", validate({ params: idParam }), async (req, res) => {
+  const r = await programsService.shares(req.user!.sub, String(req.params.id));
+  if ("error" in r && r.error) return res.status(404).json({ code: r.error.toUpperCase(), message: "" });
+  res.json(r.data);
+});
+
+registry.registerPath({ method: "post", path: "/api/program-shares/{id}/revoke", tags: ["Programs"], summary: "Revoke a share (owner)", security: sec, request: { params: idParam }, responses: { 200: json(z.any()) } });
+programsRouter.post("/program-shares/:id/revoke", validate({ params: idParam }), async (req, res) => {
+  const r = await programsService.revoke(req.user!.sub, String(req.params.id));
+  if ("error" in r && r.error) return res.status(404).json({ code: r.error.toUpperCase(), message: "" });
+  res.json({ ok: true });
+});

@@ -32,6 +32,7 @@ export const programShares = pgTable("program_shares", {
   status: varchar("status", { length: 16 }).notNull().default("pending"), // pending|accepted|declined|revoked|expired
   createdAt: timestamp("created_at").notNull().defaultNow(),
   acceptedAt: timestamp("accepted_at"),
+  acceptedProgramId: uuid("accepted_program_id"), // the recipient's snapshot copy (for revoke → expire it)
 }, (t) => ({
   toIdx: index("pshare_to_idx").on(t.toUserId, t.status),
   fromIdx: index("pshare_from_idx").on(t.fromUserId),
