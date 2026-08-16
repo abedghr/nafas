@@ -176,9 +176,11 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
 }) {
   const { t } = useTranslation();
   const weightUnit = useSessionUnit();
+  const toFailure = !!set.config.toFailure; // max-hold: count UP, no fixed target
   const [phase, setPhase] = useState<'idle' | 'prep' | 'active'>('idle');
   const [prepRemaining, setPrepRemaining] = useState(PREP_SECONDS);
   const [holdRemaining, setHoldRemaining] = useState(set.config.durationSeconds || 30);
+  const [holdElapsed, setHoldElapsed] = useState(0); // to-failure: seconds elapsed (counts up)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -207,6 +209,16 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
 
   const startHold = () => {
     setPhase('active');
+    if (toFailure) {
+      // to-failure hold: no target, count UP until the user marks done at their max
+      setHoldElapsed(0);
+      let elapsed = 0;
+      timerRef.current = setInterval(() => {
+        elapsed++;
+        setHoldElapsed(elapsed);
+      }, 1000);
+      return;
+    }
     const dur = set.config.durationSeconds || 30;
     setHoldRemaining(dur);
     let remaining = dur;
@@ -227,9 +239,10 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
   const finishEarly = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     const dur = set.config.durationSeconds || 30;
-    const elapsed = dur - holdRemaining;
+    const elapsed = toFailure ? holdElapsed : dur - holdRemaining;
     setPhase('idle');
-    onUpdateActual({ ...set.actual, durationSeconds: elapsed });
+    if (toFailure) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onUpdateActual({ ...set.actual, durationSeconds: elapsed, ...(toFailure ? { toFailure: true } : {}) });
     onMarkDone();
   };
 
@@ -246,6 +259,24 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
         <Text style={[styles.timerSubLabel, { color: theme.textMuted }]}>{t('workoutSession.holdStartsIn', { n: prepRemaining })}</Text>
         <Pressable onPress={cancelPrep} style={[styles.timerSecondaryBtn, { borderColor: theme.border }]}>
           <Text style={[styles.timerSecondaryBtnText, { color: theme.textSecondary }]}>{t('workoutSession.cancel')}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (phase === 'active' && toFailure) {
+    // to-failure: count up, no progress bar, user ends at their max
+    return (
+      <View style={[styles.timerFullCard, { backgroundColor: Colors.accent + '08', borderColor: Colors.accent + '30' }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <Ionicons name="flame" size={15} color={Colors.accent} />
+          <Text style={[styles.timerPhaseLabel, { color: Colors.accent }]}>{t('workoutSession.maxHold', { defaultValue: 'MAX HOLD' })}</Text>
+        </View>
+        <Text style={[styles.timerBigNumber, { color: Colors.accent }]}>{formatCountdown(holdElapsed)}</Text>
+        <Text style={[styles.timerSubLabel, { color: theme.textMuted }]}>{t('workoutSession.holdAsLong', { defaultValue: 'Hold as long as you can' })}</Text>
+        <Pressable onPress={finishEarly} style={[styles.timerPrimaryBtn, { backgroundColor: Colors.accent }]}>
+          <Ionicons name="checkmark" size={18} color="#fff" />
+          <Text style={styles.timerPrimaryBtnText}>{t('workoutSession.done')}</Text>
         </Pressable>
       </View>
     );
@@ -309,7 +340,7 @@ function HoldSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
         </View>
         <Text style={[styles.setLabel, { color: theme.text }]}>{t('workoutSession.hold')}</Text>
         <Text style={[styles.setValue, { color: theme.textSecondary }]}>
-          {t('workoutSession.secondsValue', { n: set.config.durationSeconds || 0 })}{set.config.weight ? ` · ${toDisplayWeight(set.config.weight, weightUnit)} ${unitLabel(weightUnit)}` : ''}
+          {toFailure ? t('workoutSession.maxLabel', { defaultValue: 'Max' }) : t('workoutSession.secondsValue', { n: set.config.durationSeconds || 0 })}{set.config.weight ? ` · ${toDisplayWeight(set.config.weight, weightUnit)} ${unitLabel(weightUnit)}` : ''}
         </Text>
       </View>
       <View style={styles.setRowRight}>
@@ -621,6 +652,42 @@ function EmomSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReope
   );
 }
 
+// Small inline prescription cues (tempo / assist / to-failure) shown under a
+// reps or hold set row. Purely additive — renders nothing when the set carries none.
+function SetCues({ set, theme }: { set: SessionSet; theme: typeof Colors.dark }) {
+  const { t } = useTranslation();
+  const cfg = set.config;
+  const tempo = cfg.tempo?.trim();
+  const assist = cfg.assist && cfg.assist !== 'none' ? cfg.assist : null;
+  const toFailure = !!cfg.toFailure;
+  if (!tempo && !assist && !toFailure) return null;
+  const assistLabel = assist === 'band'
+    ? t('workoutSession.cueBand', { defaultValue: 'BAND' })
+    : assist === 'partner'
+      ? t('workoutSession.cuePartner', { defaultValue: 'PARTNER' })
+      : t('workoutSession.cueAssisted', { defaultValue: 'ASSISTED' });
+  return (
+    <View style={styles.cueRow}>
+      {!!tempo && (
+        <View style={[styles.cueBadge, { backgroundColor: Colors.electric + '18' }]}>
+          <Text style={[styles.cueBadgeText, { color: Colors.electric }]}>{t('workoutSession.cueTempo', { defaultValue: 'TEMPO' })} {tempo}</Text>
+        </View>
+      )}
+      {assist && (
+        <View style={[styles.cueBadge, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.cueBadgeText, { color: theme.textSecondary }]}>{assistLabel}</Text>
+        </View>
+      )}
+      {toFailure && (
+        <View style={[styles.cueBadge, { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: Colors.accent + '18' }]}>
+          <Ionicons name="flame" size={11} color={Colors.accent} />
+          <Text style={[styles.cueBadgeText, { color: Colors.accent }]}>{t('workoutSession.cueMax', { defaultValue: 'MAX' })}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 function SetRowItem({ set, setIndex, exerciseIndex, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
   set: SessionSet;
   setIndex: number;
@@ -643,6 +710,7 @@ function SetRowItem({ set, setIndex, exerciseIndex, onMarkDone, onSkip, onUpdate
   return (
     <View>
       {row}
+      {(setType === 'reps' || setType === 'hold') && <SetCues set={set} theme={theme} />}
       {noteOpen ? (
         <View style={styles.noteEditWrap}>
           <View style={styles.noteEditHead}>
@@ -1081,7 +1149,7 @@ function ComboEmomBody({ combo, onFinishEmom, theme }: {
 }
 
 // ── Combo set card (multiple movements per round, done back-to-back) ──────────
-function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReopen, onAddRound, onFinishEmom, onDelete, collapsed, onToggleCollapse, theme }: {
+function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReopen, onAddRound, onFinishEmom, onFinishAmrap, onDelete, collapsed, onToggleCollapse, theme }: {
   combo: SessionExercise;
   onUpdateEntry: (roundIdx: number, compIdx: number, patch: Partial<SetConfig>) => void;
   onRoundDone: (roundIdx: number) => void;
@@ -1089,6 +1157,7 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
   onRoundReopen: (roundIdx: number) => void;
   onAddRound: () => void;
   onFinishEmom: (completedMinutes: number) => void;
+  onFinishAmrap: (completedRounds: number) => void;
   onDelete: () => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -1098,7 +1167,9 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
   const weightUnit = useSessionUnit();
   const components = combo.components || [];
   const rounds = combo.rounds || [];
-  const isEmom = (combo.mode ?? 'circuit') === 'emom'; // no mode = circuit (backward compat)
+  const mode = combo.mode ?? 'circuit'; // no mode = circuit (backward compat)
+  const isEmom = mode === 'emom';
+  const isAmrap = mode === 'amrap';
   const hasPending = rounds.some(r => r.status === 'pending' || r.status === 'in_progress');
 
   return (
@@ -1117,7 +1188,14 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
                 </Text>
               </View>
             )}
-            {!isEmom && combo.unbroken && (
+            {isAmrap && (
+              <View style={[styles.comboChip, { backgroundColor: Colors.electric + '20' }]}>
+                <Text style={[styles.comboChipText, { color: Colors.electric }]}>
+                  {t('workoutSession.amrap', { defaultValue: 'AMRAP' })} · {formatCountdown(combo.timeCapSeconds || 600)}
+                </Text>
+              </View>
+            )}
+            {!isEmom && !isAmrap && combo.unbroken && (
               <View style={[styles.comboChip, { backgroundColor: Colors.primary + '18' }]}>
                 <Text style={[styles.comboChipText, { color: Colors.primary }]}>{t('workoutSession.unbroken')}</Text>
               </View>
@@ -1168,8 +1246,8 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
             </Pressable>
           );
         }
-        // emom mode: pending cycles are driven by the interval timer below
-        if (isEmom) return null;
+        // emom/amrap mode: pending rounds are driven by the runner below, not edited inline
+        if (isEmom || isAmrap) return null;
         // pending → editable component rows
         return (
           <View key={ri} style={[styles.comboRound, { backgroundColor: 'transparent' }]}>
@@ -1248,6 +1326,8 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
 
       {isEmom ? (
         hasPending && <ComboEmomBody combo={combo} onFinishEmom={onFinishEmom} theme={theme} />
+      ) : isAmrap ? (
+        hasPending && <ComboAmrapBody combo={combo} onFinishAmrap={onFinishAmrap} theme={theme} />
       ) : (
         <Pressable onPress={onAddRound} style={styles.comboAddRound}>
           <Ionicons name="add" size={16} color={Colors.accent} />
@@ -1256,6 +1336,387 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
       )}
       </>
       )}
+    </View>
+  );
+}
+
+// ── AMRAP combo body: count rounds against a time cap ────────────────────────
+// Runs a countdown of timeCapSeconds; the athlete taps + for each full lap
+// through the components. On time-out (or Finish) the parent records the round
+// count via onFinishAmrap → the existing combo→log expansion logs each round.
+function ComboAmrapBody({ combo, onFinishAmrap, theme }: {
+  combo: SessionExercise;
+  onFinishAmrap: (completedRounds: number) => void;
+  theme: typeof Colors.dark;
+}) {
+  const { t } = useTranslation();
+  const weightUnit = useSessionUnit();
+  const components = combo.components || [];
+  const rounds = combo.rounds || [];
+  const template = rounds[0]?.entries || [];
+  const cap = combo.timeCapSeconds || 600;
+
+  const [phase, setPhase] = useState<'idle' | 'active'>('idle');
+  const [paused, setPaused] = useState(false);
+  const [remaining, setRemaining] = useState(cap);
+  const [roundsDone, setRoundsDone] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const remainingRef = useRef(cap);
+  const roundsRef = useRef(0);
+
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+  const stopTimer = () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+
+  const finish = () => {
+    stopTimer();
+    setPhase('idle');
+    onFinishAmrap(roundsRef.current);
+  };
+
+  const tick = () => {
+    remainingRef.current -= 1;
+    const rem = remainingRef.current;
+    setRemaining(rem);
+    if (rem <= 3 && rem > 0) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (rem <= 0) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      finish();
+    }
+  };
+
+  const start = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setPhase('active');
+    setPaused(false);
+    remainingRef.current = cap;
+    setRemaining(cap);
+    roundsRef.current = 0;
+    setRoundsDone(0);
+    stopTimer();
+    timerRef.current = setInterval(tick, 1000);
+  };
+
+  const togglePause = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (paused) { timerRef.current = setInterval(tick, 1000); setPaused(false); }
+    else { stopTimer(); setPaused(true); }
+  };
+
+  const addRound = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    roundsRef.current += 1;
+    setRoundsDone(roundsRef.current);
+  };
+  const subRound = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    roundsRef.current = Math.max(0, roundsRef.current - 1);
+    setRoundsDone(roundsRef.current);
+  };
+
+  const compTarget = (ci: number) => {
+    const e = template[ci];
+    const ty = e?.type ?? 'reps';
+    let target = ty === 'hold'
+      ? t('workoutSession.secondsValue', { n: e?.durationSeconds || 0 })
+      : t('workoutSession.repsValue', { n: (ty === 'emom' ? e?.repsPerInterval : e?.reps) || 0 });
+    if (e?.weight) target += ` · ${toDisplayWeight(e.weight, weightUnit)} ${unitLabel(weightUnit)}`;
+    return target;
+  };
+
+  const componentList = (
+    <View style={styles.amrapRefList}>
+      {components.map((c, ci) => (
+        <View key={ci} style={styles.amrapRefRow}>
+          <Text style={[styles.amrapRefName, { color: theme.textSecondary }]} numberOfLines={1}>{c.name}</Text>
+          <Text style={[styles.amrapRefTarget, { color: theme.textMuted }]}>{compTarget(ci)}</Text>
+        </View>
+      ))}
+    </View>
+  );
+
+  if (phase === 'active') {
+    return (
+      <View style={[styles.emomActiveCard, { backgroundColor: theme.card, borderColor: Colors.electric + '40' }]}>
+        <View style={styles.emomHeader}>
+          <View style={[styles.emomIntervalBadge, { backgroundColor: Colors.electric + '20' }]}>
+            <Text style={[styles.emomIntervalText, { color: Colors.electric }]}>{t('workoutSession.amrap', { defaultValue: 'AMRAP' })}</Text>
+          </View>
+          <Text style={[styles.emomRepsGoal, { color: theme.textMuted }]}>{t('workoutSession.timeCap', { defaultValue: 'Time cap' })}</Text>
+        </View>
+        <View style={styles.emomTimerCenter}>
+          <Text style={[styles.emomTimerBig, { color: remaining <= 10 ? Colors.accent : theme.text }]}>{formatCountdown(Math.max(0, remaining))}</Text>
+        </View>
+
+        <View style={styles.amrapCounterRow}>
+          <Pressable onPress={subRound} hitSlop={8} style={[styles.amrapCounterBtn, { borderColor: theme.border }]}>
+            <Ionicons name="remove" size={22} color={theme.text} />
+          </Pressable>
+          <View style={styles.amrapCounterCenter}>
+            <Text style={[styles.amrapCounterNum, { color: Colors.electric }]}>{roundsDone}</Text>
+            <Text style={[styles.amrapCounterLbl, { color: theme.textMuted }]}>{t('workoutSession.roundsCompleted', { defaultValue: 'rounds' })}</Text>
+          </View>
+          <Pressable onPress={addRound} hitSlop={8} style={[styles.amrapCounterBtn, { backgroundColor: Colors.electric, borderColor: Colors.electric }]}>
+            <Ionicons name="add" size={22} color="#04120B" />
+          </Pressable>
+        </View>
+
+        {componentList}
+
+        <View style={styles.emomBtnRow}>
+          <Pressable onPress={togglePause} style={[styles.emomActionBtn, { backgroundColor: theme.surface }]}>
+            <Ionicons name={paused ? 'play' : 'pause'} size={16} color={theme.text} />
+            {paused && <Text style={[styles.emomActionBtnText, { color: theme.text }]}>{t('workoutSession.start')}</Text>}
+          </Pressable>
+          <Pressable onPress={finish} style={[styles.emomActionBtn, { backgroundColor: Colors.primary + '15' }]}>
+            <Ionicons name="checkmark" size={16} color={Colors.primary} />
+            <Text style={[styles.emomActionBtnText, { color: Colors.primary }]}>{t('workoutSession.finish')}</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  // idle → reference list + start
+  return (
+    <View style={styles.amrapIdle}>
+      {componentList}
+      <Pressable onPress={start} style={[styles.holdStartBtn, { backgroundColor: Colors.electric + '18', alignSelf: 'flex-start' }]}>
+        <Ionicons name="play" size={14} color={Colors.electric} />
+        <Text style={[styles.holdStartText, { color: Colors.electric }]}>{t('workoutSession.start')}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ── Interval / cardio block: work → recovery, auto-advancing through rounds ────
+// Its own top-level branch in the exercise map (before combo/exercise). Logs a
+// simple completion via the empty-sets path in handleFinish; no rep-volume.
+function IntervalCard({ block, onDelete, theme }: {
+  block: SessionExercise;
+  onDelete: () => void;
+  theme: typeof Colors.dark;
+}) {
+  const { t } = useTranslation();
+  const iv = block.intervals!;
+  const totalRounds = Math.max(1, iv.rounds || 1);
+  const work = iv.work;
+  const recovery = iv.recovery;
+  const isTimeWork = work.measure === 'time';
+  const isTimeRecovery = recovery?.measure === 'time';
+
+  const [phase, setPhase] = useState<'idle' | 'work' | 'recovery' | 'done'>('idle');
+  const [round, setRound] = useState(1);
+  const [paused, setPaused] = useState(false);
+  const [remaining, setRemaining] = useState(0);
+  const [actuals, setActuals] = useState<Record<string, string>>({});
+
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const remainingRef = useRef(0);
+  const roundRef = useRef(1);
+  const phaseRef = useRef<'idle' | 'work' | 'recovery' | 'done'>('idle');
+
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+  const stopTimer = () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+
+  const setPhaseBoth = (p: 'idle' | 'work' | 'recovery' | 'done') => { phaseRef.current = p; setPhase(p); };
+  const setRoundBoth = (r: number) => { roundRef.current = r; setRound(r); };
+
+  const metersLabel = (n?: number) => `${n || 0} ${t('workoutSession.metersShort', { defaultValue: 'm' })}`;
+  const workLabel = isTimeWork
+    ? t('workoutSession.secondsValue', { n: work.durationSeconds || 0 })
+    : `${metersLabel(work.distanceMeters)}${work.pace ? ' · ' + work.pace : ''}`;
+  const recoveryLabel = recovery
+    ? (isTimeRecovery ? t('workoutSession.secondsValue', { n: recovery.durationSeconds || 0 }) : metersLabel(recovery.distanceMeters))
+    : null;
+
+  function tick() {
+    remainingRef.current -= 1;
+    const rem = remainingRef.current;
+    setRemaining(rem);
+    if (rem <= 3 && rem > 0) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (rem <= 0) {
+      stopTimer();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (phaseRef.current === 'work') afterWork(); else afterRecovery();
+    }
+  }
+  function startCountdown(secs: number) {
+    remainingRef.current = secs;
+    setRemaining(secs);
+    stopTimer();
+    setPaused(false);
+    timerRef.current = setInterval(tick, 1000);
+  }
+  function finishBlock() {
+    stopTimer();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setPhaseBoth('done');
+  }
+  function goWork(r: number) {
+    setRoundBoth(r);
+    setPhaseBoth('work');
+    if (isTimeWork) startCountdown(work.durationSeconds || 0);
+    else { stopTimer(); setRemaining(0); }
+  }
+  function goRecovery() {
+    setPhaseBoth('recovery');
+    if (isTimeRecovery) startCountdown(recovery!.durationSeconds || 0);
+    else { stopTimer(); setRemaining(0); }
+  }
+  function afterWork() {
+    const r = roundRef.current;
+    if (recovery && r < totalRounds) goRecovery();
+    else if (r < totalRounds) goWork(r + 1);
+    else finishBlock();
+  }
+  function afterRecovery() {
+    const r = roundRef.current;
+    if (r < totalRounds) goWork(r + 1);
+    else finishBlock();
+  }
+
+  const start = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); goWork(1); };
+  const skipPhase = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    stopTimer();
+    if (phaseRef.current === 'work') afterWork(); else afterRecovery();
+  };
+  const togglePause = () => {
+    const timeBased = phaseRef.current === 'work' ? isTimeWork : isTimeRecovery;
+    if (!timeBased) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (paused) { timerRef.current = setInterval(tick, 1000); setPaused(false); }
+    else { stopTimer(); setPaused(true); }
+  };
+
+  const Header = (
+    <View style={styles.exCardHeader}>
+      <View style={{ flex: 1 }}>
+        <View style={styles.comboTitleRow}>
+          <View style={[styles.comboChip, { backgroundColor: Colors.electric + '18' }]}>
+            <Ionicons name="pulse-outline" size={11} color={Colors.electric} />
+            <Text style={[styles.comboChipText, { color: Colors.electric }]}>{t('workoutSession.intervals', { defaultValue: 'Intervals' })}</Text>
+          </View>
+        </View>
+        <Text style={[styles.exCardName, { color: theme.text, marginTop: 4 }]}>{block.name}</Text>
+      </View>
+      <Pressable onPress={onDelete} hitSlop={8} style={styles.menuBtn}>
+        <Ionicons name="trash-outline" size={18} color={theme.textMuted} />
+      </Pressable>
+    </View>
+  );
+
+  if (phase === 'idle') {
+    return (
+      <View style={[styles.exCard, { backgroundColor: theme.card, borderWidth: 1, borderColor: Colors.electric + '30' }]}>
+        {Header}
+        <View style={styles.ivSummary}>
+          <View style={styles.amrapRefRow}>
+            <Text style={[styles.amrapRefName, { color: theme.textSecondary }]}>{t('workoutSession.ivWork', { defaultValue: 'Work' })}</Text>
+            <Text style={[styles.amrapRefTarget, { color: theme.textMuted }]}>{workLabel}</Text>
+          </View>
+          {recoveryLabel && (
+            <View style={styles.amrapRefRow}>
+              <Text style={[styles.amrapRefName, { color: theme.textSecondary }]}>{t('workoutSession.ivRecovery', { defaultValue: 'Recovery' })}</Text>
+              <Text style={[styles.amrapRefTarget, { color: theme.textMuted }]}>{recoveryLabel}{recovery?.kind === 'active' ? ` · ${t('workoutSession.ivActive', { defaultValue: 'active' })}` : ''}</Text>
+            </View>
+          )}
+          <View style={styles.amrapRefRow}>
+            <Text style={[styles.amrapRefName, { color: theme.textSecondary }]}>{t('workoutSession.ivRounds', { defaultValue: 'Rounds' })}</Text>
+            <Text style={[styles.amrapRefTarget, { color: theme.textMuted }]}>× {totalRounds}</Text>
+          </View>
+        </View>
+        <Pressable onPress={start} style={[styles.holdStartBtn, { backgroundColor: Colors.electric + '18', alignSelf: 'flex-start', marginHorizontal: 16, marginBottom: 16 }]}>
+          <Ionicons name="play" size={14} color={Colors.electric} />
+          <Text style={[styles.holdStartText, { color: Colors.electric }]}>{t('workoutSession.start')}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (phase === 'done') {
+    return (
+      <View style={[styles.exCard, { backgroundColor: theme.card, borderWidth: 1, borderColor: Colors.primary + '30' }]}>
+        {Header}
+        <Pressable onPress={start} style={[styles.setRow, { justifyContent: 'space-between', backgroundColor: Colors.primary + '10' }]}>
+          <View style={styles.setRowLeft}>
+            <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+            <Text style={[styles.setLabel, { color: theme.text }]}>{t('workoutSession.done')}</Text>
+            <Text style={[styles.setValue, { color: theme.textSecondary }]}>{t('workoutSession.ivRoundsDone', { defaultValue: '{{n}} rounds', n: totalRounds })}</Text>
+          </View>
+          <Ionicons name="refresh" size={14} color={theme.textMuted} />
+        </Pressable>
+      </View>
+    );
+  }
+
+  // active: work or recovery
+  const isWork = phase === 'work';
+  const timeBased = isWork ? isTimeWork : isTimeRecovery;
+  const target = isWork ? workLabel : recoveryLabel;
+  const dur = isWork ? (work.durationSeconds || 0) : (recovery?.durationSeconds || 0);
+  const progress = timeBased && dur > 0 ? 1 - remaining / dur : 0;
+  const accent = isWork ? Colors.electric : Colors.accent;
+  const capKey = `${isWork ? 'w' : 'r'}-${round}`;
+
+  return (
+    <View style={[styles.exCard, { backgroundColor: theme.card, borderWidth: 1, borderColor: accent + '40' }]}>
+      {Header}
+      <View style={{ padding: 16, paddingTop: 4, gap: 12 }}>
+        <View style={styles.emomHeader}>
+          <View style={[styles.emomIntervalBadge, { backgroundColor: accent + '20' }]}>
+            <Text style={[styles.emomIntervalText, { color: accent }]}>
+              {isWork ? t('workoutSession.ivWorkPhase', { defaultValue: 'WORK' }) : t('workoutSession.ivRecoveryPhase', { defaultValue: 'RECOVERY' })}
+            </Text>
+          </View>
+          <Text style={[styles.emomRepsGoal, { color: theme.textMuted }]}>
+            {t('workoutSession.ivRoundOf', { defaultValue: 'Round {{c}}/{{n}}', c: round, n: totalRounds })}
+          </Text>
+        </View>
+
+        {timeBased ? (
+          <>
+            <View style={styles.emomTimerCenter}>
+              <Text style={[styles.emomTimerBig, { color: theme.text }]}>{formatCountdown(Math.max(0, remaining))}</Text>
+            </View>
+            <View style={[styles.progressBarContainer, { backgroundColor: theme.surface }]}>
+              <View style={[styles.progressBar, { width: `${Math.max(0, Math.min(1, progress)) * 100}%`, backgroundColor: accent }]} />
+            </View>
+          </>
+        ) : (
+          <View style={{ alignItems: 'center', gap: 8, paddingVertical: 6 }}>
+            <Text style={[styles.ivTargetBig, { color: theme.text }]}>{target}</Text>
+            <View style={styles.ivCaptureRow}>
+              <Text style={[styles.amrapRefName, { color: theme.textMuted }]}>{t('workoutSession.ivActualDistance', { defaultValue: 'Actual' })}</Text>
+              <TextInput
+                style={[styles.ivCaptureInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
+                value={actuals[capKey] ?? ''}
+                onChangeText={(v) => setActuals(prev => ({ ...prev, [capKey]: v }))}
+                keyboardType="numeric"
+                placeholder={String(isWork ? (work.distanceMeters || 0) : (recovery?.distanceMeters || 0))}
+                placeholderTextColor={theme.textMuted}
+                selectTextOnFocus
+              />
+              <Text style={[styles.amrapRefName, { color: theme.textMuted }]}>{t('workoutSession.metersShort', { defaultValue: 'm' })}</Text>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.emomBtnRow}>
+          {timeBased && (
+            <Pressable onPress={togglePause} style={[styles.emomActionBtn, { backgroundColor: theme.surface }]}>
+              <Ionicons name={paused ? 'play' : 'pause'} size={16} color={theme.text} />
+              {paused && <Text style={[styles.emomActionBtnText, { color: theme.text }]}>{t('workoutSession.start')}</Text>}
+            </Pressable>
+          )}
+          <Pressable onPress={skipPhase} style={[styles.emomActionBtn, { backgroundColor: accent + '15' }]}>
+            <Ionicons name="play-skip-forward" size={16} color={accent} />
+            <Text style={[styles.emomActionBtnText, { color: accent }]}>
+              {timeBased ? t('workoutSession.skip') : t('workoutSession.ivNext', { defaultValue: 'Next' })}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }
@@ -1575,6 +2036,25 @@ export default function LiveWorkoutScreen() {
     });
   }, [updateSession]);
 
+  // AMRAP combo finished (time-out or manual): record the round count by resizing
+  // rounds to exactly `completedRounds` done rounds (cloning the prescription
+  // template). The existing combo→log expansion then logs one pass per round.
+  const finishComboAmrap = useCallback((exIdx: number, completedRounds: number) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    updateSession(s => {
+      const exercises = [...s.exercises];
+      const ex = { ...exercises[exIdx] };
+      const template = (ex.rounds && ex.rounds[0]) ? ex.rounds[0].entries : [];
+      const n = Math.max(0, completedRounds);
+      ex.rounds = Array.from({ length: n }, () => ({
+        status: 'done' as const,
+        entries: template.map(e => ({ ...e })),
+      }));
+      exercises[exIdx] = ex;
+      return { ...s, exercises };
+    });
+  }, [updateSession]);
+
   const updateRoundEntry = useCallback((exIdx: number, roundIdx: number, compIdx: number, patch: Partial<SetConfig>) => {
     updateSession(s => {
       const exercises = [...s.exercises];
@@ -1842,7 +2322,17 @@ export default function LiveWorkoutScreen() {
           );
         })()}
 
-        {session.exercises.map((ex, exIdx) => ex.combo ? (
+        {session.exercises.map((ex, exIdx) => ex.kind === 'intervals' && ex.intervals ? (
+          <Animated.View key={ex.exerciseId + '-' + exIdx} entering={FadeInDown.duration(350).delay(exIdx * 60)}>
+            <SessionUnitContext.Provider value={exUnit(ex)}>
+            <IntervalCard
+              block={ex}
+              onDelete={() => deleteExercise(exIdx)}
+              theme={theme}
+            />
+            </SessionUnitContext.Provider>
+          </Animated.View>
+        ) : ex.combo ? (
           <Animated.View key={ex.exerciseId + '-' + exIdx} entering={FadeInDown.duration(350).delay(exIdx * 60)}>
             <SessionUnitContext.Provider value={exUnit(ex)}>
             <ComboCard
@@ -1853,6 +2343,7 @@ export default function LiveWorkoutScreen() {
               onRoundReopen={(ri) => setRoundStatus(exIdx, ri, 'pending')}
               onAddRound={() => addRound(exIdx)}
               onFinishEmom={(completedMinutes) => finishComboEmom(exIdx, completedMinutes)}
+              onFinishAmrap={(completedRounds) => finishComboAmrap(exIdx, completedRounds)}
               onDelete={() => deleteExercise(exIdx)}
               collapsed={collapsed.has(ex.exerciseId + '-' + exIdx)}
               onToggleCollapse={() => toggleCollapse(ex.exerciseId + '-' + exIdx)}
@@ -2331,4 +2822,24 @@ const styles = StyleSheet.create({
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 16 },
   menuItemText: { fontSize: 15, fontWeight: '500' as const },
   menuDivider: { height: 1, marginHorizontal: 16 },
+  // set-row prescription cues (tempo / assist / to-failure)
+  cueRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 8, marginTop: -2, marginBottom: 6 },
+  cueBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7 },
+  cueBadgeText: { fontSize: 10, fontWeight: '800' as const, letterSpacing: 0.5 },
+  // amrap runner
+  amrapIdle: { paddingHorizontal: 14, paddingVertical: 12, gap: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(140,140,160,0.18)' },
+  amrapRefList: { gap: 5, alignSelf: 'stretch' },
+  amrapRefRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  amrapRefName: { fontSize: 13, fontWeight: '500' as const, flexShrink: 1, minWidth: 0 },
+  amrapRefTarget: { fontSize: 12, fontWeight: '600' as const },
+  amrapCounterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24 },
+  amrapCounterBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  amrapCounterCenter: { alignItems: 'center', minWidth: 80 },
+  amrapCounterNum: { fontSize: 44, fontWeight: '800' as const, fontVariant: ['tabular-nums' as const], lineHeight: 48 },
+  amrapCounterLbl: { fontSize: 11, fontWeight: '600' as const, letterSpacing: 0.5, textTransform: 'uppercase' as const },
+  // interval runner
+  ivSummary: { paddingHorizontal: 16, paddingBottom: 12, gap: 6 },
+  ivTargetBig: { fontSize: 30, fontWeight: '800' as const },
+  ivCaptureRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  ivCaptureInput: { width: 84, height: 40, borderRadius: 10, borderWidth: 1, textAlign: 'center' as const, fontSize: 16, fontWeight: '700' as const, paddingVertical: 0 },
 });
