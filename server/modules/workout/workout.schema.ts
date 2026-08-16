@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const AssistEnum = z.enum(["none", "band", "assisted", "partner"]);
+
 export const SetConfigSchema = z
   .object({
     type: z.enum(["reps", "hold", "emom"]),
@@ -11,6 +13,14 @@ export const SetConfigSchema = z
     totalIntervals: z.number().optional(),
     minutes: z.array(z.number()).optional(), // EMOM per-minute reps override
     note: z.string().optional(), // optional per-set note
+    // ── composable prescription (all optional; missing = today's behavior) ──
+    measure: z.enum(["reps", "time", "distance"]).optional(), // default derived from type
+    distanceMeters: z.number().optional(),
+    tempo: z.string().optional(),        // e.g. "3/1/2/0" or "x/2/2/1"
+    assist: AssistEnum.optional(),       // band / machine / partner assisted
+    toFailure: z.boolean().optional(),   // max-time hold, AMRAP-of-one-move
+    rpe: z.number().optional(),          // 1..10 target effort
+    dropSteps: z.array(z.object({ value: z.number().optional(), load: z.number().optional(), assist: AssistEnum.optional() })).optional(),
   })
   .openapi("SetConfig");
 
@@ -63,9 +73,17 @@ export const TemplateExerciseSchema = z
     })).optional(),
     comboRounds: z.number().optional(),
     comboReps: z.number().optional(),
-    // combo execution mode: 'circuit' (default) or 'emom' (rounds = cycles)
-    mode: z.enum(['circuit', 'emom']).optional(),
+    // combo execution mode: 'circuit' (default), 'emom' (rounds = cycles), or 'amrap'
+    mode: z.enum(['circuit', 'emom', 'amrap']).optional(),
     intervalSeconds: z.number().optional(), // emom mode: seconds per minute-slot
+    timeCapSeconds: z.number().optional(),  // amrap mode: total time cap; count rounds
+    // ── intervals / cardio block (running, HIIT) ──
+    kind: z.enum(['exercise', 'combo', 'intervals']).optional(), // absent = exercise/combo
+    intervals: z.object({
+      work: z.object({ measure: z.enum(['time', 'distance']), durationSeconds: z.number().optional(), distanceMeters: z.number().optional(), pace: z.string().optional() }),
+      recovery: z.object({ measure: z.enum(['time', 'distance']), durationSeconds: z.number().optional(), distanceMeters: z.number().optional(), kind: z.enum(['passive', 'active']).optional() }).optional(),
+      rounds: z.number(),
+    }).optional(),
   })
   .openapi("TemplateExercise");
 

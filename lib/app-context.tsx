@@ -88,6 +88,7 @@ export interface UserProfile {
   profileComplete?: boolean;
 }
 
+export type AssistKind = 'none' | 'band' | 'assisted' | 'partner';
 export interface SetConfig {
   type: 'reps' | 'hold' | 'emom';
   reps?: number;
@@ -98,6 +99,21 @@ export interface SetConfig {
   totalIntervals?: number;
   minutes?: number[]; // EMOM per-minute reps override (length = totalIntervals); absent = uniform repsPerInterval
   note?: string;
+  // ── composable prescription (all optional; missing = today's behavior) ──
+  measure?: 'reps' | 'time' | 'distance'; // default derived from type
+  distanceMeters?: number;
+  tempo?: string;        // e.g. "3/1/2/0" or "x/2/2/1"
+  assist?: AssistKind;   // band / machine / partner assisted
+  toFailure?: boolean;   // max-time hold, AMRAP-of-one-move
+  rpe?: number;          // 1..10 target effort
+  dropSteps?: { value?: number; load?: number; assist?: AssistKind }[];
+}
+
+// Interval / cardio block (running, HIIT) — a third block kind besides single-exercise + combo.
+export interface IntervalBlock {
+  work: { measure: 'time' | 'distance'; durationSeconds?: number; distanceMeters?: number; pace?: string };
+  recovery?: { measure: 'time' | 'distance'; durationSeconds?: number; distanceMeters?: number; kind?: 'passive' | 'active' };
+  rounds: number;
 }
 
 export interface TemplateExercise {
@@ -118,10 +134,13 @@ export interface TemplateExercise {
   }[];
   comboRounds?: number;
   comboReps?: number;
-  // combo execution mode: 'circuit' (default, back-to-back rounds) or 'emom'
-  // (each component = one minute in sequence; comboRounds = cycles).
-  mode?: 'circuit' | 'emom';
+  // combo execution mode: 'circuit' (default), 'emom', or 'amrap' (rounds in a time cap).
+  mode?: 'circuit' | 'emom' | 'amrap';
   intervalSeconds?: number; // emom mode: seconds per minute-slot (default 60)
+  timeCapSeconds?: number;  // amrap mode: total time cap; count rounds
+  // interval/cardio block (running, HIIT) — when set, this entry is an interval block.
+  kind?: 'exercise' | 'combo' | 'intervals';
+  intervals?: IntervalBlock;
 }
 
 export interface ProgramDay {
@@ -263,8 +282,11 @@ export interface ActiveSession {
     // combo execution mode: 'circuit' (default) or 'emom'. In emom mode the
     // rounds structure is unchanged — rounds = cycles through the component
     // sequence; minute m maps to rounds[floor(m/len)].entries[m % len].
-    mode?: 'circuit' | 'emom';
+    mode?: 'circuit' | 'emom' | 'amrap';
     intervalSeconds?: number; // emom mode: seconds per minute-slot (default 60)
+    timeCapSeconds?: number;  // amrap mode: total time cap
+    kind?: 'exercise' | 'combo' | 'intervals';
+    intervals?: IntervalBlock;
     components?: { exerciseId: string; name: string; muscleGroup: string }[];
     rounds?: {
       status: 'pending' | 'done' | 'skipped' | 'in_progress';
