@@ -18,6 +18,7 @@ import Colors from '@/constants/colors';
 import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-cache';
 import { workoutApi, EQUIPMENT_OPTIONS, MUSCLE_CATEGORIES } from '@/src/features/workout/api';
 import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult, type ComboSetType } from '@/components/ComboBuilderModal';
+import IntervalBuilderModal, { formatDuration } from '@/components/IntervalBuilderModal';
 import ExerciseRow from '@/components/ExerciseRow';
 import ExerciseFilterBar from '@/components/ExerciseFilterBar';
 import { matchExercise } from '@/lib/exercise-search';
@@ -589,6 +590,65 @@ function ComboPrepCard({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown, can
       )}
       </>
       )}
+    </View>
+  );
+}
+
+// Read-only summary card for an interval / cardio block. Authoring only — no set
+// editor, no live execution (later phase). Shows "work / recovery × rounds".
+function IntervalPrepCard({ exercise, onRemove, onMoveUp, onMoveDown, canMoveUp, canMoveDown, theme }: {
+  exercise: PrepExercise;
+  onRemove: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  theme: typeof Colors.dark;
+}) {
+  const { t } = useTranslation();
+  const iv = exercise.intervals;
+
+  const bout = (measure?: 'time' | 'distance', durationSeconds?: number, distanceMeters?: number) =>
+    measure === 'distance' ? `${distanceMeters || 0}m` : formatDuration(durationSeconds || 0);
+
+  const workStr = iv
+    ? bout(iv.work.measure, iv.work.durationSeconds, iv.work.distanceMeters) + (iv.work.pace ? ` @ ${iv.work.pace}` : '')
+    : '';
+  const recStr = iv?.recovery
+    ? `${bout(iv.recovery.measure, iv.recovery.durationSeconds, iv.recovery.distanceMeters)} ${iv.recovery.kind === 'passive' ? t('intervalBuilder.passive', { defaultValue: 'passive' }) : t('intervalBuilder.active', { defaultValue: 'active' })}`
+    : '';
+  const summary = iv
+    ? `${workStr}${recStr ? ` / ${recStr}` : ''} × ${iv.rounds}`
+    : '';
+
+  return (
+    <View style={[s.exCard, { backgroundColor: theme.card, borderColor: Colors.electric + '30', borderWidth: 1 }]}>
+      <View style={s.exCardHeader}>
+        <View style={s.reorderCol}>
+          <Pressable onPress={onMoveUp} disabled={!canMoveUp} hitSlop={6} style={s.reorderBtn}>
+            <Ionicons name="chevron-up" size={18} color={canMoveUp ? theme.textSecondary : theme.textMuted + '55'} />
+          </Pressable>
+          <Pressable onPress={onMoveDown} disabled={!canMoveDown} hitSlop={6} style={s.reorderBtn}>
+            <Ionicons name="chevron-down" size={18} color={canMoveDown ? theme.textSecondary : theme.textMuted + '55'} />
+          </Pressable>
+        </View>
+        <View style={[s.muscleTag, { backgroundColor: Colors.electric + '18', marginRight: 10 }]}>
+          <Ionicons name="pulse-outline" size={16} color={Colors.electric} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
+            <View style={[s.cpChip, { backgroundColor: Colors.electric + '18' }]}>
+              <Ionicons name="pulse-outline" size={11} color={Colors.electric} />
+              <Text style={[s.cpChipText, { color: Colors.electric }]}>{t('intervalBuilder.tag', { defaultValue: 'Interval' })}</Text>
+            </View>
+          </View>
+          <Text style={[s.exCardName, { color: theme.text }]} numberOfLines={1}>{exercise.name}</Text>
+          <Text style={[s.collapsedSummary, { color: theme.textMuted }]}>{summary}</Text>
+        </View>
+        <Pressable onPress={onRemove} hitSlop={8} style={{ marginLeft: 8 }}>
+          <Ionicons name="trash-outline" size={18} color={theme.textMuted} />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -1221,6 +1281,7 @@ export default function PrepareWorkoutScreen() {
   const [exercises, setExercises] = useState<PrepExercise[]>([]);
   const [showPicker, setShowPicker] = useState(false);
   const [showComboBuilder, setShowComboBuilder] = useState(false);
+  const [showIntervalBuilder, setShowIntervalBuilder] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [preWorkout, setPreWorkout] = useState(false);
@@ -1314,7 +1375,13 @@ export default function PrepareWorkoutScreen() {
       comboRounds: Math.max(1, data.rounds),
       mode: data.mode ?? 'circuit',
       intervalSeconds: data.intervalSeconds ?? 60,
+      timeCapSeconds: data.timeCapSeconds,
     };
+    setExercises(prev => [...prev, newEx]);
+  }, []);
+
+  const handleAddInterval = useCallback((block: TemplateExercise) => {
+    const newEx: PrepExercise = { ...block, uid: Crypto.randomUUID() };
     setExercises(prev => [...prev, newEx]);
   }, []);
 
@@ -1399,7 +1466,8 @@ export default function PrepareWorkoutScreen() {
         restSeconds: e.restSeconds,
         sets: e.sets,
         isCustom: e.isCustom,
-        ...(e.combo ? { combo: true, unbroken: e.unbroken, components: e.components, comboRounds: e.comboRounds, mode: e.mode ?? 'circuit', intervalSeconds: e.intervalSeconds ?? 60 } : {}),
+        ...(e.combo ? { combo: true, unbroken: e.unbroken, components: e.components, comboRounds: e.comboRounds, mode: e.mode ?? 'circuit', intervalSeconds: e.intervalSeconds ?? 60, timeCapSeconds: e.timeCapSeconds } : {}),
+        ...(e.kind === 'intervals' ? { kind: 'intervals' as const, intervals: e.intervals } : {}),
       })),
     };
     if (editingId) {
@@ -1429,6 +1497,18 @@ export default function PrepareWorkoutScreen() {
       startTimestamp: Date.now(),
       preWorkout,
       exercises: exercises.map(e => {
+        if (e.kind === 'intervals') {
+          // Live interval execution is a later phase; carry the block through as-is.
+          return {
+            exerciseId: e.exerciseId,
+            name: e.name,
+            muscleGroup: e.muscleGroup,
+            restSeconds: e.restSeconds,
+            sets: [],
+            kind: 'intervals' as const,
+            intervals: e.intervals,
+          };
+        }
         if (e.combo && e.components) {
           return {
             exerciseId: e.exerciseId,
@@ -1440,6 +1520,7 @@ export default function PrepareWorkoutScreen() {
             unbroken: e.unbroken,
             mode: e.mode ?? 'circuit',
             intervalSeconds: e.intervalSeconds ?? 60,
+            timeCapSeconds: e.timeCapSeconds,
             components: e.components.map(c => ({ exerciseId: c.exerciseId, name: c.name, muscleGroup: c.muscleGroup })),
             rounds: Array.from({ length: Math.max(1, e.comboRounds ?? 1) }, () => ({
               status: 'pending' as const,
@@ -1473,7 +1554,8 @@ export default function PrepareWorkoutScreen() {
     const w = Number(weekIndex), d = Number(dayIndex);
     const mapped = exercises.map(e => ({
       exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, restSeconds: e.restSeconds, sets: e.sets, isCustom: e.isCustom,
-      ...(e.combo ? { combo: true, unbroken: e.unbroken, components: e.components, comboRounds: e.comboRounds, mode: e.mode, intervalSeconds: e.intervalSeconds } : {}),
+      ...(e.combo ? { combo: true, unbroken: e.unbroken, components: e.components, comboRounds: e.comboRounds, mode: e.mode, intervalSeconds: e.intervalSeconds, timeCapSeconds: e.timeCapSeconds } : {}),
+      ...(e.kind === 'intervals' ? { kind: 'intervals' as const, intervals: e.intervals } : {}),
     }));
     const existing = (prog.days ?? []).find(x => x.weekIndex === w && x.dayIndex === d);
     const rest = (prog.days ?? []).filter(x => !(x.weekIndex === w && x.dayIndex === d));
@@ -1588,7 +1670,17 @@ export default function PrepareWorkoutScreen() {
 
           {exercises.map((item, i) => (
             <View key={item.uid} style={{ marginBottom: 14 }}>
-              {item.combo ? (
+              {item.kind === 'intervals' ? (
+                <IntervalPrepCard
+                  exercise={item}
+                  onRemove={() => removeExercise(i)}
+                  onMoveUp={() => moveExercise(i, -1)}
+                  onMoveDown={() => moveExercise(i, 1)}
+                  canMoveUp={i > 0}
+                  canMoveDown={i < exercises.length - 1}
+                  theme={theme}
+                />
+              ) : item.combo ? (
                 <ComboPrepCard
                   exercise={item}
                   onUpdate={updated => updateExercise(i, updated)}
@@ -1650,6 +1742,18 @@ export default function PrepareWorkoutScreen() {
             <Text style={[s.addExBtnText, { color: Colors.accent }]}>{t('workoutSession.addCombo')}</Text>
           </Pressable>
         </View>
+
+        <Pressable
+          onPress={() => {
+            if (!resolvedName) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); alertDialog(t('workoutPrep.pickTypeFirst'), t('workoutPrep.pickTypeHint')); return; }
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowIntervalBuilder(true);
+          }}
+          style={({ pressed }) => [s.addExBtn, { marginBottom: 12, opacity: !resolvedName ? 0.4 : pressed ? 0.9 : 1, borderColor: Colors.electric }]}
+        >
+          <Ionicons name="pulse-outline" size={19} color={Colors.electric} />
+          <Text style={[s.addExBtnText, { color: Colors.electric }]}>{t('intervalBuilder.addInterval', { defaultValue: 'Add Interval' })}</Text>
+        </Pressable>
 
         <Pressable
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPreWorkout(p => !p); }}
@@ -1779,6 +1883,13 @@ export default function PrepareWorkoutScreen() {
         onClose={() => setShowComboBuilder(false)}
         onCreate={handleAddCombo}
         customExercises={customExercises}
+        theme={theme}
+      />
+
+      <IntervalBuilderModal
+        visible={showIntervalBuilder}
+        onClose={() => setShowIntervalBuilder(false)}
+        onCreate={handleAddInterval}
         theme={theme}
       />
 

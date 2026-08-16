@@ -47,7 +47,7 @@ export function componentToSetConfig(c: {
   return { type: 'reps', reps: c.reps || 0, weight: c.weight || 0 };
 }
 
-export type ComboMode = 'circuit' | 'emom';
+export type ComboMode = 'circuit' | 'emom' | 'amrap';
 
 export interface ComboBuildResult {
   components: ComboComponent[];
@@ -56,6 +56,7 @@ export interface ComboBuildResult {
   restSeconds: number;
   mode: ComboMode; // default 'circuit'
   intervalSeconds: number; // emom mode: seconds per minute-slot (default 60)
+  timeCapSeconds?: number; // amrap mode: total time cap (default 600 = 10:00)
 }
 
 // Build a combo set: pick 2+ movements done back-to-back (the same movement can
@@ -78,8 +79,9 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
   const [unbroken, setUnbroken] = useState(true);
   const [mode, setMode] = useState<ComboMode>('circuit');
   const [intervalSeconds, setIntervalSeconds] = useState(60);
+  const [timeCapSeconds, setTimeCapSeconds] = useState(600); // amrap: default 10:00
 
-  const reset = () => { setSearch(''); setEquipment(null); setMuscle(null); setComponents([]); setRounds(1); setUnbroken(true); setMode('circuit'); setIntervalSeconds(60); };
+  const reset = () => { setSearch(''); setEquipment(null); setMuscle(null); setComponents([]); setRounds(1); setUnbroken(true); setMode('circuit'); setIntervalSeconds(60); setTimeCapSeconds(600); };
   const close = () => { reset(); onClose(); };
 
   const allExercises = useMemo(() => {
@@ -144,7 +146,11 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
   const create = () => {
     if (components.length < 2) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onCreate({ components, rounds, unbroken, restSeconds: 90, mode, intervalSeconds: Math.max(1, intervalSeconds || 60) });
+    onCreate({
+      components, rounds, unbroken, restSeconds: 90, mode,
+      intervalSeconds: Math.max(1, intervalSeconds || 60),
+      ...(mode === 'amrap' ? { timeCapSeconds: Math.max(1, timeCapSeconds || 600) } : {}),
+    });
     close();
   };
 
@@ -233,32 +239,34 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
               </View>
             )}
 
-            {/* circuit / emom mode toggle */}
+            {/* circuit / emom / amrap mode toggle */}
             <View style={s.modeRow}>
-              {(['circuit', 'emom'] as const).map(m => (
+              {(['circuit', 'emom', 'amrap'] as const).map(m => (
                 <Pressable
                   key={m}
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMode(m); }}
                   style={[s.modeSeg, { borderColor: mode === m ? Colors.accent : theme.border, backgroundColor: mode === m ? Colors.accent + '18' : 'transparent' }]}
                 >
                   <Text style={[s.modeSegText, { color: mode === m ? Colors.accent : theme.textMuted }]}>
-                    {m === 'circuit' ? t('workoutSession.circuit') : t('workoutSession.emom')}
+                    {m === 'circuit' ? t('workoutSession.circuit') : m === 'emom' ? t('workoutSession.emom') : t('workoutSession.amrap', { defaultValue: 'AMRAP' })}
                   </Text>
                 </Pressable>
               ))}
             </View>
 
             <View style={s.comboCfgRow}>
-              <View style={s.comboCfgItem}>
-                <Text style={[s.comboCfgLabel, { color: theme.textMuted }]}>
-                  {mode === 'emom' ? t('workoutSession.cycles') : t('workoutSession.rounds')}
-                </Text>
-                <View style={s.comboStepper}>
-                  <Pressable onPress={() => setRounds(r => Math.max(1, r - 1))} hitSlop={8} style={[s.stepBtn, { borderColor: theme.border }]}><Ionicons name="remove" size={16} color={theme.text} /></Pressable>
-                  <Text style={[s.stepVal, { color: theme.text }]}>{rounds}</Text>
-                  <Pressable onPress={() => setRounds(r => Math.min(20, r + 1))} hitSlop={8} style={[s.stepBtn, { borderColor: theme.border }]}><Ionicons name="add" size={16} color={theme.text} /></Pressable>
+              {mode !== 'amrap' && (
+                <View style={s.comboCfgItem}>
+                  <Text style={[s.comboCfgLabel, { color: theme.textMuted }]}>
+                    {mode === 'emom' ? t('workoutSession.cycles') : t('workoutSession.rounds')}
+                  </Text>
+                  <View style={s.comboStepper}>
+                    <Pressable onPress={() => setRounds(r => Math.max(1, r - 1))} hitSlop={8} style={[s.stepBtn, { borderColor: theme.border }]}><Ionicons name="remove" size={16} color={theme.text} /></Pressable>
+                    <Text style={[s.stepVal, { color: theme.text }]}>{rounds}</Text>
+                    <Pressable onPress={() => setRounds(r => Math.min(20, r + 1))} hitSlop={8} style={[s.stepBtn, { borderColor: theme.border }]}><Ionicons name="add" size={16} color={theme.text} /></Pressable>
+                  </View>
                 </View>
-              </View>
+              )}
               {mode === 'emom' ? (
                 <View style={s.comboCfgItem}>
                   <Text style={[s.comboCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.intervalSec')}</Text>
@@ -268,6 +276,25 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
                     onChangeText={v => setIntervalSeconds(parseInt(v) || 0)}
                     keyboardType="numeric" placeholder="60" placeholderTextColor={theme.textMuted} selectTextOnFocus
                   />
+                </View>
+              ) : mode === 'amrap' ? (
+                <View style={s.comboCfgItem}>
+                  <Text style={[s.comboCfgLabel, { color: theme.textMuted }]}>{t('workoutSession.timeCap', { defaultValue: 'Time cap' })}</Text>
+                  <View style={s.timeCapRow}>
+                    <TextInput
+                      style={[s.inlineInput, { width: 44, backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                      value={Math.floor(timeCapSeconds / 60) ? String(Math.floor(timeCapSeconds / 60)) : ''}
+                      onChangeText={v => setTimeCapSeconds((parseInt(v) || 0) * 60 + (timeCapSeconds % 60))}
+                      keyboardType="numeric" placeholder="10" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                    />
+                    <Text style={[s.stepVal, { color: theme.text }]}>:</Text>
+                    <TextInput
+                      style={[s.inlineInput, { width: 44, backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                      value={timeCapSeconds % 60 ? String(timeCapSeconds % 60) : ''}
+                      onChangeText={v => setTimeCapSeconds(Math.floor(timeCapSeconds / 60) * 60 + Math.min(59, parseInt(v) || 0))}
+                      keyboardType="numeric" placeholder="00" placeholderTextColor={theme.textMuted} selectTextOnFocus
+                    />
+                  </View>
                 </View>
               ) : (
                 <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setUnbroken(u => !u); }} style={s.comboCfgItem}>
@@ -281,6 +308,11 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
             {mode === 'emom' && (
               <Text style={[s.modeHint, { color: theme.textMuted }]}>
                 {t('workoutSession.everyMinute')}: 1 → {Math.max(components.length, 2)} · {Math.max(components.length, 2) * rounds} min
+              </Text>
+            )}
+            {mode === 'amrap' && (
+              <Text style={[s.modeHint, { color: theme.textMuted }]}>
+                {t('workoutSession.amrap', { defaultValue: 'AMRAP' })} · {Math.floor(timeCapSeconds / 60)}:{String(timeCapSeconds % 60).padStart(2, '0')}
               </Text>
             )}
 
@@ -361,6 +393,7 @@ const s = StyleSheet.create({
   comboCfgItem: { alignItems: 'center', gap: 6 },
   comboCfgLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
   comboStepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  timeCapRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   stepBtn: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   stepVal: { fontSize: 16, fontWeight: '700', minWidth: 20, textAlign: 'center' },
   comboToggle: { width: 42, height: 24, borderRadius: 12, padding: 3, justifyContent: 'center' },
