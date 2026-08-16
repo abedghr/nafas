@@ -24,7 +24,7 @@ import { matchExercise } from '@/lib/exercise-search';
 import { muscleLabel, equipLabel } from '@/lib/exercise-i18n';
 import { Display, Button as UIButton } from '@/components/ui';
 import { Fonts } from '@/constants/typography';
-import type { SetConfig, TemplateExercise, WorkoutType, WorkoutTemplate } from '@/lib/app-context';
+import type { SetConfig, TemplateExercise, WorkoutType, WorkoutTemplate, AssistKind } from '@/lib/app-context';
 import { WORKOUT_TYPES, templateSig } from '@/lib/app-context';
 
 const { width: SW } = Dimensions.get('window');
@@ -59,6 +59,7 @@ function SetTypeFields({ config, onChange, theme }: {
   const { t } = useTranslation();
   const { weightUnit } = useApp();
   const [noteOpen, setNoteOpen] = useState(!!config.note);
+  const [advOpen, setAdvOpen] = useState(false);
   const inputStyle =[s.numInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }];
   const noteInputStyle = { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14 };
   const noteField = noteOpen ? (
@@ -77,6 +78,47 @@ function SetTypeFields({ config, onChange, theme }: {
     <Pressable onPress={() => setNoteOpen(true)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingVertical: 2 }}>
       <Ionicons name="add" size={13} color={theme.textMuted} />
       <Text style={{ color: theme.textMuted, fontSize: 12, fontWeight: '500' }}>{t('workoutPrep.noteOptional')}</Text>
+    </Pressable>
+  );
+
+  // advanced per-set target: tempo, assistance, to-failure, RPE (composable prescription)
+  const advActive = !!(config.tempo || (config.assist && config.assist !== 'none') || config.toFailure || config.rpe);
+  const ASSISTS: { k: AssistKind; label: string }[] = [
+    { k: 'none', label: t('workoutPrep.assistNone', { defaultValue: 'None' }) },
+    { k: 'band', label: t('workoutPrep.assistBand', { defaultValue: 'Band' }) },
+    { k: 'assisted', label: t('workoutPrep.assistMachine', { defaultValue: 'Assisted' }) },
+  ];
+  const advanced = advActive || advOpen ? (
+    <View style={{ gap: 8, marginTop: 2 }}>
+      <View style={s.setFieldsRow}>
+        <View style={s.fieldGroup}>
+          <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.tempo', { defaultValue: 'Tempo' })}</Text>
+          <TextInput style={inputStyle} value={config.tempo || ''} onChangeText={v => onChange({ ...config, tempo: v || undefined })} placeholder="3/1/2/0" placeholderTextColor={theme.textMuted} />
+        </View>
+        <View style={s.fieldGroup}>
+          <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.rpe', { defaultValue: 'RPE' })}</Text>
+          <TextInput style={inputStyle} value={config.rpe ? String(config.rpe) : ''} onChangeText={v => onChange({ ...config, rpe: parseInt(v) || undefined })} keyboardType="numeric" placeholder="—" placeholderTextColor={theme.textMuted} />
+        </View>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        {ASSISTS.map(a => {
+          const on = (config.assist || 'none') === a.k;
+          return (
+            <Pressable key={a.k} onPress={() => onChange({ ...config, assist: a.k === 'none' ? undefined : a.k })} style={[s.assistChip, { backgroundColor: on ? Colors.electric : theme.surface, borderColor: on ? Colors.electric : theme.border }]}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: on ? '#04120B' : theme.textSecondary }}>{a.label}</Text>
+            </Pressable>
+          );
+        })}
+        <Pressable onPress={() => onChange({ ...config, toFailure: config.toFailure ? undefined : true })} style={[s.assistChip, { flexDirection: 'row', gap: 4, backgroundColor: config.toFailure ? Colors.accent : theme.surface, borderColor: config.toFailure ? Colors.accent : theme.border }]}>
+          <Ionicons name="flame" size={12} color={config.toFailure ? '#fff' : theme.textMuted} />
+          <Text style={{ fontSize: 12, fontWeight: '600', color: config.toFailure ? '#fff' : theme.textSecondary }}>{config.type === 'hold' ? t('workoutPrep.maxHold', { defaultValue: 'Max hold' }) : t('workoutPrep.toFailure', { defaultValue: 'To failure' })}</Text>
+        </Pressable>
+      </View>
+    </View>
+  ) : (
+    <Pressable onPress={() => setAdvOpen(true)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingVertical: 2 }}>
+      <Ionicons name="options-outline" size={13} color={theme.textMuted} />
+      <Text style={{ color: theme.textMuted, fontSize: 12, fontWeight: '500' }}>{t('workoutPrep.advanced', { defaultValue: 'Advanced' })}</Text>
     </Pressable>
   );
 
@@ -108,6 +150,7 @@ function SetTypeFields({ config, onChange, theme }: {
             />
           </View>
         </View>
+        {advanced}
         {noteField}
         </View>
       );
@@ -138,6 +181,7 @@ function SetTypeFields({ config, onChange, theme }: {
             />
           </View>
         </View>
+        {advanced}
         {noteField}
         </View>
       );
@@ -264,7 +308,8 @@ function SetTypeFields({ config, onChange, theme }: {
                 : t('workoutPrep.emomSummary', { reps: config.repsPerInterval || 0, s: intervalSec, n: config.totalIntervals || 0 })}
             </Text>
           </View>
-          {noteField}
+          {advanced}
+        {noteField}
         </View>
       );
   }
@@ -1997,6 +2042,7 @@ const s = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
   },
+  assistChip: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, height: 30, borderRadius: 999, borderWidth: 1 },
   addSetBtn: {
     flexDirection: 'row',
     alignItems: 'center',
