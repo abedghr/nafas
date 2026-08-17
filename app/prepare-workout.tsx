@@ -1267,7 +1267,7 @@ function TemplatePickerModal({ visible, onClose, onSelect, onEdit, onDelete, tem
 export default function PrepareWorkoutScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { templateId, run, programId, weekIndex, dayIndex } = useLocalSearchParams<{ templateId?: string; run?: string; programId?: string; weekIndex?: string; dayIndex?: string }>();
+  const { templateId, run, programId, weekIndex, dayIndex, enrollmentId, slotDay } = useLocalSearchParams<{ templateId?: string; run?: string; programId?: string; weekIndex?: string; dayIndex?: string; enrollmentId?: string; slotDay?: string }>();
   const inProgram = !!programId;
   const isRunning = !!run; // running a program day (start live) vs authoring a program day (save only)
   const {
@@ -1542,6 +1542,7 @@ export default function PrepareWorkoutScreen() {
           })),
         };
       }),
+      ...(enrollmentId && slotDay != null ? { program: { enrollmentId, weekIndex: Number(weekIndex), slotDay: Number(slotDay) } } : {}),
     });
     // replace (not push) so Back from the live session never returns to this "new workout" page
     router.replace('/live-workout' as any);

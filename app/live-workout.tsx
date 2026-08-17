@@ -1763,7 +1763,7 @@ export default function LiveWorkoutScreen() {
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
   const theme = Colors.dark;
 
-  const { activeSession, setActiveSession, addWorkoutLog, customExercises, user, weightUnit, language } = useApp();
+  const { activeSession, setActiveSession, addWorkoutLog, customExercises, user, weightUnit, language, setEnrollmentDay } = useApp();
   const [session, setSession] = useState<ActiveSession | null>(activeSession);
   // Per-exercise weight unit (falls back to the profile default). Weights are stored
   // canonically in kg, so stats/history convert to the profile default on read.
@@ -2197,6 +2197,10 @@ export default function LiveWorkoutScreen() {
 
     const logId = Crypto.randomUUID();
     addWorkoutLog({ ...log, id: logId });
+    // if this was a program day, mark it done on the enrollment (links the log for stats)
+    if (session.program) {
+      setEnrollmentDay(session.program.enrollmentId, session.program.weekIndex, session.program.slotDay, 'done', { logId });
+    }
     setActiveSession(null);
     if (restTimerRef.current) clearInterval(restTimerRef.current);
     if (autoSaveRef.current) clearInterval(autoSaveRef.current);
@@ -2206,7 +2210,7 @@ export default function LiveWorkoutScreen() {
       pathname: '/workout-summary' as any,
       params: { logId, ...(newPrs.length ? { newPrs: JSON.stringify(newPrs) } : {}) },
     });
-  }, [session, user, addWorkoutLog, setActiveSession]);
+  }, [session, user, addWorkoutLog, setActiveSession, setEnrollmentDay]);
 
   // Throw the session away: no log is written, so nothing reaches history, PRs or
   // streaks. The mirror of handleFinish minus the log — same teardown, because a

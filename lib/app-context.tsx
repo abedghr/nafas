@@ -280,6 +280,8 @@ export interface ActiveSession {
   workoutType?: WorkoutType;
   startTimestamp: number;
   preWorkout: boolean;
+  // set when this session is a program day being run, so finishing marks it done
+  program?: { enrollmentId: string; weekIndex: number; slotDay: number };
   exercises: {
     exerciseId: string;
     name: string;

@@ -13,6 +13,8 @@ import { workoutApi } from '@/src/features/workout/api';
 import { confirmDialog } from '@/lib/dialog';
 import DateTimeField from '@/components/DateTimeField';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
+import { programStats } from '@/lib/program-schedule';
+import { toDisplayWeight, unitLabel } from '@/lib/units';
 import Colors from '@/constants/colors';
 import { Fonts } from '@/constants/typography';
 
@@ -22,7 +24,7 @@ export default function ProgramBuilderScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { programs, updateProgram, workoutTemplates, isDark, user, pinnedProgramId, setPinnedProgramId } = useApp();
+  const { programs, updateProgram, workoutTemplates, isDark, user, pinnedProgramId, setPinnedProgramId, enrollments, activeEnrollment, startProgram, endEnrollment, updateEnrollmentLocal, workoutLogs, weightUnit } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
@@ -361,6 +363,65 @@ export default function ProgramBuilderScreen() {
             {!!program.notes && <Text style={[s.viewNotes, { color: theme.textSecondary }]}>{program.notes}</Text>}
           </View>
         )}
+
+        {/* start / active enrollment */}
+        {!isEdit && (() => {
+          const active = activeEnrollment && activeEnrollment.programId === program.id ? activeEnrollment : null;
+          if (active) {
+            return (
+              <View style={[s.metaCard, { backgroundColor: theme.card, gap: 12 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="flag" size={16} color={Colors.electric} />
+                  <Text style={[s.dayTitle, { flex: 1, color: theme.text }]}>{t('programs.activeProgram', { defaultValue: 'Active program' })}</Text>
+                  <Pressable
+                    onPress={async () => { if (await confirmDialog({ title: t('programs.endProgramConfirm', { defaultValue: 'End this program?' }), destructive: true })) endEnrollment(active.id); }}
+                    hitSlop={8}
+                    style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, flexDirection: 'row', alignItems: 'center', gap: 4 }]}
+                  >
+                    <Ionicons name="stop-circle-outline" size={16} color={theme.textMuted} />
+                    <Text style={[s.useHintText, { color: theme.textMuted }]}>{t('programs.endProgram', { defaultValue: 'End' })}</Text>
+                  </Pressable>
+                </View>
+                <DateTimeField
+                  label={t('programs.startedOn', { defaultValue: 'Started on' })}
+                  value={active.startDate}
+                  onChange={(iso) => iso && updateEnrollmentLocal(active.id, { startDate: iso })}
+                  theme={theme}
+                />
+                <Text style={[s.viewNotes, { color: theme.textMuted, marginTop: 0 }]}>{t('programs.backfillHint', { defaultValue: 'Backdate the start, then tap past days on the Today card to mark them done.' })}</Text>
+                {(() => {
+                  const st = programStats(active, program, workoutLogs);
+                  const vol = Math.round(toDisplayWeight(st.volumeKg, weightUnit));
+                  const tiles = [
+                    { label: t('programs.statDone', { defaultValue: 'Done' }), value: String(st.done), color: Colors.semantic.success },
+                    { label: t('programs.statSkipped', { defaultValue: 'Skipped' }), value: String(st.skipped), color: Colors.semantic.warn },
+                    { label: t('programs.statAdherence', { defaultValue: 'Adherence' }), value: `${st.adherencePct}%`, color: Colors.electric },
+                    { label: t('programs.statVolume', { defaultValue: 'Volume' }), value: `${vol.toLocaleString('en-US')} ${unitLabel(weightUnit)}`, color: theme.text },
+                  ];
+                  return (
+                    <View style={s.statsRow}>
+                      {tiles.map((ti, i) => (
+                        <View key={i} style={[s.statTile, { backgroundColor: theme.cardAlt }]}>
+                          <Text style={[s.statValue, { color: ti.color }]} numberOfLines={1}>{ti.value}</Text>
+                          <Text style={[s.statLabel, { color: theme.textMuted }]}>{ti.label}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  );
+                })()}
+              </View>
+            );
+          }
+          return (
+            <Pressable
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); startProgram(program.id, new Date().toISOString()); }}
+              style={({ pressed }) => [s.startProgramBtn, { backgroundColor: Colors.electric, opacity: pressed ? 0.9 : 1 }]}
+            >
+              <Ionicons name="flag" size={18} color="#04120B" />
+              <Text style={s.startProgramText}>{t('programs.startProgram', { defaultValue: 'Start this program' })}</Text>
+            </Pressable>
+          );
+        })()}
 
         {/* owner: who has this program */}
         {!isEdit && shareable && (
@@ -948,6 +1009,12 @@ const s = StyleSheet.create({
   },
   startBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   peekBtn: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  startProgramBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 15, borderRadius: 14, marginBottom: 12 },
+  startProgramText: { color: '#04120B', fontSize: 15, fontWeight: '800' },
+  statsRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  statTile: { flex: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center', gap: 3 },
+  statValue: { fontFamily: Fonts.monoBold, fontSize: 15 },
+  statLabel: { fontSize: 10, fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet: {
     height: '88%', borderTopLeftRadius: 24, borderTopRightRadius: 24,

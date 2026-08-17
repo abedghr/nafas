@@ -13,6 +13,7 @@ import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import { programToWeeklyPlan } from '@/lib/workout-summary';
+import ProgramTodayCard from '@/components/ProgramTodayCard';
 import { AppHeader, HeroCard, StatTile, ActivityRings, CountUp, Button } from '@/components/ui';
 import { Fonts, Type } from '@/constants/typography';
 import { toDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
@@ -305,7 +306,7 @@ function RecentWorkoutCard({ log, index }: { log: any; index: number }) {
 export default function CoachScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { isDark, workouts, weeklyWorkouts, streak, user, workoutLogs, activeSession, weightUnit, programs, pinnedProgramId } = useApp();
+  const { isDark, workouts, weeklyWorkouts, streak, user, workoutLogs, activeSession, weightUnit, programs, pinnedProgramId, activeEnrollment } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const [activeTab, setActiveTab] = useState<'dashboard' | 'insights'>('dashboard');
   const [showPlanModal, setShowPlanModal] = useState(false);
@@ -617,6 +618,11 @@ export default function CoachScreen() {
                 </Animated.View>
               ))}
 
+              {activeEnrollment ? (
+                <Animated.View entering={FadeInDown.duration(400).delay(600)}>
+                  <ProgramTodayCard />
+                </Animated.View>
+              ) : (
               <Animated.View entering={FadeInDown.duration(400).delay(600)}>
                 <Pressable
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowPlanModal(true); }}
@@ -635,6 +641,7 @@ export default function CoachScreen() {
                   </LinearGradient>
                 </Pressable>
               </Animated.View>
+              )}
             </View>
           )}
         </View>
