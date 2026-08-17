@@ -214,6 +214,17 @@ export default function WorkoutSummaryScreen() {
       node: <CountUp value={currentLog.totalVolumeKg} format={(n) => formatVolume(n, weightUnit)} style={statNumStyle} />,
     },
   ];
+  // mixed-measure totals (only shown when the session had holds / distance work)
+  const totalHoldSec = currentLog.exercises.reduce((sum, ex) => sum + (ex.sets || []).reduce((a, s: any) => a + (s.status === 'done' && s.actual?.type === 'hold' ? (s.actual.durationSeconds || 0) : 0), 0), 0);
+  const totalDistanceM = currentLog.exercises.reduce((sum, ex) => sum + (ex.sets || []).reduce((a, s: any) => a + (s.status === 'done' ? (s.actual?.distanceMeters || 0) : 0), 0), 0);
+  if (totalHoldSec > 0) statTiles.push({
+    icon: 'hourglass-outline', label: t('workoutSession.holdTime', { defaultValue: 'Hold time' }),
+    node: <CountUp value={totalHoldSec} format={(n) => (n >= 60 ? `${Math.floor(n / 60)}:${String(Math.round(n % 60)).padStart(2, '0')}` : `${Math.round(n)}s`)} style={statNumStyle} />,
+  });
+  if (totalDistanceM > 0) statTiles.push({
+    icon: 'walk-outline', label: t('workoutSession.distance', { defaultValue: 'Distance' }),
+    node: <CountUp value={totalDistanceM} format={(n) => (n >= 1000 ? `${(n / 1000).toFixed(2)} km` : `${Math.round(n)} m`)} style={statNumStyle} />,
+  });
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>

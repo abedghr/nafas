@@ -16,7 +16,10 @@ import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import { exerciseIcon } from '@/lib/exercise-icon';
 import { bodyTargetLabel, muscleLabel, equipLabel } from '@/lib/exercise-i18n';
 
-type Point = { date: string; weight: number; reps: number; volume: number };
+type Point = { date: string; weight: number; reps: number; volume: number; holdSec?: number; distanceM?: number };
+
+const fmtSecs = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}` : `${Math.round(s)}s`);
+const fmtDist = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.round(m)} m`);
 
 export default function ExerciseProgressScreen() {
   const { t } = useTranslation();
@@ -40,13 +43,28 @@ export default function ExerciseProgressScreen() {
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/coach' as any));
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
-  const pr = points.reduce((m, p) => Math.max(m, p.weight), 0);
+  // pick the measure that matches the exercise's logged data: distance > time-hold > weight
+  const hasDist = points.some((p) => (p.distanceM || 0) > 0);
+  const hasHold = points.some((p) => (p.holdSec || 0) > 0);
+  const hasWeight = points.some((p) => (p.weight || 0) > 0);
+  const measure: 'weight' | 'time' | 'distance' = hasDist ? 'distance' : (hasHold && !hasWeight) ? 'time' : 'weight';
+  const val = (p: Point) => (measure === 'distance' ? (p.distanceM || 0) : measure === 'time' ? (p.holdSec || 0) : (p.weight || 0));
+  const round1 = (n: number) => Math.round(n * 10) / 10;
+  const fmtMeasure = (n: number) =>
+    measure === 'distance' ? fmtDist(n) : measure === 'time' ? fmtSecs(n) : `${round1(toDisplayWeight(n, weightUnit))} ${unitLabel(weightUnit)}`;
+
+  const pr = points.reduce((m, p) => Math.max(m, val(p)), 0);
   const latest = points[points.length - 1];
   const first = points[0];
-  const gain = latest && first ? latest.weight - first.weight : 0;
+  const gain = latest && first ? val(latest) - val(first) : 0;
   const fmt = (d: string) => new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
   const wLabel = unitLabel(weightUnit);
-  const round1 = (n: number) => Math.round(n * 10) / 10;
+  // chart the chosen measure through ProgressChart's value slot
+  const chartPoints = points.map((p) => ({ ...p, weight: val(p) }));
+  const chartToDisplay = measure === 'weight' ? (kg: number) => toDisplayWeight(kg, weightUnit) : (v: number) => v;
+  const chartTitle = measure === 'distance' ? t('workoutTab.distanceOverTime', { defaultValue: 'Best distance over time' })
+    : measure === 'time' ? t('workoutTab.holdOverTime', { defaultValue: 'Best hold over time' })
+    : t('workoutTab.weightOverTime');
 
   return (
     <View style={[s.container, { backgroundColor: theme.background }]}>
@@ -119,13 +137,13 @@ export default function ExerciseProgressScreen() {
                     icon="trophy"
                     color="#FFD700"
                     label={t('workoutTab.prLabel')}
-                    value={<CountUp value={toDisplayWeight(pr, weightUnit)} format={(n) => `${round1(n)} ${wLabel}`} style={{ ...Type.statSm, color: theme.text }} />}
+                    value={<Text style={{ ...Type.statSm, color: theme.text }}>{fmtMeasure(pr)}</Text>}
                   />
                   <StatTile
                     icon="trending-up"
                     color={gain >= 0 ? Colors.electric : Colors.accent}
                     label={t('workoutTab.progressLabel')}
-                    value={<CountUp value={toDisplayWeight(gain, weightUnit)} format={(n) => `${n >= 0 ? '+' : ''}${round1(n)} ${wLabel}`} style={{ ...Type.statSm, color: gain >= 0 ? Colors.electric : Colors.accent }} />}
+                    value={<Text style={{ ...Type.statSm, color: gain >= 0 ? Colors.electric : Colors.accent }}>{gain >= 0 ? '+' : ''}{fmtMeasure(Math.abs(gain))}</Text>}
                   />
                   <StatTile
                     icon="calendar-outline"
@@ -138,8 +156,8 @@ export default function ExerciseProgressScreen() {
 
               {/* chart */}
               <View style={[s.chartCard, { backgroundColor: theme.card }]}>
-                <Text style={[Type.overline, { color: theme.textSecondary, marginBottom: 10 }]}>{t('workoutTab.weightOverTime')}</Text>
-                <ProgressChart points={points} theme={theme} toDisplay={(kg) => toDisplayWeight(kg, weightUnit)} />
+                <Text style={[Type.overline, { color: theme.textSecondary, marginBottom: 10 }]}>{chartTitle}</Text>
+                <ProgressChart points={chartPoints} theme={theme} toDisplay={chartToDisplay} />
               </View>
 
               {/* history */}
@@ -150,10 +168,12 @@ export default function ExerciseProgressScreen() {
                     <View key={i} style={[s.histRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
                       <View style={{ flex: 1 }}>
                         <Text style={[s.histDate, { color: theme.text }]}>{fmt(p.date)}</Text>
-                        <Text style={[s.histVol, { color: theme.textMuted }]}>{t('workoutSession.volume')}: {Math.round(toDisplayWeight(p.volume, weightUnit))} {wLabel}</Text>
+                        {measure === 'weight' && p.volume > 0 && (
+                          <Text style={[s.histVol, { color: theme.textMuted }]}>{t('workoutSession.volume')}: {Math.round(toDisplayWeight(p.volume, weightUnit))} {wLabel}</Text>
+                        )}
                       </View>
-                      <Text style={[s.histBest, { color: p.weight === pr ? '#FFD700' : theme.textSecondary }]}>
-                        {toDisplayWeight(p.weight, weightUnit)} {wLabel} × {p.reps}{p.weight === pr ? ' 🏆' : ''}
+                      <Text style={[s.histBest, { color: val(p) === pr ? '#FFD700' : theme.textSecondary }]}>
+                        {fmtMeasure(val(p))}{measure === 'weight' && p.reps ? ` × ${p.reps}` : ''}{val(p) === pr ? ' 🏆' : ''}
                       </Text>
                     </View>
                   ))}

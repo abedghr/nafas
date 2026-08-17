@@ -47,7 +47,7 @@ export const workoutApi = {
   lastPerformance: (names: string[]) =>
     apiFetch<{ data: Record<string, { date: string; weight: number; reps: number }> }>(`/workout/last?names=${encodeURIComponent(names.join(","))}`, { auth: true }).then((r) => r.data),
   progression: (name: string) =>
-    apiFetch<{ data: { date: string; weight: number; reps: number; volume: number }[] }>(`/workout/progression?name=${encodeURIComponent(name)}`, { auth: true }).then((r) => r.data),
+    apiFetch<{ data: { date: string; weight: number; reps: number; volume: number; holdSec?: number; distanceM?: number }[] }>(`/workout/progression?name=${encodeURIComponent(name)}`, { auth: true }).then((r) => r.data),
   createLog: (body: unknown) => apiFetch("/workout-logs", { method: "POST", auth: true, body }),
   deleteLog: (id: string) => apiFetch(`/workout-logs/${id}`, { method: "DELETE", auth: true }),
 
