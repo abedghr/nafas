@@ -310,6 +310,7 @@ export default function CoachScreen() {
   const theme = isDark ? Colors.dark : Colors.light;
   const [activeTab, setActiveTab] = useState<'dashboard' | 'insights'>('dashboard');
   const [showPlanModal, setShowPlanModal] = useState(false);
+  const [showStart, setShowStart] = useState(false);
   const [tipIndex] = useState(Math.floor(Math.random() * aiTips.length));
 
   // Insights/summary run off the real server-backed logs (normalized to the
@@ -444,7 +445,7 @@ export default function CoachScreen() {
                   title={t('workoutTab.startWorkout')}
                   subtitle={streak >= 3 ? t('workoutTab.heroStreakMotivation', { n: streak }) : t('workoutTab.heroReadyMotivation')}
                   ctaLabel={t('workoutTab.startWorkout')}
-                  onCta={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/prepare-workout' as any); }}
+                  onCta={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowStart(true); }}
                   height={210}
                 />
                 <Button
@@ -648,6 +649,38 @@ export default function CoachScreen() {
       </ScrollView>
 
       <PlanModal visible={showPlanModal} onClose={() => setShowPlanModal(false)} plan={plan} pinned={planPinned} />
+
+      {/* start-workout chooser: program vs new */}
+      <Modal visible={showStart} transparent animationType="fade" onRequestClose={() => setShowStart(false)}>
+        <Pressable style={s.startOverlay} onPress={() => setShowStart(false)}>
+          <Pressable style={[s.startSheet, { backgroundColor: theme.background }]} onPress={(e) => e.stopPropagation()}>
+            <View style={s.startHandle}><View style={[s.startHandleBar, { backgroundColor: theme.border }]} /></View>
+            <Text style={[s.startSheetTitle, { color: theme.text }]}>{t('workoutTab.startWorkout')}</Text>
+            <Pressable
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowStart(false); router.push((activeEnrollment ? `/program/${activeEnrollment.programId}` : '/programs') as any); }}
+              style={({ pressed }) => [s.startOpt, { borderColor: Colors.electric + '55', backgroundColor: pressed ? theme.cardAlt : theme.card }]}
+            >
+              <View style={[s.startOptIcon, { backgroundColor: Colors.electric + '18' }]}><Ionicons name="flag" size={20} color={Colors.electric} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.startOptTitle, { color: theme.text }]}>{t('workoutTab.startFromProgram', { defaultValue: 'Program' })}</Text>
+                <Text style={[s.startOptSub, { color: theme.textMuted }]}>{activeEnrollment ? t('workoutTab.startFromProgramActiveSub', { defaultValue: 'Continue your active program' }) : t('workoutTab.startFromProgramSub', { defaultValue: 'Pick a program to follow' })}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+            </Pressable>
+            <Pressable
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowStart(false); router.push('/prepare-workout' as any); }}
+              style={({ pressed }) => [s.startOpt, { borderColor: theme.border, backgroundColor: pressed ? theme.cardAlt : theme.card }]}
+            >
+              <View style={[s.startOptIcon, { backgroundColor: theme.cardAlt }]}><Ionicons name="add" size={22} color={theme.text} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.startOptTitle, { color: theme.text }]}>{t('workoutTab.startNewWorkout', { defaultValue: 'New workout' })}</Text>
+                <Text style={[s.startOptSub, { color: theme.textMuted }]}>{t('workoutTab.startNewWorkoutSub', { defaultValue: 'Build a one-off session' })}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -821,6 +854,15 @@ const s = StyleSheet.create({
   totalProgressLabel: { fontSize: 11, fontFamily: 'Rubik_400Regular' },
   totalProgressValue: { fontSize: 20, fontFamily: 'Rubik_700Bold' },
   totalProgressDivider: { width: 1, height: 32 },
+  startOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  startSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 36, gap: 12 },
+  startHandle: { alignItems: 'center', paddingBottom: 6 },
+  startHandleBar: { width: 40, height: 4, borderRadius: 2 },
+  startSheetTitle: { ...Type.h1, marginBottom: 2 },
+  startOpt: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16, borderWidth: 1 },
+  startOptIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  startOptTitle: { ...Type.bodyMed, fontWeight: '700' },
+  startOptSub: { ...Type.caption, marginTop: 2 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 8, maxHeight: '85%' },
   modalHandle: { alignItems: 'center', paddingVertical: 8 },

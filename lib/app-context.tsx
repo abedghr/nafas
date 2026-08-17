@@ -180,6 +180,7 @@ export interface DayCompletion {
   dayIndex: number;
   status: 'done' | 'skipped';
   completedDate?: string | null;
+  durationMin?: number | null;
   logId?: string | null;
 }
 export interface Enrollment {
@@ -414,7 +415,7 @@ interface AppContextValue {
   startProgram: (programId: string, startDate: string) => Promise<void>;
   endEnrollment: (id: string) => void;
   updateEnrollmentLocal: (id: string, patch: { startDate?: string; status?: Enrollment['status']; overrides?: Enrollment['overrides'] }) => void;
-  setEnrollmentDay: (id: string, weekIndex: number, dayIndex: number, status: 'done' | 'skipped', opts?: { completedDate?: string; logId?: string }) => void;
+  setEnrollmentDay: (id: string, weekIndex: number, dayIndex: number, status: 'done' | 'skipped', opts?: { completedDate?: string; durationMin?: number; logId?: string }) => void;
   clearEnrollmentDay: (id: string, weekIndex: number, dayIndex: number) => void;
   workoutLogs: WorkoutLog[];
   addWorkoutLog: (log: Omit<WorkoutLog, 'id'> & { id?: string }) => string;
@@ -800,14 +801,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     workoutApi.updateEnrollment(id, patch).catch(() => {});
   }, []);
 
-  const setEnrollmentDay = useCallback((id: string, weekIndex: number, dayIndex: number, status: 'done' | 'skipped', opts?: { completedDate?: string; logId?: string }) => {
+  const setEnrollmentDay = useCallback((id: string, weekIndex: number, dayIndex: number, status: 'done' | 'skipped', opts?: { completedDate?: string; durationMin?: number; logId?: string }) => {
     const completedDate = opts?.completedDate ?? new Date().toISOString();
+    const durationMin = opts?.durationMin ?? null;
     setEnrollments(prev => prev.map(e => {
       if (e.id !== id) return e;
       const rest = e.completions.filter(c => !(c.weekIndex === weekIndex && c.dayIndex === dayIndex));
-      return { ...e, completions: [...rest, { weekIndex, dayIndex, status, completedDate, logId: opts?.logId ?? null }] };
+      return { ...e, completions: [...rest, { weekIndex, dayIndex, status, completedDate, durationMin, logId: opts?.logId ?? null }] };
     }));
-    workoutApi.setEnrollmentDay(id, { weekIndex, dayIndex, status, completedDate, logId: opts?.logId ?? null }).catch(() => {});
+    workoutApi.setEnrollmentDay(id, { weekIndex, dayIndex, status, completedDate, durationMin, logId: opts?.logId ?? null }).catch(() => {});
   }, []);
 
   const clearEnrollmentDay = useCallback((id: string, weekIndex: number, dayIndex: number) => {

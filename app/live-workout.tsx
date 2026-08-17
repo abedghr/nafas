@@ -2199,7 +2199,7 @@ export default function LiveWorkoutScreen() {
     addWorkoutLog({ ...log, id: logId });
     // if this was a program day, mark it done on the enrollment (links the log for stats)
     if (session.program) {
-      setEnrollmentDay(session.program.enrollmentId, session.program.weekIndex, session.program.slotDay, 'done', { logId });
+      setEnrollmentDay(session.program.enrollmentId, session.program.weekIndex, session.program.slotDay, 'done', { logId, durationMin: log.durationMinutes });
     }
     setActiveSession(null);
     if (restTimerRef.current) clearInterval(restTimerRef.current);

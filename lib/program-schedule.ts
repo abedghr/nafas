@@ -75,7 +75,7 @@ export function weekStrip(enr: Enrollment, program: Program, week: number, now =
   });
 }
 
-export interface ProgramStats { done: number; skipped: number; planned: number; adherencePct: number; volumeKg: number; sessions: number }
+export interface ProgramStats { done: number; skipped: number; planned: number; adherencePct: number; volumeKg: number; sessions: number; minutes: number }
 
 // done/skipped counts, adherence (done of decided), and volume from linked logs.
 export function programStats(enr: Enrollment, program: Program, logs: WorkoutLog[]): ProgramStats {
@@ -90,8 +90,14 @@ export function programStats(enr: Enrollment, program: Program, logs: WorkoutLog
   const logIds = new Set(enr.completions.map((c) => c.logId).filter(Boolean) as string[]);
   let volumeKg = 0;
   let sessions = 0;
-  for (const l of logs) {
-    if (logIds.has(l.id)) { volumeKg += l.totalVolumeKg || 0; sessions++; }
+  const logById = new Map(logs.map((l) => [l.id, l]));
+  for (const id of logIds) { const l = logById.get(id); if (l) { volumeKg += l.totalVolumeKg || 0; sessions++; } }
+  // total minutes: prefer the completion's own durationMin; else the linked log's
+  let minutes = 0;
+  for (const c of enr.completions) {
+    if (c.status !== 'done') continue;
+    if (c.durationMin) minutes += c.durationMin;
+    else if (c.logId && logById.get(c.logId)) minutes += logById.get(c.logId)!.durationMinutes || 0;
   }
-  return { done, skipped, planned, adherencePct, volumeKg, sessions };
+  return { done, skipped, planned, adherencePct, volumeKg, sessions, minutes };
 }

@@ -83,6 +83,7 @@ export const programDayCompletions = pgTable("program_day_completions", {
   dayIndex: integer("day_index").notNull(),
   status: varchar("status", { length: 16 }).notNull(), // done | skipped
   completedDate: timestamp("completed_date"),
+  durationMin: integer("duration_min"), // workout length in minutes (manual entry or from the log)
   logId: uuid("log_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => ({

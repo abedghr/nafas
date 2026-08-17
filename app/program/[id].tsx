@@ -14,7 +14,6 @@ import { confirmDialog } from '@/lib/dialog';
 import DateTimeField from '@/components/DateTimeField';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
 import { programStats, positionToday, dayStatus } from '@/lib/program-schedule';
-import { toDisplayWeight, unitLabel } from '@/lib/units';
 import Colors from '@/constants/colors';
 import { Fonts } from '@/constants/typography';
 
@@ -24,7 +23,7 @@ export default function ProgramBuilderScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { programs, updateProgram, workoutTemplates, isDark, user, pinnedProgramId, setPinnedProgramId, enrollments, activeEnrollment, startProgram, endEnrollment, updateEnrollmentLocal, workoutLogs, weightUnit } = useApp();
+  const { programs, updateProgram, workoutTemplates, isDark, user, pinnedProgramId, setPinnedProgramId, enrollments, activeEnrollment, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, workoutLogs, weightUnit } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
@@ -40,6 +39,10 @@ export default function ProgramBuilderScreen() {
 
   // "view as text" sheet — shows a day's full workout as bullet points
   const [textDay, setTextDay] = useState<ProgramDay | null>(null);
+  // enrolled-day action sheet (start / done+duration / skip / clear)
+  const [dayAction, setDayAction] = useState<{ week: number; day: number } | null>(null);
+  const [marking, setMarking] = useState(false);
+  const [markDur, setMarkDur] = useState('');
 
   // day editor sheet state
   const [editing, setEditing] = useState<{ week: number; day: number } | null>(null);
@@ -395,12 +398,12 @@ export default function ProgramBuilderScreen() {
                 <Text style={[s.viewNotes, { color: theme.textMuted, marginTop: 0 }]}>{t('programs.backfillHint', { defaultValue: 'Backdate the start, then tap past days on the Today card to mark them done.' })}</Text>
                 {(() => {
                   const st = programStats(active, program, workoutLogs);
-                  const vol = Math.round(toDisplayWeight(st.volumeKg, weightUnit));
+                  const time = st.minutes >= 60 ? `${Math.floor(st.minutes / 60)}h ${st.minutes % 60}m` : `${st.minutes}m`;
                   const tiles = [
                     { label: t('programs.statDone', { defaultValue: 'Done' }), value: String(st.done), color: Colors.semantic.success },
                     { label: t('programs.statSkipped', { defaultValue: 'Skipped' }), value: String(st.skipped), color: Colors.semantic.warn },
                     { label: t('programs.statAdherence', { defaultValue: 'Adherence' }), value: `${st.adherencePct}%`, color: Colors.electric },
-                    { label: t('programs.statVolume', { defaultValue: 'Volume' }), value: `${vol.toLocaleString('en-US')} ${unitLabel(weightUnit)}`, color: theme.text },
+                    { label: t('programs.statTime', { defaultValue: 'Time' }), value: time, color: theme.text },
                   ];
                   return (
                     <View style={s.statsRow}>
@@ -496,8 +499,12 @@ export default function ProgramBuilderScreen() {
                 ? t('programs.restDay')
                 : tmplName || (inlineCount > 0 ? (day?.name || t('programs.buildWorkout')) : (day?.label || t('programs.addWorkout', { defaultValue: 'Add workout' })));
               const empty = !day?.restDay && !planned && !day?.label;
-              // view = tap a planned day to start it; edit = tap to author it
-              const onRow = isEdit ? () => openDay(w, dIdx) : (planned ? () => startDay(day!) : undefined);
+              // view = tap a day; enrolled → action sheet, else start it. edit = author it.
+              const onRow = isEdit
+                ? () => openDay(w, dIdx)
+                : (enrolled && planned)
+                  ? () => { Haptics.selectionAsync(); setMarking(false); setMarkDur(''); setDayAction({ week: w, day: dIdx }); }
+                  : (planned ? () => startDay(day!) : undefined);
               // enrollment overlay
               const cStatus = enrolled && !isEdit ? dayStatus(enrolled, w, dIdx) : null;
               const isToday = !!todayPos && !isEdit && todayPos.started && !todayPos.finishedPlan && todayPos.week === w && todayPos.dayIndex === dIdx;
@@ -589,6 +596,60 @@ export default function ProgramBuilderScreen() {
         title={textDay?.name || t('programs.buildWorkout')}
         exercises={(textDay?.exercises as any[]) || []}
       />
+
+      {/* enrolled-day action sheet */}
+      <Modal visible={dayAction !== null} transparent animationType="fade" onRequestClose={() => setDayAction(null)}>
+        <Pressable style={s.actionOverlay} onPress={() => setDayAction(null)}>
+          <Pressable style={[s.actionSheet, { backgroundColor: theme.background }]} onPress={(e) => e.stopPropagation()}>
+            {dayAction && enrolled && (() => {
+              const d = findDay(dayAction.week, dayAction.day);
+              const st = dayStatus(enrolled, dayAction.week, dayAction.day);
+              const commitDone = () => {
+                const mins = parseInt(markDur, 10);
+                setEnrollmentDay(enrolled.id, dayAction.week, dayAction.day, 'done', Number.isFinite(mins) && mins > 0 ? { durationMin: mins } : undefined);
+                setDayAction(null);
+              };
+              return (
+                <>
+                  <Text style={[s.actionTitle, { color: theme.text }]}>
+                    {t('programs.weekN', { n: dayAction.week + 1 })} · {t(`workoutTab.${DAY_KEYS[dayAction.day]}`)}{d?.name ? ` · ${d.name}` : ''}
+                  </Text>
+                  {marking ? (
+                    <>
+                      <Text style={[s.fieldLabel, { color: theme.textSecondary, marginTop: 4 }]}>{t('programs.durationMinutes', { defaultValue: 'Duration (minutes)' })}</Text>
+                      <TextInput
+                        style={[s.fieldInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
+                        value={markDur}
+                        onChangeText={setMarkDur}
+                        keyboardType="number-pad"
+                        placeholder="45"
+                        placeholderTextColor={theme.textMuted}
+                        autoFocus
+                      />
+                      <Pressable onPress={commitDone} style={[s.startProgramBtn, { backgroundColor: Colors.electric, marginBottom: 0, marginTop: 4 }]}>
+                        <Ionicons name="checkmark-circle" size={18} color="#04120B" />
+                        <Text style={s.startProgramText}>{t('programs.markDone', { defaultValue: 'Mark done' })}</Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    <>
+                      {d && !d.restDay && ((d.exercises?.length ?? 0) > 0 || d.templateId) && (
+                        <>
+                          <ActBtn icon="play" color={Colors.electric} label={t('programs.startDay', { defaultValue: 'Start' })} onPress={() => { setDayAction(null); if (d) startDay(d); }} theme={theme} />
+                          <ActBtn icon="list-outline" color={theme.text} label={t('programs.viewAsText', { defaultValue: 'View as text' })} onPress={() => { setTextDay(d!); setDayAction(null); }} theme={theme} />
+                        </>
+                      )}
+                      <ActBtn icon="checkmark-circle" color={Colors.semantic.success} label={t('programs.markDone', { defaultValue: 'Mark done' })} onPress={() => setMarking(true)} theme={theme} />
+                      <ActBtn icon="close-circle" color={Colors.semantic.warn} label={t('programs.markSkipped', { defaultValue: 'Mark skipped' })} onPress={() => { setEnrollmentDay(enrolled.id, dayAction.week, dayAction.day, 'skipped'); setDayAction(null); }} theme={theme} />
+                      {st && <ActBtn icon="refresh" color={theme.textMuted} label={t('programs.clearStatus', { defaultValue: 'Clear' })} onPress={() => { clearEnrollmentDay(enrolled.id, dayAction.week, dayAction.day); setDayAction(null); }} theme={theme} />}
+                    </>
+                  )}
+                </>
+              );
+            })()}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* day editor bottom sheet */}
       <Modal visible={editing !== null} transparent animationType="slide" onRequestClose={() => setEditing(null)}>
@@ -972,7 +1033,21 @@ function WeekMetaFields({ meta, theme, onCommitName, onCommitNotes }: {
   );
 }
 
+function ActBtn({ icon, color, label, onPress, theme }: { icon: any; color: string; label: string; onPress: () => void; theme: any }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [s.actBtn, { backgroundColor: pressed ? theme.cardAlt : 'transparent' }]}>
+      <Ionicons name={icon} size={19} color={color} />
+      <Text style={[s.actBtnText, { color: theme.text }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const s = StyleSheet.create({
+  actionOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  actionSheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16, paddingBottom: 34, gap: 4 },
+  actionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
+  actBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 8, borderRadius: 12 },
+  actBtnText: { fontSize: 15, fontWeight: '600' },
   container: { flex: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

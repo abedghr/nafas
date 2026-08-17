@@ -248,18 +248,19 @@ export const programsService = {
   },
 
   // Upsert a (week, day) completion. Ownership checked via the enrollment.
-  async setDay(userId: string, enrollmentId: string, d: { weekIndex: number; dayIndex: number; status: string; completedDate?: string | null; logId?: string | null }) {
+  async setDay(userId: string, enrollmentId: string, d: { weekIndex: number; dayIndex: number; status: string; completedDate?: string | null; durationMin?: number | null; logId?: string | null }) {
     const [e] = await db.select().from(programEnrollments).where(and(eq(programEnrollments.id, enrollmentId), eq(programEnrollments.userId, userId)));
     if (!e) return null;
     await db.insert(programDayCompletions)
       .values({
         enrollmentId, weekIndex: d.weekIndex, dayIndex: d.dayIndex, status: d.status,
         completedDate: d.completedDate ? new Date(d.completedDate) : new Date(),
+        durationMin: d.durationMin ?? null,
         logId: d.logId ?? null,
       })
       .onConflictDoUpdate({
         target: [programDayCompletions.enrollmentId, programDayCompletions.weekIndex, programDayCompletions.dayIndex],
-        set: { status: d.status, completedDate: d.completedDate ? new Date(d.completedDate) : new Date(), logId: d.logId ?? null },
+        set: { status: d.status, completedDate: d.completedDate ? new Date(d.completedDate) : new Date(), durationMin: d.durationMin ?? null, logId: d.logId ?? null },
       });
     const [row] = await db.select().from(programEnrollments).where(eq(programEnrollments.id, enrollmentId));
     return this._enrollmentWithDays(row);

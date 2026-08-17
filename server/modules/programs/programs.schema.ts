@@ -54,5 +54,6 @@ export const DayStatusSchema = z.object({
   dayIndex: z.number().int().min(0).max(6),
   status: z.enum(["done", "skipped"]),
   completedDate: z.string().nullish(),
+  durationMin: z.number().int().min(0).max(1440).nullish(),
   logId: z.string().uuid().nullish(),
 });
