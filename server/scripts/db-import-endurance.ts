@@ -23,9 +23,10 @@ async function main() {
   if (!user) throw new Error(`No account for ${email}`);
   console.log(`account: ${user.email} (${user.id})`);
 
-  const [existing] = await db.select().from(programs).where(eq(programs.id, enduranceProgram.id));
+  const pid = enduranceProgram.id!;
+  const [existing] = await db.select().from(programs).where(eq(programs.id, pid));
   const saved = existing
-    ? await programsService.update(user.id, enduranceProgram.id, enduranceProgram)
+    ? await programsService.update(user.id, pid, enduranceProgram)
     : await programsService.create(user.id, enduranceProgram);
   console.log(`${existing ? "updated" : "created"} "${saved?.name}" — ${saved?.weeks} weeks, ${saved?.days.length} days`);
 

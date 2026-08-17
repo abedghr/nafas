@@ -12,6 +12,7 @@ import * as Crypto from 'expo-crypto';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
+import { programToWeeklyPlan } from '@/lib/workout-summary';
 import { AppHeader, HeroCard, StatTile, ActivityRings, CountUp, Button } from '@/components/ui';
 import { Fonts, Type } from '@/constants/typography';
 import { toDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
@@ -172,7 +173,7 @@ function WorkoutHistoryItem({ workout, index }: { workout: any; index: number })
   );
 }
 
-function PlanModal({ visible, onClose, plan }: { visible: boolean; onClose: () => void; plan: ReturnType<typeof generateAIPlan> | null }) {
+function PlanModal({ visible, onClose, plan, pinned }: { visible: boolean; onClose: () => void; plan: ReturnType<typeof generateAIPlan> | null; pinned?: boolean }) {
   const { t } = useTranslation();
   const { isDark } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
@@ -187,11 +188,11 @@ function PlanModal({ visible, onClose, plan }: { visible: boolean; onClose: () =
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <LinearGradient colors={[Colors.primary, Colors.primaryDark]} style={s.aiSmallBadge}>
-                  <Ionicons name="sparkles" size={12} color="#fff" />
+                  <Ionicons name={pinned ? 'bookmark' : 'sparkles'} size={12} color="#fff" />
                 </LinearGradient>
                 <Text style={[s.modalTitle, { color: theme.text }]}>{plan.name}</Text>
               </View>
-              <Text style={[s.planSubtitle, { color: theme.textMuted }]}>{t('workoutTab.aiGeneratedWeeklyPlan')}</Text>
+              <Text style={[s.planSubtitle, { color: theme.textMuted }]}>{pinned ? t('workoutTab.pinnedProgramPlan', { defaultValue: 'Your pinned program' }) : t('workoutTab.aiGeneratedWeeklyPlan')}</Text>
             </View>
             <Pressable onPress={onClose} hitSlop={8}>
               <Ionicons name="close" size={24} color={theme.text} />
@@ -304,7 +305,7 @@ function RecentWorkoutCard({ log, index }: { log: any; index: number }) {
 export default function CoachScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { isDark, workouts, weeklyWorkouts, streak, user, workoutLogs, activeSession, weightUnit } = useApp();
+  const { isDark, workouts, weeklyWorkouts, streak, user, workoutLogs, activeSession, weightUnit, programs, pinnedProgramId } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const [activeTab, setActiveTab] = useState<'dashboard' | 'insights'>('dashboard');
   const [showPlanModal, setShowPlanModal] = useState(false);
@@ -323,7 +324,12 @@ export default function CoachScreen() {
   const totalWorkoutCount = logsAsWorkouts.length;
   const avgDuration = totalWorkoutCount > 0 ? Math.round(logsAsWorkouts.reduce((a, w) => a + w.duration, 0) / totalWorkoutCount) : 0;
   const insights = useMemo(() => generateInsights(logsAsWorkouts, streak, weeklyWorkouts, t), [logsAsWorkouts, streak, weeklyWorkouts, t]);
-  const plan = useMemo(() => generateAIPlan(user?.goal || 'improve_fitness', user?.interests || [], t), [user?.goal, user?.interests, t]);
+  const pinnedProgram = useMemo(() => programs.find((p: any) => p.id === pinnedProgramId), [programs, pinnedProgramId]);
+  const plan = useMemo(
+    () => (pinnedProgram ? programToWeeklyPlan(pinnedProgram, weightUnit) : generateAIPlan(user?.goal || 'improve_fitness', user?.interests || [], t)),
+    [pinnedProgram, weightUnit, user?.goal, user?.interests, t],
+  );
+  const planPinned = !!pinnedProgram;
   const topPad = Platform.OS === 'web' ? 67 + 16 : insets.top + 12;
 
   const weeklyVolumeFromLogs = useMemo(() => {
@@ -619,9 +625,9 @@ export default function CoachScreen() {
                   <LinearGradient colors={['#1C1C2E', '#232338']} style={[s.planPreview, { borderColor: Colors.primary + '30' }]}>
                     <View style={s.planPreviewHeader}>
                       <LinearGradient colors={[Colors.primary, '#48CAE4']} style={s.aiSmallBadge}>
-                        <Ionicons name="sparkles" size={12} color="#fff" />
+                        <Ionicons name={planPinned ? 'bookmark' : 'sparkles'} size={12} color="#fff" />
                       </LinearGradient>
-                      <Text style={[s.planPreviewTitle, { color: theme.text }]}>{t('workoutTab.aiWeeklyPlan')}</Text>
+                      <Text style={[s.planPreviewTitle, { color: theme.text }]}>{planPinned ? t('workoutTab.pinnedProgram', { defaultValue: 'Pinned Program' }) : t('workoutTab.aiWeeklyPlan')}</Text>
                       <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
                     </View>
                     <Text style={[s.planPreviewName, { color: Colors.primary }]}>{plan.name}</Text>
@@ -634,7 +640,7 @@ export default function CoachScreen() {
         </View>
       </ScrollView>
 
-      <PlanModal visible={showPlanModal} onClose={() => setShowPlanModal(false)} plan={plan} />
+      <PlanModal visible={showPlanModal} onClose={() => setShowPlanModal(false)} plan={plan} pinned={planPinned} />
     </View>
   );
 }

@@ -12,6 +12,7 @@ import { useApp, type Program, type ProgramDay, type WeekMeta } from '@/lib/app-
 import { workoutApi } from '@/src/features/workout/api';
 import { confirmDialog } from '@/lib/dialog';
 import DateTimeField from '@/components/DateTimeField';
+import WorkoutTextModal from '@/components/WorkoutTextModal';
 import Colors from '@/constants/colors';
 import { Fonts } from '@/constants/typography';
 
@@ -21,7 +22,7 @@ export default function ProgramBuilderScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { programs, updateProgram, workoutTemplates, isDark, user } = useApp();
+  const { programs, updateProgram, workoutTemplates, isDark, user, pinnedProgramId, setPinnedProgramId } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
@@ -34,6 +35,9 @@ export default function ProgramBuilderScreen() {
     if (program) { setName(program.name); setNotes(program.notes ?? ''); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // "view as text" sheet — shows a day's full workout as bullet points
+  const [textDay, setTextDay] = useState<ProgramDay | null>(null);
 
   // day editor sheet state
   const [editing, setEditing] = useState<{ week: number; day: number } | null>(null);
@@ -290,6 +294,19 @@ export default function ProgramBuilderScreen() {
           >
             <Ionicons name={isEdit ? 'checkmark' : 'create-outline'} size={22} color={isEdit ? Colors.electric : theme.text} />
           </Pressable>
+          {!isEdit && (
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setPinnedProgramId(pinnedProgramId === program.id ? null : program.id);
+              }}
+              hitSlop={12}
+              accessibilityLabel={t('programs.pinToHome', { defaultValue: 'Pin to home' })}
+              style={({ pressed }) => [s.backBtn, { opacity: pressed ? 0.6 : 1 }]}
+            >
+              <Ionicons name={pinnedProgramId === program.id ? 'bookmark' : 'bookmark-outline'} size={21} color={pinnedProgramId === program.id ? Colors.electric : theme.text} />
+            </Pressable>
+          )}
           {shareable && !isEdit && (
             <Pressable onPress={openShare} hitSlop={12} accessibilityLabel={t('programs.share', { defaultValue: 'Share' })} style={({ pressed }) => [s.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
               <Ionicons name="share-social-outline" size={22} color={Colors.electric} />
@@ -440,6 +457,16 @@ export default function ProgramBuilderScreen() {
                       <Text style={[s.daySub, { color: theme.textMuted }]} numberOfLines={1}>{t('programs.exercisesN', { n: inlineCount })}</Text>
                     )}
                   </View>
+                  {inlineCount > 0 && (
+                    <Pressable
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay(day!); }}
+                      hitSlop={8}
+                      style={({ pressed }) => [s.peekBtn, { backgroundColor: theme.cardAlt, opacity: pressed ? 0.6 : 1 }]}
+                      accessibilityLabel={t('programs.viewAsText', { defaultValue: 'View as text' })}
+                    >
+                      <Ionicons name="list-outline" size={16} color={Colors.electric} />
+                    </Pressable>
+                  )}
                   {planned && !isEdit ? (
                     <View style={[s.startBtn, { backgroundColor: Colors.electric }]}>
                       <Ionicons name="play" size={11} color="#04120B" />
@@ -471,6 +498,14 @@ export default function ProgramBuilderScreen() {
           </Pressable>
         )}
       </ScrollView>
+
+      {/* view-as-text sheet */}
+      <WorkoutTextModal
+        visible={textDay !== null}
+        onClose={() => setTextDay(null)}
+        title={textDay?.name || t('programs.buildWorkout')}
+        exercises={(textDay?.exercises as any[]) || []}
+      />
 
       {/* day editor bottom sheet */}
       <Modal visible={editing !== null} transparent animationType="slide" onRequestClose={() => setEditing(null)}>
@@ -912,6 +947,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10,
   },
   startBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  peekBtn: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet: {
     height: '88%', borderTopLeftRadius: 24, borderTopRightRadius: 24,
