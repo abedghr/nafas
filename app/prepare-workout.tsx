@@ -19,6 +19,7 @@ import { exerciseLibrary, MUSCLE_GROUPS } from '@/src/features/workout/library-c
 import { workoutApi, EQUIPMENT_OPTIONS, MUSCLE_CATEGORIES } from '@/src/features/workout/api';
 import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult, type ComboSetType } from '@/components/ComboBuilderModal';
 import IntervalBuilderModal, { formatDuration } from '@/components/IntervalBuilderModal';
+import WorkoutTextModal from '@/components/WorkoutTextModal';
 import ExerciseRow from '@/components/ExerciseRow';
 import ExerciseFilterBar from '@/components/ExerciseFilterBar';
 import { matchExercise } from '@/lib/exercise-search';
@@ -1290,6 +1291,7 @@ export default function PrepareWorkoutScreen() {
   const [typePickerOpen, setTypePickerOpen] = useState(false);
   const [typeSearch, setTypeSearch] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [showText, setShowText] = useState(false);
 
   const toggleCollapse = useCallback((uid: string) => {
     setCollapsed(prev => {
@@ -1649,22 +1651,34 @@ export default function PrepareWorkoutScreen() {
             )}
           </View>
 
-          {exercises.length > 1 && (() => {
+          {exercises.length > 0 && (() => {
             const allCollapsed = exercises.every(e => collapsed.has(e.uid));
             return (
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setCollapsed(allCollapsed ? new Set() : new Set(exercises.map(e => e.uid)));
-                }}
-                hitSlop={6}
-                style={s.collapseAllBtn}
-              >
-                <Ionicons name={allCollapsed ? 'chevron-expand-outline' : 'chevron-collapse-outline'} size={14} color={theme.textMuted} />
-                <Text style={[s.collapseAllText, { color: theme.textMuted }]}>
-                  {allCollapsed ? t('workoutPrep.expandAll') : t('workoutPrep.collapseAll')}
-                </Text>
-              </Pressable>
+              <View style={s.toolRow}>
+                <Pressable
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowText(true); }}
+                  hitSlop={6}
+                  style={s.collapseAllBtn}
+                >
+                  <Ionicons name="list-outline" size={14} color={Colors.electric} />
+                  <Text style={[s.collapseAllText, { color: Colors.electric }]}>{t('workoutPrep.viewAsText', { defaultValue: 'View as text' })}</Text>
+                </Pressable>
+                {exercises.length > 1 && (
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setCollapsed(allCollapsed ? new Set() : new Set(exercises.map(e => e.uid)));
+                    }}
+                    hitSlop={6}
+                    style={s.collapseAllBtn}
+                  >
+                    <Ionicons name={allCollapsed ? 'chevron-expand-outline' : 'chevron-collapse-outline'} size={14} color={theme.textMuted} />
+                    <Text style={[s.collapseAllText, { color: theme.textMuted }]}>
+                      {allCollapsed ? t('workoutPrep.expandAll') : t('workoutPrep.collapseAll')}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
             );
           })()}
 
@@ -1893,6 +1907,13 @@ export default function PrepareWorkoutScreen() {
         theme={theme}
       />
 
+      <WorkoutTextModal
+        visible={showText}
+        onClose={() => setShowText(false)}
+        title={resolvedName || t('workoutPrep.newWorkout', { defaultValue: 'Workout' })}
+        exercises={exercises as any[]}
+      />
+
       <CreateCustomModal
         visible={showCustomModal}
         onClose={() => setShowCustomModal(false)}
@@ -2042,7 +2063,8 @@ const s = StyleSheet.create({
   typeChangeBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7 },
   reorderCol: { marginRight: 8, justifyContent: 'center', alignItems: 'center' },
   collapsedSummary: { fontSize: 12, fontWeight: '500', marginTop: 3 },
-  collapseAllBtn: { alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 4, marginBottom: 8 },
+  toolRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 16, marginBottom: 4 },
+  collapseAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 4, marginBottom: 8 },
   collapseAllText: { fontSize: 12, fontWeight: '600' },
   lastPerfRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   lastPerfText: { fontSize: 11.5, fontWeight: '500' },
