@@ -21,11 +21,20 @@ const M = {
   DEAD: ["Bottom Pull-up Hold", "Back"], // head below / dead hang / arms straight
   DIP90: ["90° Dip Hold", "Chest"], // dips 90° / iso mid
   DIPS: ["Dip Support Hold", "Chest"], // arms-straight dip support / iso bottom
+  // Legs Day movements
+  LC: ["Leg Curl", "Legs"],
+  SQ: ["Barbell Back Squat", "Legs"],
+  DL: ["Deadlift", "Legs"],
+  HT: ["Hip Thrust", "Legs"],
+  ADD: ["Hip Adduction (Machine)", "Legs"],
+  ABD: ["Hip Abduction (Machine)", "Legs"],
+  CALF: ["Standing Calf Raise", "Legs"],
 } as const;
 type Mv = keyof typeof M;
 
 // ── set builders (single-exercise blocks) ──
 const rp = (reps: number, o: any = {}) => ({ type: "reps", reps, ...o });
+const wt = (weight: number, o: any = {}) => ({ type: "reps", weight, ...o }); // weight target, reps left open
 const hd = (sec: number, o: any = {}) => ({ type: "hold", durationSeconds: sec, measure: "time", ...o });
 const fail = (o: any = {}) => ({ type: "reps", toFailure: true, ...o }); // max reps / one-shot
 
@@ -310,6 +319,18 @@ const w4 = [
     ]),
 ];
 
+// ────────────────────────────────────────────────────────── LEGS DAY (every Sunday)
+const legsDay = (weekIndex: number) =>
+  day(weekIndex, 6, "Legs Day", "legs", "", [
+    block("LC", [rp(8, { weight: 70 }), rp(8, { weight: 65 }), rp(8, { weight: 60 })], 90),
+    block("SQ", [rp(8, { weight: 130 }), rp(8, { weight: 120 })], 120),
+    block("DL", [rp(6, { weight: 120 }), rp(6, { weight: 120 })], 150),
+    block("HT", [wt(80), wt(80), wt(80)], 90),
+    block("ADD", [wt(70), wt(70)], 60),
+    block("ABD", [wt(60), wt(60)], 60),
+    block("CALF", [wt(130), wt(130), wt(130)], 60),
+  ]);
+
 export const enduranceProgram: ProgramCreate = {
   id: "a1b2c3d4-0000-4000-8000-000000000001",
   name: "Endurance Program",
@@ -325,5 +346,5 @@ export const enduranceProgram: ProgramCreate = {
     { index: 2, name: "Week 3", notes: "Density, waves and one-shots — very hard." },
     { index: 3, name: "Week 4", notes: "Peak: stress sets and one-shots — very hard." },
   ],
-  days: [...w1, ...w2, ...w3, ...w4],
+  days: [...w1, ...w2, ...w3, ...w4, legsDay(0), legsDay(1), legsDay(2), legsDay(3)],
 };
