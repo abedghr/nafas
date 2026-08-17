@@ -38,3 +38,21 @@ export const ShareCreateSchema = z.object({
 }).refine((v) => v.toUserId || v.generateCode, { message: "toUserId or generateCode required" });
 
 export const ClaimSchema = z.object({ code: z.string().min(4).max(12) });
+
+// ── program enrollment / scheduling ──
+export const EnrollSchema = z.object({
+  programId: z.string().uuid(),
+  startDate: z.string(), // ISO date
+});
+export const EnrollUpdateSchema = z.object({
+  startDate: z.string().optional(),
+  status: z.enum(["active", "finished", "abandoned"]).optional(),
+  overrides: z.record(z.record(z.number().int().min(0).max(6))).optional(),
+});
+export const DayStatusSchema = z.object({
+  weekIndex: z.number().int().min(0),
+  dayIndex: z.number().int().min(0).max(6),
+  status: z.enum(["done", "skipped"]),
+  completedDate: z.string().nullish(),
+  logId: z.string().uuid().nullish(),
+});

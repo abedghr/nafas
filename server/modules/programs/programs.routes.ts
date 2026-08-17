@@ -4,7 +4,7 @@ import { registry } from "../../core/openapi";
 import { requireAuth } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { programsService } from "./programs.service";
-import { ProgramCreateSchema, ShareCreateSchema, ClaimSchema } from "./programs.schema";
+import { ProgramCreateSchema, ShareCreateSchema, ClaimSchema, EnrollSchema, EnrollUpdateSchema, DayStatusSchema } from "./programs.schema";
 
 export const programsRouter = Router();
 programsRouter.use(requireAuth);
@@ -69,6 +69,46 @@ programsRouter.post("/program-shares/claim", validate({ body: ClaimSchema }), as
   const r = await programsService.claimByCode(req.user!.sub, req.body.code);
   if ("error" in r && r.error) return res.status(r.error === "expired" ? 410 : r.error === "own_program" ? 400 : 404).json({ code: r.error.toUpperCase(), message: "" });
   res.status(201).json(r.program);
+});
+
+// ── enrollment / scheduling ──
+const enrollIdParam = z.object({ id: z.string().uuid() });
+const dayParams = z.object({ id: z.string().uuid(), week: z.string(), day: z.string() });
+
+registry.registerPath({ method: "get", path: "/api/enrollments", tags: ["Programs"], summary: "My program enrollments", security: sec, responses: { 200: json(z.any()) } });
+programsRouter.get("/enrollments", async (req, res) => res.json({ data: await programsService.enrollments(req.user!.sub) }));
+
+registry.registerPath({ method: "post", path: "/api/enrollments", tags: ["Programs"], summary: "Start a program", security: sec, request: { body: body(EnrollSchema) }, responses: { 201: json(z.any()) } });
+programsRouter.post("/enrollments", validate({ body: EnrollSchema }), async (req, res) => {
+  const r = await programsService.enroll(req.user!.sub, req.body.programId, req.body.startDate);
+  if (!r) return res.status(404).json({ code: "NOT_FOUND", message: "Program not found" });
+  res.status(201).json(r);
+});
+
+registry.registerPath({ method: "patch", path: "/api/enrollments/{id}", tags: ["Programs"], summary: "Update an enrollment", security: sec, request: { params: enrollIdParam, body: body(EnrollUpdateSchema) }, responses: { 200: json(z.any()) } });
+programsRouter.patch("/enrollments/:id", validate({ params: enrollIdParam, body: EnrollUpdateSchema }), async (req, res) => {
+  const r = await programsService.updateEnrollment(req.user!.sub, String(req.params.id), req.body);
+  if (!r) return res.status(404).json({ code: "NOT_FOUND", message: "" });
+  res.json(r);
+});
+
+registry.registerPath({ method: "delete", path: "/api/enrollments/{id}", tags: ["Programs"], summary: "Delete an enrollment", security: sec, request: { params: enrollIdParam }, responses: { 200: json(z.any()) } });
+programsRouter.delete("/enrollments/:id", validate({ params: enrollIdParam }), async (req, res) => {
+  res.json(await programsService.removeEnrollment(req.user!.sub, String(req.params.id)));
+});
+
+registry.registerPath({ method: "post", path: "/api/enrollments/{id}/days", tags: ["Programs"], summary: "Mark a program day done/skipped", security: sec, request: { params: enrollIdParam, body: body(DayStatusSchema) }, responses: { 200: json(z.any()) } });
+programsRouter.post("/enrollments/:id/days", validate({ params: enrollIdParam, body: DayStatusSchema }), async (req, res) => {
+  const r = await programsService.setDay(req.user!.sub, String(req.params.id), req.body);
+  if (!r) return res.status(404).json({ code: "NOT_FOUND", message: "" });
+  res.json(r);
+});
+
+registry.registerPath({ method: "delete", path: "/api/enrollments/{id}/days/{week}/{day}", tags: ["Programs"], summary: "Clear a day's status", security: sec, request: { params: dayParams }, responses: { 200: json(z.any()) } });
+programsRouter.delete("/enrollments/:id/days/:week/:day", validate({ params: dayParams }), async (req, res) => {
+  const r = await programsService.clearDay(req.user!.sub, String(req.params.id), Number(req.params.week), Number(req.params.day));
+  if (!r) return res.status(404).json({ code: "NOT_FOUND", message: "" });
+  res.json(r);
 });
 
 // owner share dashboard + revoke

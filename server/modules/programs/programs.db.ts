@@ -59,3 +59,33 @@ export const programDays = pgTable("program_days", {
   progIdx: index("pday_prog_idx").on(t.programId),
   cellUniq: uniqueIndex("pday_cell_uniq").on(t.programId, t.weekIndex, t.dayIndex),
 }));
+
+// A user "starting" a program for a period. Weeks/days map onto the calendar
+// from startDate. One active enrollment per user at a time (service enforces).
+export const programEnrollments = pgTable("program_enrollments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  programId: uuid("program_id").notNull().references(() => programs.id, { onDelete: "cascade" }),
+  startDate: timestamp("start_date").notNull(),
+  status: varchar("status", { length: 16 }).notNull().default("active"), // active | finished | abandoned
+  // per-week weekday swaps: { "<weekIndex>": { "<weekday>": <sourceDayIndex> } }
+  overrides: jsonb("overrides").$type<Record<string, Record<string, number>>>().notNull().default({}),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  finishedAt: timestamp("finished_at"),
+}, (t) => ({ userIdx: index("enroll_user_idx").on(t.userId, t.status) }));
+
+// One (week, day) cell marked done or skipped within an enrollment. logId is a
+// soft ref to the workout_log produced when the day was run.
+export const programDayCompletions = pgTable("program_day_completions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  enrollmentId: uuid("enrollment_id").notNull().references(() => programEnrollments.id, { onDelete: "cascade" }),
+  weekIndex: integer("week_index").notNull(),
+  dayIndex: integer("day_index").notNull(),
+  status: varchar("status", { length: 16 }).notNull(), // done | skipped
+  completedDate: timestamp("completed_date"),
+  logId: uuid("log_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({
+  enrollIdx: index("pdc_enroll_idx").on(t.enrollmentId),
+  cellUniq: uniqueIndex("pdc_cell_uniq").on(t.enrollmentId, t.weekIndex, t.dayIndex),
+}));

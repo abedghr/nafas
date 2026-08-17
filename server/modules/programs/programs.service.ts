@@ -1,7 +1,7 @@
 import { and, eq, asc, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db } from "../../core/db";
-import { programs, programDays, programShares } from "./programs.db";
+import { programs, programDays, programShares, programEnrollments, programDayCompletions } from "./programs.db";
 import { users } from "../identity/identity.db";
 import type { ProgramCreate } from "./programs.schema";
 
@@ -202,5 +202,78 @@ export const programsService = {
       })));
     }
     return row.id;
+  },
+
+  // ── enrollment / scheduling ──
+  async _enrollmentWithDays(enr: any) {
+    const completions = await db.select().from(programDayCompletions)
+      .where(eq(programDayCompletions.enrollmentId, enr.id));
+    return { ...enr, completions };
+  },
+
+  async enrollments(userId: string) {
+    const rows = await db.select().from(programEnrollments)
+      .where(eq(programEnrollments.userId, userId))
+      .orderBy(desc(programEnrollments.createdAt));
+    return Promise.all(rows.map((r) => this._enrollmentWithDays(r)));
+  },
+
+  // Start a program: verify ownership, retire any other active enrollment, insert active.
+  async enroll(userId: string, programId: string, startDate: string) {
+    const [p] = await db.select().from(programs).where(and(eq(programs.id, programId), eq(programs.userId, userId)));
+    if (!p) return null;
+    await db.update(programEnrollments).set({ status: "abandoned" })
+      .where(and(eq(programEnrollments.userId, userId), eq(programEnrollments.status, "active")));
+    const [row] = await db.insert(programEnrollments)
+      .values({ userId, programId, startDate: new Date(startDate) })
+      .returning();
+    return this._enrollmentWithDays(row);
+  },
+
+  async updateEnrollment(userId: string, id: string, patch: { startDate?: string; status?: string; overrides?: Record<string, Record<string, number>> }) {
+    const [e] = await db.select().from(programEnrollments).where(and(eq(programEnrollments.id, id), eq(programEnrollments.userId, userId)));
+    if (!e) return null;
+    await db.update(programEnrollments).set({
+      ...(patch.startDate ? { startDate: new Date(patch.startDate) } : {}),
+      ...(patch.status ? { status: patch.status, ...(patch.status === "finished" ? { finishedAt: new Date() } : {}) } : {}),
+      ...(patch.overrides ? { overrides: patch.overrides } : {}),
+    }).where(eq(programEnrollments.id, id));
+    const [row] = await db.select().from(programEnrollments).where(eq(programEnrollments.id, id));
+    return this._enrollmentWithDays(row);
+  },
+
+  async removeEnrollment(userId: string, id: string) {
+    await db.delete(programEnrollments).where(and(eq(programEnrollments.id, id), eq(programEnrollments.userId, userId)));
+    return { ok: true };
+  },
+
+  // Upsert a (week, day) completion. Ownership checked via the enrollment.
+  async setDay(userId: string, enrollmentId: string, d: { weekIndex: number; dayIndex: number; status: string; completedDate?: string | null; logId?: string | null }) {
+    const [e] = await db.select().from(programEnrollments).where(and(eq(programEnrollments.id, enrollmentId), eq(programEnrollments.userId, userId)));
+    if (!e) return null;
+    await db.insert(programDayCompletions)
+      .values({
+        enrollmentId, weekIndex: d.weekIndex, dayIndex: d.dayIndex, status: d.status,
+        completedDate: d.completedDate ? new Date(d.completedDate) : new Date(),
+        logId: d.logId ?? null,
+      })
+      .onConflictDoUpdate({
+        target: [programDayCompletions.enrollmentId, programDayCompletions.weekIndex, programDayCompletions.dayIndex],
+        set: { status: d.status, completedDate: d.completedDate ? new Date(d.completedDate) : new Date(), logId: d.logId ?? null },
+      });
+    const [row] = await db.select().from(programEnrollments).where(eq(programEnrollments.id, enrollmentId));
+    return this._enrollmentWithDays(row);
+  },
+
+  async clearDay(userId: string, enrollmentId: string, weekIndex: number, dayIndex: number) {
+    const [e] = await db.select().from(programEnrollments).where(and(eq(programEnrollments.id, enrollmentId), eq(programEnrollments.userId, userId)));
+    if (!e) return null;
+    await db.delete(programDayCompletions).where(and(
+      eq(programDayCompletions.enrollmentId, enrollmentId),
+      eq(programDayCompletions.weekIndex, weekIndex),
+      eq(programDayCompletions.dayIndex, dayIndex),
+    ));
+    const [row] = await db.select().from(programEnrollments).where(eq(programEnrollments.id, enrollmentId));
+    return this._enrollmentWithDays(row);
   },
 };
