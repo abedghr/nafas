@@ -42,6 +42,16 @@ export const workoutApi = {
   revokeShare: (shareId: string) => apiFetch(`/program-shares/${shareId}/revoke`, { method: "POST", auth: true }),
   searchUsers: (q: string) => apiFetch<{ data: any[] }>(`/users/search?q=${encodeURIComponent(q)}`, { auth: true }).then((r) => r.data),
 
+  // program enrollment / scheduling
+  enrollments: () => apiFetch<{ data: any[] }>("/enrollments", { auth: true }).then((r) => r.data),
+  enroll: (programId: string, startDate: string) => apiFetch("/enrollments", { method: "POST", auth: true, body: { programId, startDate } }),
+  updateEnrollment: (id: string, body: { startDate?: string; status?: string; overrides?: Record<string, Record<string, number>> }) =>
+    apiFetch(`/enrollments/${id}`, { method: "PATCH", auth: true, body }),
+  deleteEnrollment: (id: string) => apiFetch(`/enrollments/${id}`, { method: "DELETE", auth: true }),
+  setEnrollmentDay: (id: string, body: { weekIndex: number; dayIndex: number; status: "done" | "skipped"; completedDate?: string | null; logId?: string | null }) =>
+    apiFetch(`/enrollments/${id}/days`, { method: "POST", auth: true, body }),
+  clearEnrollmentDay: (id: string, week: number, day: number) => apiFetch(`/enrollments/${id}/days/${week}/${day}`, { method: "DELETE", auth: true }),
+
   logs: () => apiFetch<{ data: any[] }>("/workout-logs", { auth: true }).then((r) => r.data),
   prs: (limit = 5) => apiFetch<{ data: { name: string; weight: number; reps: number; date: string }[] }>(`/workout/prs?limit=${limit}`, { auth: true }).then((r) => r.data),
   lastPerformance: (names: string[]) =>
