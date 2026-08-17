@@ -6,30 +6,39 @@ import type { Program, ProgramDay, Enrollment, WorkoutLog } from './app-context'
 const DAY = 24 * 3600 * 1000;
 export const WEEKDAY_KEYS = ['weekdayMon', 'weekdayTue', 'weekdayWed', 'weekdayThu', 'weekdayFri', 'weekdaySat', 'weekdaySun'] as const;
 
-// JS Sun=0..Sat=6 → our Mon=0..Sun=6
-const weekdayOf = (d: Date) => (d.getDay() + 6) % 7;
 const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 
-// Monday (00:00) on or before the start date — the anchor for "week 1, day 0".
-function anchorMonday(startDate: string): number {
-  const s = startOfDay(new Date(startDate));
-  return s.getTime() - weekdayOf(s) * DAY;
+// The program as an ordered sequence of days (Day 1, Day 2, …) — sorted by
+// week then day. Position in the plan is by this ordinal, NOT by weekday: the
+// start date is Day 1 and each following calendar day is the next day here.
+export interface SeqDay { ordinal: number; weekIndex: number; dayIndex: number; day: ProgramDay }
+export function programSequence(program: Program): SeqDay[] {
+  return [...(program.days || [])]
+    .sort((a, b) => a.weekIndex - b.weekIndex || a.dayIndex - b.dayIndex)
+    .map((day, ordinal) => ({ ordinal, weekIndex: day.weekIndex, dayIndex: day.dayIndex, day }));
+}
+export function ordinalOf(program: Program, week: number, dayIndex: number): number {
+  const f = programSequence(program).find((s) => s.weekIndex === week && s.dayIndex === dayIndex);
+  return f ? f.ordinal : -1;
+}
+// Calendar date a given ordinal falls on for this enrollment.
+export function dateForOrdinal(enr: Enrollment, ordinal: number): Date {
+  return new Date(startOfDay(new Date(enr.startDate)).getTime() + ordinal * DAY);
 }
 
-export interface Position { week: number; dayIndex: number; started: boolean; finishedPlan: boolean }
+export interface Position { ordinal: number; week: number; dayIndex: number; started: boolean; finishedPlan: boolean }
 
-// Where "today" sits in the plan.
+// Where "today" sits in the plan — sequential from the start date.
 export function positionToday(enr: Enrollment, program: Program, now = new Date()): Position {
-  const anchor = anchorMonday(enr.startDate);
+  const seq = programSequence(program);
+  const anchor = startOfDay(new Date(enr.startDate)).getTime();
   const today = startOfDay(now).getTime();
   const daysSince = Math.floor((today - anchor) / DAY);
-  const started = today >= startOfDay(new Date(enr.startDate)).getTime();
-  let week = Math.floor(daysSince / 7);
-  const dayIndex = ((daysSince % 7) + 7) % 7;
-  const finishedPlan = week >= program.weeks;
-  if (week < 0) week = 0;
-  if (week > program.weeks - 1) week = program.weeks - 1;
-  return { week, dayIndex, started, finishedPlan };
+  const started = today >= anchor;
+  const finishedPlan = seq.length > 0 && daysSince >= seq.length;
+  const idx = Math.max(0, Math.min(Math.max(0, seq.length - 1), daysSince));
+  const cell = seq[idx];
+  return { ordinal: idx, week: cell?.weekIndex ?? 0, dayIndex: cell?.dayIndex ?? 0, started, finishedPlan };
 }
 
 // The source day (after in-week override swaps) that a weekday slot shows.
@@ -62,17 +71,6 @@ export function swapDays(enr: Enrollment, week: number, a: number, b: number): E
   if (wk[String(b)] === b) delete wk[String(b)];
   next[String(week)] = wk;
   return next;
-}
-
-export interface StripCell { weekday: number; day: ProgramDay | null; status: 'done' | 'skipped' | null; isToday: boolean; planned: boolean }
-
-export function weekStrip(enr: Enrollment, program: Program, week: number, now = new Date()): StripCell[] {
-  const pos = positionToday(enr, program, now);
-  return WEEKDAY_KEYS.map((_, weekday) => {
-    const day = resolveDay(program, enr, week, weekday);
-    const planned = !!day && (!!day.restDay || !!(day.exercises && day.exercises.length) || !!day.templateId);
-    return { weekday, day, status: dayStatus(enr, week, weekday), isToday: week === pos.week && weekday === pos.dayIndex && pos.started && !pos.finishedPlan, planned };
-  });
 }
 
 export interface ProgramStats { done: number; skipped: number; planned: number; adherencePct: number; volumeKg: number; sessions: number; minutes: number }

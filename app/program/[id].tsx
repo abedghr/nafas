@@ -13,7 +13,7 @@ import { workoutApi } from '@/src/features/workout/api';
 import { confirmDialog } from '@/lib/dialog';
 import DateTimeField from '@/components/DateTimeField';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
-import { programStats, positionToday, dayStatus } from '@/lib/program-schedule';
+import { programStats, positionToday, dayStatus, ordinalOf, dateForOrdinal } from '@/lib/program-schedule';
 import Colors from '@/constants/colors';
 import { Fonts } from '@/constants/typography';
 
@@ -509,6 +509,8 @@ export default function ProgramBuilderScreen() {
               const cStatus = enrolled && !isEdit ? dayStatus(enrolled, w, dIdx) : null;
               const isToday = !!todayPos && !isEdit && todayPos.started && !todayPos.finishedPlan && todayPos.week === w && todayPos.dayIndex === dIdx;
               const statusCol = cStatus === 'done' ? Colors.semantic.success : cStatus === 'skipped' ? Colors.semantic.warn : null;
+              const ord = enrolled && !isEdit ? ordinalOf(program, w, dIdx) : -1;
+              const dateStr = ord >= 0 && enrolled ? dateForOrdinal(enrolled, ord).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
               return (
                 <Pressable
                   key={dk}
@@ -527,7 +529,7 @@ export default function ProgramBuilderScreen() {
                     borderColor: day?.restDay ? theme.border : 'transparent',
                     borderWidth: day?.restDay ? 1 : 0,
                   }]}>
-                    <Text style={[s.dayBadgeText, { color: planned ? '#04120B' : theme.textMuted }]}>{t(`workoutTab.${dk}`)}</Text>
+                    <Text style={[s.dayBadgeText, { color: planned ? '#04120B' : theme.textMuted }]}>{ord >= 0 ? `D${ord + 1}` : t(`workoutTab.${dk}`)}</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -538,9 +540,11 @@ export default function ProgramBuilderScreen() {
                         </View>
                       )}
                     </View>
-                    {planned && inlineCount > 0 && (
-                      <Text style={[s.daySub, { color: theme.textMuted }]} numberOfLines={1}>{t('programs.exercisesN', { n: inlineCount })}</Text>
-                    )}
+                    {(planned && inlineCount > 0) || dateStr ? (
+                      <Text style={[s.daySub, { color: theme.textMuted }]} numberOfLines={1}>
+                        {[dateStr, planned && inlineCount > 0 ? t('programs.exercisesN', { n: inlineCount }) : ''].filter(Boolean).join('  ·  ')}
+                      </Text>
+                    ) : null}
                   </View>
                   {inlineCount > 0 && (
                     <Pressable
