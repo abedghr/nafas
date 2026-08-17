@@ -13,7 +13,7 @@ import { workoutApi } from '@/src/features/workout/api';
 import { confirmDialog } from '@/lib/dialog';
 import DateTimeField from '@/components/DateTimeField';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
-import { programStats } from '@/lib/program-schedule';
+import { programStats, positionToday, dayStatus } from '@/lib/program-schedule';
 import { toDisplayWeight, unitLabel } from '@/lib/units';
 import Colors from '@/constants/colors';
 import { Fonts } from '@/constants/typography';
@@ -280,6 +280,10 @@ export default function ProgramBuilderScreen() {
     );
   }
 
+  // enrollment overlay for the week grid: highlight today + show done/skipped
+  const enrolled = activeEnrollment && activeEnrollment.programId === program.id ? activeEnrollment : null;
+  const todayPos = enrolled ? positionToday(enrolled, program) : null;
+
   return (
     <View style={[s.container, { backgroundColor: theme.background }]}>
       <View style={[s.header, { paddingTop: topPad + 8 }]}>
@@ -494,6 +498,10 @@ export default function ProgramBuilderScreen() {
               const empty = !day?.restDay && !planned && !day?.label;
               // view = tap a planned day to start it; edit = tap to author it
               const onRow = isEdit ? () => openDay(w, dIdx) : (planned ? () => startDay(day!) : undefined);
+              // enrollment overlay
+              const cStatus = enrolled && !isEdit ? dayStatus(enrolled, w, dIdx) : null;
+              const isToday = !!todayPos && !isEdit && todayPos.started && !todayPos.finishedPlan && todayPos.week === w && todayPos.dayIndex === dIdx;
+              const statusCol = cStatus === 'done' ? Colors.semantic.success : cStatus === 'skipped' ? Colors.semantic.warn : null;
               return (
                 <Pressable
                   key={dk}
@@ -503,6 +511,8 @@ export default function ProgramBuilderScreen() {
                     s.dayRow2,
                     { backgroundColor: pressed && onRow ? theme.cardAlt : 'transparent', borderColor: theme.border, opacity: !isEdit && empty ? 0.55 : 1 },
                     planned && { borderColor: Colors.electric + '55' },
+                    statusCol && { borderColor: statusCol + '77' },
+                    isToday && { borderColor: Colors.electric, borderWidth: 1.5, backgroundColor: Colors.electric + '14' },
                   ]}
                 >
                   <View style={[s.dayBadge, {
@@ -513,7 +523,14 @@ export default function ProgramBuilderScreen() {
                     <Text style={[s.dayBadgeText, { color: planned ? '#04120B' : theme.textMuted }]}>{t(`workoutTab.${dk}`)}</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[s.dayTitle, { color: empty ? theme.textMuted : day?.restDay ? theme.textSecondary : theme.text }]} numberOfLines={1}>{empty && !isEdit ? '—' : title}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[s.dayTitle, { color: empty ? theme.textMuted : day?.restDay ? theme.textSecondary : theme.text, flexShrink: 1 }]} numberOfLines={1}>{empty && !isEdit ? '—' : title}</Text>
+                      {isToday && (
+                        <View style={[s.todayTag, { backgroundColor: Colors.electric }]}>
+                          <Text style={s.todayTagText}>{t('programs.today', { defaultValue: 'TODAY' })}</Text>
+                        </View>
+                      )}
+                    </View>
                     {planned && inlineCount > 0 && (
                       <Text style={[s.daySub, { color: theme.textMuted }]} numberOfLines={1}>{t('programs.exercisesN', { n: inlineCount })}</Text>
                     )}
@@ -528,7 +545,12 @@ export default function ProgramBuilderScreen() {
                       <Ionicons name="list-outline" size={16} color={Colors.electric} />
                     </Pressable>
                   )}
-                  {planned && !isEdit ? (
+                  {cStatus ? (
+                    <View style={[s.statusChip, { backgroundColor: statusCol! + '22' }]}>
+                      <Ionicons name={cStatus === 'done' ? 'checkmark-circle' : 'close-circle'} size={13} color={statusCol!} />
+                      <Text style={[s.statusChipText, { color: statusCol! }]}>{t(`programs.${cStatus}`, { defaultValue: cStatus })}</Text>
+                    </View>
+                  ) : planned && !isEdit ? (
                     <View style={[s.startBtn, { backgroundColor: Colors.electric }]}>
                       <Ionicons name="play" size={11} color="#04120B" />
                       <Text style={[s.startBtnText, { color: '#04120B' }]}>{t('programs.startDay')}</Text>
@@ -1009,6 +1031,10 @@ const s = StyleSheet.create({
   },
   startBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   peekBtn: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  todayTag: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5 },
+  todayTagText: { color: '#04120B', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  statusChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
+  statusChipText: { fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
   startProgramBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 15, borderRadius: 14, marginBottom: 12 },
   startProgramText: { color: '#04120B', fontSize: 15, fontWeight: '800' },
   statsRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
