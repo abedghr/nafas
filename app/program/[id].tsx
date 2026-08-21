@@ -331,8 +331,8 @@ export default function ProgramBuilderScreen() {
             />
 
             <View style={s.weeksRow}>
-              <Text style={[s.fieldLabel, { color: theme.textSecondary, marginBottom: 0 }]}>{t('programs.weeks')}</Text>
-              <Text style={[s.weeksVal, { color: theme.text }]}>{t('programs.weeksCount', { n: program.weeks })}</Text>
+              <Text style={[s.fieldLabel, { color: theme.textSecondary, marginBottom: 0 }]}>{t('programs.days', { defaultValue: 'Days' })}</Text>
+              <Text style={[s.weeksVal, { color: theme.text }]}>{t('programs.daysCount', { n: (program.days ?? []).length, defaultValue: `${(program.days ?? []).length} days` })}</Text>
             </View>
 
             <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{t('programs.notesOptional')}</Text>
@@ -349,7 +349,7 @@ export default function ProgramBuilderScreen() {
         ) : (
           <View style={[s.viewSummary, { backgroundColor: theme.card }]}>
             <View style={s.weeksRow}>
-              <Text style={[s.weeksVal, { color: theme.text }]}>{t('programs.weeksCount', { n: program.weeks })}</Text>
+              <Text style={[s.weeksVal, { color: theme.text }]}>{t('programs.daysCount', { n: (program.days ?? []).length, defaultValue: `${(program.days ?? []).length} days` })}</Text>
               <View style={[s.useHint, { backgroundColor: Colors.electric + '18' }]}>
                 <Ionicons name="play" size={11} color={Colors.electric} />
                 <Text style={[s.useHintText, { color: Colors.electric }]}>{t('programs.tapDayToStart', { defaultValue: 'Tap a day to start' })}</Text>
