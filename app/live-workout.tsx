@@ -1763,7 +1763,7 @@ export default function LiveWorkoutScreen() {
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
   const theme = Colors.dark;
 
-  const { activeSession, setActiveSession, addWorkoutLog, customExercises, user, weightUnit, language, setEnrollmentDay } = useApp();
+  const { activeSession, setActiveSession, addWorkoutLog, customExercises, user, weightUnit, language, setEnrollmentDay, setEnrollmentDayEdit } = useApp();
   const [session, setSession] = useState<ActiveSession | null>(activeSession);
   // Per-exercise weight unit (falls back to the profile default). Weights are stored
   // canonically in kg, so stats/history convert to the profile default on read.
@@ -2199,7 +2199,16 @@ export default function LiveWorkoutScreen() {
     addWorkoutLog({ ...log, id: logId });
     // if this was a program day, mark it done on the enrollment (links the log for stats)
     if (session.program) {
-      setEnrollmentDay(session.program.enrollmentId, session.program.weekIndex, session.program.slotDay, 'done', { logId, durationMin: log.durationMinutes });
+      const p = session.program;
+      setEnrollmentDay(p.enrollmentId, p.weekIndex, p.slotDay, 'done', { logId, durationMin: log.durationMinutes });
+      // record add/remove deviations vs the program template, flagged for this enrollment
+      const tmplIds = new Set(p.templateExerciseIds ?? []);
+      const sessionIds = new Set(session.exercises.map((e) => e.exerciseId));
+      const added = session.exercises
+        .filter((e) => !tmplIds.has(e.exerciseId))
+        .map((e) => ({ exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, restSeconds: e.restSeconds, sets: (e as any).sets?.map((s: any) => s.config) ?? [], combo: (e as any).combo, unbroken: (e as any).unbroken, mode: (e as any).mode, components: (e as any).components, kind: (e as any).kind, intervals: (e as any).intervals }));
+      const removed = [...tmplIds].filter((id) => !sessionIds.has(id));
+      if (added.length || removed.length) setEnrollmentDayEdit(p.enrollmentId, p.weekIndex, p.slotDay, { added: added as any, removed });
     }
     setActiveSession(null);
     if (restTimerRef.current) clearInterval(restTimerRef.current);
@@ -2210,7 +2219,7 @@ export default function LiveWorkoutScreen() {
       pathname: '/workout-summary' as any,
       params: { logId, ...(newPrs.length ? { newPrs: JSON.stringify(newPrs) } : {}) },
     });
-  }, [session, user, addWorkoutLog, setActiveSession, setEnrollmentDay]);
+  }, [session, user, addWorkoutLog, setActiveSession, setEnrollmentDay, setEnrollmentDayEdit]);
 
   // Throw the session away: no log is written, so nothing reaches history, PRs or
   // streaks. The mirror of handleFinish minus the log — same teardown, because a

@@ -13,7 +13,7 @@ import { workoutApi } from '@/src/features/workout/api';
 import { confirmDialog } from '@/lib/dialog';
 import DateTimeField from '@/components/DateTimeField';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
-import { programStats, positionToday, dayStatus, ordinalOf, dateForOrdinal } from '@/lib/program-schedule';
+import { programStats, positionToday, dayStatus, ordinalOf, dateForOrdinal, resolveDayExercises } from '@/lib/program-schedule';
 import Colors from '@/constants/colors';
 import { Fonts } from '@/constants/typography';
 
@@ -535,7 +535,7 @@ export default function ProgramBuilderScreen() {
                   </View>
                   {inlineCount > 0 && (
                     <Pressable
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay(day!); }}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay({ ...day!, exercises: resolveDayExercises(enrolled, w, dIdx, (day!.exercises as any[]) || []) } as any); }}
                       hitSlop={8}
                       style={({ pressed }) => [s.peekBtn, { backgroundColor: theme.cardAlt, opacity: pressed ? 0.6 : 1 }]}
                       accessibilityLabel={t('programs.viewAsText', { defaultValue: 'View as text' })}

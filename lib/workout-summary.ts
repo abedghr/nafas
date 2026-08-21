@@ -43,11 +43,17 @@ function compLabel(c: any, u: WeightUnit): string {
   return `${c.reps != null ? c.reps + ' × ' : ''}${c.name}${w}`;
 }
 
-export interface SummaryBlock { title: string; sub?: string; lines: string[] }
+export interface SummaryBlock { title: string; sub?: string; lines: string[]; added?: boolean }
+
+const withAdded = (b: SummaryBlock, e: any): SummaryBlock => (e.addedByUser ? { ...b, added: true, sub: b.sub ? `${b.sub} · added` : 'added' } : b);
 
 // Full detail: one titled block per exercise, one line per set/component.
 export function workoutSummary(exercises: any[], u: WeightUnit): SummaryBlock[] {
-  return (exercises || []).map((e) => {
+  return (exercises || []).map((e) => withAdded(summarizeOne(e, u), e));
+}
+
+function summarizeOne(e: any, u: WeightUnit): SummaryBlock {
+  {
     if (e.kind === 'intervals' && e.intervals) {
       const iv = e.intervals;
       const work = iv.work?.measure === 'distance' ? dist(iv.work.distanceMeters || 0) : secs(iv.work?.durationSeconds || 0);
@@ -68,7 +74,7 @@ export function workoutSummary(exercises: any[], u: WeightUnit): SummaryBlock[] 
     }
     const sets = e.sets || [];
     return { title: e.name, sub: e.muscleGroup, lines: sets.map((s: any, i: number) => `Set ${i + 1}: ${setLabel(s, u)}`) };
-  });
+  }
 }
 
 // Compact: one line per exercise, for the weekly-plan bullet list.

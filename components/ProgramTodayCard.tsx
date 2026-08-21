@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
 import { Type, Fonts } from '@/constants/typography';
-import { programSequence, positionToday, dayStatus, dateForOrdinal, programProgress, type SeqDay } from '@/lib/program-schedule';
+import { programSequence, positionToday, dayStatus, dateForOrdinal, programProgress, resolveDayExercises, type SeqDay } from '@/lib/program-schedule';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
 
 const shortDate = (d: Date) => d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
@@ -146,7 +146,7 @@ export default function ProgramTodayCard() {
                       {isRunnable(sheet) && (
                         <>
                           <SheetBtn icon="play" color={Colors.electric} label={t('programs.startDay', { defaultValue: 'Start' })} onPress={() => { const sd = sheet; setSheet(null); start(sd); }} theme={theme} />
-                          <SheetBtn icon="reader-outline" color={theme.text} label={t('workoutPrep.viewAsText', { defaultValue: 'View as text' })} onPress={() => { setTextDay(sheet.day); setSheet(null); }} theme={theme} />
+                          <SheetBtn icon="reader-outline" color={theme.text} label={t('workoutPrep.viewAsText', { defaultValue: 'View as text' })} onPress={() => { setTextDay({ ...sheet.day, exercises: resolveDayExercises(activeEnrollment, sheet.weekIndex, sheet.dayIndex, (sheet.day.exercises as any[]) || []) }); setSheet(null); }} theme={theme} />
                         </>
                       )}
                       <SheetBtn icon="checkmark-circle" color={Colors.semantic.success} label={t('programs.markDone', { defaultValue: 'Mark done' })} onPress={() => setMarking(true)} theme={theme} />

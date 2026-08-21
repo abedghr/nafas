@@ -20,6 +20,7 @@ import { workoutApi, EQUIPMENT_OPTIONS, MUSCLE_CATEGORIES } from '@/src/features
 import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult, type ComboSetType } from '@/components/ComboBuilderModal';
 import IntervalBuilderModal, { formatDuration } from '@/components/IntervalBuilderModal';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
+import { resolveDayExercises } from '@/lib/program-schedule';
 import ExerciseRow from '@/components/ExerciseRow';
 import ExerciseFilterBar from '@/components/ExerciseFilterBar';
 import { matchExercise } from '@/lib/exercise-search';
@@ -1272,7 +1273,7 @@ export default function PrepareWorkoutScreen() {
   const isRunning = !!run; // running a program day (start live) vs authoring a program day (save only)
   const {
     workoutTemplates, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, setActiveSession,
-    customExercises, addCustomExercise, user, workoutTypes, programs, updateProgram,
+    customExercises, addCustomExercise, user, workoutTypes, programs, updateProgram, activeEnrollment,
   } = useApp();
   const theme = Colors.dark;
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1321,7 +1322,10 @@ export default function PrepareWorkoutScreen() {
     const day = (prog.days ?? []).find(d => d.weekIndex === Number(weekIndex) && d.dayIndex === Number(dayIndex));
     if (day?.exercises?.length) {
       setWorkoutName(day.name || prog.name);
-      setExercises(day.exercises.map((e: any) => ({ ...e, uid: Crypto.randomUUID() })));
+      // apply this enrollment's flagged day edits (added/removed) on top of the template
+      const enr = activeEnrollment && activeEnrollment.programId === programId ? activeEnrollment : null;
+      const resolved = resolveDayExercises(enr, Number(weekIndex), Number(dayIndex), day.exercises as any[]);
+      setExercises(resolved.map((e: any) => ({ ...e, uid: Crypto.randomUUID() })));
     } else if (day?.templateId) {
       const tmpl = workoutTemplates.find(t => t.id === day.templateId);
       if (tmpl) { setWorkoutName(tmpl.name); setExercises(tmpl.exercises.map(e => ({ ...e, uid: Crypto.randomUUID() }))); }
@@ -1542,7 +1546,12 @@ export default function PrepareWorkoutScreen() {
           })),
         };
       }),
-      ...(enrollmentId && slotDay != null ? { program: { enrollmentId, weekIndex: Number(weekIndex), slotDay: Number(slotDay) } } : {}),
+      ...(enrollmentId && slotDay != null ? { program: {
+        enrollmentId, weekIndex: Number(weekIndex), slotDay: Number(slotDay),
+        templateExerciseIds: (programs.find(p => p.id === programId)?.days ?? [])
+          .find(d => d.weekIndex === Number(weekIndex) && d.dayIndex === Number(slotDay))?.exercises
+          ?.map((e: any) => e.exerciseId) ?? [],
+      } } : {}),
     });
     // replace (not push) so Back from the live session never returns to this "new workout" page
     router.replace('/live-workout' as any);
