@@ -28,54 +28,48 @@ export function dateForOrdinal(enr: Enrollment, ordinal: number): Date {
 
 export interface Position { ordinal: number; week: number; dayIndex: number; started: boolean; finishedPlan: boolean }
 
-// Where "today" sits in the plan — sequential from the start date.
-export function positionToday(enr: Enrollment, program: Program, now = new Date()): Position {
-  const seq = programSequence(program);
-  const anchor = startOfDay(new Date(enr.startDate)).getTime();
-  const today = startOfDay(now).getTime();
-  const daysSince = Math.floor((today - anchor) / DAY);
-  const started = today >= anchor;
-  const finishedPlan = seq.length > 0 && daysSince >= seq.length;
-  const idx = Math.max(0, Math.min(Math.max(0, seq.length - 1), daysSince));
-  const cell = seq[idx];
-  return { ordinal: idx, week: cell?.weekIndex ?? 0, dayIndex: cell?.dayIndex ?? 0, started, finishedPlan };
-}
+const cellKey = (week: number, day: number) => `${week}-${day}`;
 
-// The source day (after in-week override swaps) that a weekday slot shows.
-export function sourceDayIndex(enr: Enrollment, week: number, weekday: number): number {
-  const wk = enr.overrides?.[String(week)];
-  const mapped = wk?.[String(weekday)];
-  return typeof mapped === 'number' ? mapped : weekday;
-}
-
-export function resolveDay(program: Program, enr: Enrollment, week: number, weekday: number): ProgramDay | null {
-  const src = sourceDayIndex(enr, week, weekday);
-  return (program.days || []).find((d) => d.weekIndex === week && d.dayIndex === src) ?? null;
-}
-
-export function dayStatus(enr: Enrollment, week: number, weekday: number): 'done' | 'skipped' | null {
-  const c = enr.completions?.find((x) => x.weekIndex === week && x.dayIndex === weekday);
+export function dayStatus(enr: Enrollment, week: number, day: number): 'done' | 'skipped' | 'rest' | null {
+  const c = enr.completions?.find((x) => x.weekIndex === week && x.dayIndex === day);
   return c ? c.status : null;
 }
 
-// Swap two weekdays within a week (writes override entries both ways).
-export function swapDays(enr: Enrollment, week: number, a: number, b: number): Enrollment['overrides'] {
-  const next = { ...(enr.overrides || {}) };
-  const wk = { ...(next[String(week)] || {}) };
-  const srcA = sourceDayIndex(enr, week, a);
-  const srcB = sourceDayIndex(enr, week, b);
-  wk[String(a)] = srcB;
-  wk[String(b)] = srcA;
-  // if a slot maps back to itself, drop the noise
-  if (wk[String(a)] === a) delete wk[String(a)];
-  if (wk[String(b)] === b) delete wk[String(b)];
-  next[String(week)] = wk;
-  return next;
+// Current day = first day in the sequence with no status yet (completion-based,
+// NOT calendar). finishedPlan when every day is done/skipped/rested.
+export function positionToday(enr: Enrollment, program: Program): Position {
+  const seq = programSequence(program);
+  const idx = seq.findIndex((s) => !dayStatus(enr, s.weekIndex, s.dayIndex));
+  const finishedPlan = idx === -1 && seq.length > 0;
+  const ordinal = idx === -1 ? Math.max(0, seq.length - 1) : idx;
+  const cell = seq[ordinal];
+  return { ordinal, week: cell?.weekIndex ?? 0, dayIndex: cell?.dayIndex ?? 0, started: true, finishedPlan };
 }
 
-export interface ProgramStats { done: number; skipped: number; planned: number; adherencePct: number; volumeKg: number; sessions: number; minutes: number }
+export interface Progress { done: number; skipped: number; rest: number; decided: number; total: number; pct: number }
+export function programProgress(enr: Enrollment, program: Program): Progress {
+  const total = programSequence(program).length;
+  const done = enr.completions.filter((c) => c.status === 'done').length;
+  const skipped = enr.completions.filter((c) => c.status === 'skipped').length;
+  const rest = enr.completions.filter((c) => c.status === 'rest').length;
+  const decided = done + skipped + rest;
+  return { done, skipped, rest, decided, total, pct: total ? decided / total : 0 };
+}
 
-// done/skipped counts, adherence (done of decided), and volume from linked logs.
+// Merge a day's template exercises with this enrollment's flagged edits:
+// drop removed ids, append added (each tagged addedByUser).
+export function resolveDayExercises(enr: Enrollment | null, week: number, day: number, base: any[]): any[] {
+  const edit = enr?.dayEdits?.[cellKey(week, day)];
+  if (!edit) return base || [];
+  const removed = new Set(edit.removed || []);
+  const kept = (base || []).filter((e) => !removed.has(e.exerciseId));
+  const added = (edit.added || []).map((e: any) => ({ ...e, addedByUser: true }));
+  return [...kept, ...added];
+}
+
+export interface ProgramStats { done: number; skipped: number; rest: number; planned: number; adherencePct: number; volumeKg: number; sessions: number; minutes: number }
+
+// counts, adherence (done of done+skipped; rest is neutral), volume + time from linked logs.
 export function programStats(enr: Enrollment, program: Program, logs: WorkoutLog[]): ProgramStats {
   let planned = 0;
   for (const d of program.days || []) {
@@ -83,6 +77,7 @@ export function programStats(enr: Enrollment, program: Program, logs: WorkoutLog
   }
   const done = enr.completions.filter((c) => c.status === 'done').length;
   const skipped = enr.completions.filter((c) => c.status === 'skipped').length;
+  const rest = enr.completions.filter((c) => c.status === 'rest').length;
   const decided = done + skipped;
   const adherencePct = decided ? Math.round((done / decided) * 100) : 0;
   const logIds = new Set(enr.completions.map((c) => c.logId).filter(Boolean) as string[]);
@@ -97,5 +92,5 @@ export function programStats(enr: Enrollment, program: Program, logs: WorkoutLog
     if (c.durationMin) minutes += c.durationMin;
     else if (c.logId && logById.get(c.logId)) minutes += logById.get(c.logId)!.durationMinutes || 0;
   }
-  return { done, skipped, planned, adherencePct, volumeKg, sessions, minutes };
+  return { done, skipped, rest, planned, adherencePct, volumeKg, sessions, minutes };
 }

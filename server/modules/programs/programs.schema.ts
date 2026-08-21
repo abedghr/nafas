@@ -47,12 +47,13 @@ export const EnrollSchema = z.object({
 export const EnrollUpdateSchema = z.object({
   startDate: z.string().optional(),
   status: z.enum(["active", "finished", "abandoned"]).optional(),
-  overrides: z.record(z.record(z.number().int().min(0).max(6))).optional(),
+  // per-day flagged deviations, keyed by "<week>-<day>"
+  dayEdits: z.record(z.object({ added: z.array(z.any()).optional(), removed: z.array(z.string()).optional() })).optional(),
 });
 export const DayStatusSchema = z.object({
   weekIndex: z.number().int().min(0),
   dayIndex: z.number().int().min(0).max(6),
-  status: z.enum(["done", "skipped"]),
+  status: z.enum(["done", "skipped", "rest"]),
   completedDate: z.string().nullish(),
   durationMin: z.number().int().min(0).max(1440).nullish(),
   logId: z.string().uuid().nullish(),

@@ -45,8 +45,10 @@ export const programShares = pgTable("program_shares", {
 export const programDays = pgTable("program_days", {
   id: uuid("id").primaryKey().defaultRandom(),
   programId: uuid("program_id").notNull().references(() => programs.id, { onDelete: "cascade" }),
-  weekIndex: integer("week_index").notNull(),   // 0-based
-  dayIndex: integer("day_index").notNull(),      // 0=Mon .. 6=Sun
+  // Day 1..N position = weekIndex*7 + dayIndex (the sequence sorts by this).
+  // Kept as two columns for back-compat with existing data.
+  weekIndex: integer("week_index").notNull(),
+  dayIndex: integer("day_index").notNull(),
   restDay: boolean("rest_day").notNull().default(false),
   templateId: uuid("template_id"),
   // inline workout for this day (when not using a saved template): name + exercises
@@ -68,8 +70,11 @@ export const programEnrollments = pgTable("program_enrollments", {
   programId: uuid("program_id").notNull().references(() => programs.id, { onDelete: "cascade" }),
   startDate: timestamp("start_date").notNull(),
   status: varchar("status", { length: 16 }).notNull().default("active"), // active | finished | abandoned
-  // per-week weekday swaps: { "<weekIndex>": { "<weekday>": <sourceDayIndex> } }
+  // legacy weekday-swap map (unused since sequential/completion model)
   overrides: jsonb("overrides").$type<Record<string, Record<string, number>>>().notNull().default({}),
+  // per-day deviations for THIS enrollment, keyed by program-day id:
+  // { "<dayId>": { added: TemplateExercise[], removed: string[] } } — flagged edits.
+  dayEdits: jsonb("day_edits").$type<Record<string, { added?: unknown[]; removed?: string[] }>>().notNull().default({}),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   finishedAt: timestamp("finished_at"),
 }, (t) => ({ userIdx: index("enroll_user_idx").on(t.userId, t.status) }));
