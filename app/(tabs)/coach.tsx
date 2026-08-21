@@ -13,6 +13,7 @@ import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import ProgramTodayCard from '@/components/ProgramTodayCard';
+import ProgramOverviewModal from '@/components/ProgramOverviewModal';
 import { AppHeader, HeroCard, StatTile, ActivityRings, CountUp, Button } from '@/components/ui';
 import { Fonts, Type } from '@/constants/typography';
 import { toDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
@@ -206,6 +207,7 @@ export default function CoachScreen() {
   const theme = isDark ? Colors.dark : Colors.light;
   const [activeTab, setActiveTab] = useState<'dashboard' | 'insights'>('dashboard');
   const [showStart, setShowStart] = useState(false);
+  const [showOverview, setShowOverview] = useState(false);
   const [tipIndex] = useState(Math.floor(Math.random() * aiTips.length));
 
   // Insights/summary run off the real server-backed logs (normalized to the
@@ -279,7 +281,7 @@ export default function CoachScreen() {
             name={user?.name || t('workoutTab.athlete')}
             greeting={new Date().getHours() < 12 ? t('workoutTab.goodMorning') : new Date().getHours() < 18 ? t('workoutTab.goodAfternoon') : t('workoutTab.goodEvening')}
             actionIcon="calendar-outline"
-            onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/programs' as any); }}
+            onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); activeEnrollment ? setShowOverview(true) : router.push('/programs' as any); }}
           />
 
           <CompleteProfileBanner />
@@ -325,6 +327,28 @@ export default function CoachScreen() {
                         <Ionicons name="arrow-forward" size={16} color="#fff" />
                       </View>
                     </LinearGradient>
+                  </Pressable>
+                </Animated.View>
+              )}
+
+              {activeEnrollment ? (
+                <Animated.View entering={FadeInDown.duration(400)}>
+                  <ProgramTodayCard />
+                </Animated.View>
+              ) : (
+                <Animated.View entering={FadeInDown.duration(400)} style={{ paddingHorizontal: 20 }}>
+                  <Pressable
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/programs' as any); }}
+                    style={({ pressed }) => [s.noProgramCard, { backgroundColor: theme.card, opacity: pressed ? 0.9 : 1 }]}
+                  >
+                    <View style={[s.aiSmallBadge, { backgroundColor: Colors.electric + '22', width: 34, height: 34 }]}>
+                      <Ionicons name="flag-outline" size={17} color={Colors.electric} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.planPreviewTitle, { color: theme.text }]}>{t('programs.noActiveProgram', { defaultValue: 'No active program' })}</Text>
+                      <Text style={[s.planPreviewSub, { color: theme.textMuted }]}>{t('programs.startOneToTrack', { defaultValue: 'Start a program to follow day by day' })}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
                   </Pressable>
                 </Animated.View>
               )}
@@ -507,32 +531,12 @@ export default function CoachScreen() {
                   </View>
                 </Animated.View>
               ))}
-
-              {activeEnrollment ? (
-                <Animated.View entering={FadeInDown.duration(400).delay(600)}>
-                  <ProgramTodayCard />
-                </Animated.View>
-              ) : (
-                <Animated.View entering={FadeInDown.duration(400).delay(600)} style={{ paddingHorizontal: 20 }}>
-                  <Pressable
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/programs' as any); }}
-                    style={({ pressed }) => [s.noProgramCard, { backgroundColor: theme.card, opacity: pressed ? 0.9 : 1 }]}
-                  >
-                    <View style={[s.aiSmallBadge, { backgroundColor: Colors.electric + '22', width: 34, height: 34 }]}>
-                      <Ionicons name="flag-outline" size={17} color={Colors.electric} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[s.planPreviewTitle, { color: theme.text }]}>{t('programs.noActiveProgram', { defaultValue: 'No active program' })}</Text>
-                      <Text style={[s.planPreviewSub, { color: theme.textMuted }]}>{t('programs.startOneToTrack', { defaultValue: 'Start a program to follow day by day' })}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
-                  </Pressable>
-                </Animated.View>
-              )}
             </View>
           )}
         </View>
       </ScrollView>
+
+      <ProgramOverviewModal visible={showOverview} onClose={() => setShowOverview(false)} />
 
       {/* start-workout chooser: program vs new */}
       <Modal visible={showStart} transparent animationType="fade" onRequestClose={() => setShowStart(false)}>

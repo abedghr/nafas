@@ -415,13 +415,14 @@ export default function ProgramBuilderScreen() {
               </View>
             );
           }
+          const canStart = orderedDays.length > 0;
           return (
             <Pressable
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); startProgram(program.id, new Date().toISOString()); }}
-              style={({ pressed }) => [s.startProgramBtn, { backgroundColor: Colors.electric, opacity: pressed ? 0.9 : 1 }]}
+              onPress={() => { if (!canStart) { setMode('edit'); return; } Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); startProgram(program.id, new Date().toISOString()); }}
+              style={({ pressed }) => [s.startProgramBtn, { backgroundColor: canStart ? Colors.electric : theme.cardAlt, opacity: pressed ? 0.9 : 1 }]}
             >
-              <Ionicons name="flag" size={18} color="#04120B" />
-              <Text style={s.startProgramText}>{t('programs.startProgram', { defaultValue: 'Start this program' })}</Text>
+              <Ionicons name={canStart ? 'flag' : 'add'} size={18} color={canStart ? '#04120B' : Colors.electric} />
+              <Text style={[s.startProgramText, canStart ? null : { color: Colors.electric }]}>{canStart ? t('programs.startProgram', { defaultValue: 'Start this program' }) : t('programs.addDaysFirst', { defaultValue: 'Add days first' })}</Text>
             </Pressable>
           );
         })()}
