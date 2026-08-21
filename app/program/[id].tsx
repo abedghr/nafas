@@ -8,21 +8,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
-import { useApp, type Program, type ProgramDay, type WeekMeta } from '@/lib/app-context';
+import { useApp, type Program, type ProgramDay } from '@/lib/app-context';
 import { workoutApi } from '@/src/features/workout/api';
 import { confirmDialog } from '@/lib/dialog';
 import DateTimeField from '@/components/DateTimeField';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
-import { programStats, positionToday, dayStatus, ordinalOf, dateForOrdinal, resolveDayExercises } from '@/lib/program-schedule';
+import { programStats, positionToday, dayStatus, ordinalOf, dateForOrdinal, resolveDayExercises, programSequence } from '@/lib/program-schedule';
 import Colors from '@/constants/colors';
 import { Fonts } from '@/constants/typography';
 
-const DAY_KEYS = ['weekdayMon', 'weekdayTue', 'weekdayWed', 'weekdayThu', 'weekdayFri', 'weekdaySat', 'weekdaySun'] as const;
 
 export default function ProgramBuilderScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>();
   const { programs, updateProgram, workoutTemplates, isDark, user, enrollments, activeEnrollment, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, workoutLogs, weightUnit } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
@@ -64,17 +63,6 @@ export default function ProgramBuilderScreen() {
       ...patch,
     });
   }, [program, updateProgram]);
-
-  // per-week name/notes — merge one week's entry into the weekMeta array
-  const commitWeekMeta = useCallback((w: number, patch: Partial<Pick<WeekMeta, 'name' | 'notes'>>) => {
-    if (!program) return;
-    const existing = program.weekMeta ?? [];
-    const cur = existing.find(m => m.index === w);
-    const merged: WeekMeta = { index: w, name: cur?.name ?? '', notes: cur?.notes ?? '', ...patch };
-    if (cur && cur.name === merged.name && cur.notes === merged.notes) return; // no-op
-    commit({ weekMeta: [...existing.filter(m => m.index !== w), merged] });
-  }, [program, commit]);
-  const weekMetaFor = useCallback((w: number) => (program?.weekMeta ?? []).find(m => m.index === w), [program]);
 
   // upsert a day by (weekIndex, dayIndex) into the days array
   const upsertDay = useCallback((day: ProgramDay) => {
@@ -132,33 +120,45 @@ export default function ProgramBuilderScreen() {
     setEditing(null);
   };
 
-  const addWeek = () => {
-    if (!program || program.weeks >= 52) return;
+  // Days are a flat sequence; position = weekIndex*7 + dayIndex. Any mutation
+  // re-indexes to keep positions contiguous (Day 1..N).
+  const reindexAndCommit = useCallback((days: ProgramDay[]) => {
+    const sorted = [...days].sort((a, b) => (a.weekIndex * 7 + a.dayIndex) - (b.weekIndex * 7 + b.dayIndex));
+    const norm = sorted.map((d, i) => ({ ...d, weekIndex: Math.floor(i / 7), dayIndex: i % 7 }));
+    commit({ days: norm, weeks: Math.max(1, Math.ceil(norm.length / 7)), weekMeta: [] });
+  }, [commit]);
+
+  const addDay = () => {
+    if (!program) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    commit({ weeks: program.weeks + 1 });
+    const n = (program.days ?? []).length;
+    openDay(Math.floor(n / 7), n % 7); // blank editor at the next position; Save creates it
   };
 
-  const removeWeek = async (k: number) => {
-    if (!program || program.weeks <= 1) return;
-    const hasPlanned = (program.days ?? []).some(d => d.weekIndex === k);
-    if (hasPlanned) {
-      const ok = await confirmDialog({
-        title: t('programs.removeWeek'),
-        message: t('programs.removeWeekConfirm'),
-        destructive: true,
-        confirmText: t('programs.delete'),
-        cancelText: t('programs.cancel'),
-      });
+  const deleteDayAt = async (week: number, day: number) => {
+    if (!program) return;
+    const d = findDay(week, day);
+    if (d && (d.restDay || (d.exercises?.length ?? 0) > 0 || d.templateId)) {
+      const ok = await confirmDialog({ title: t('programs.deleteDay', { defaultValue: 'Delete this day?' }), destructive: true, confirmText: t('programs.delete'), cancelText: t('programs.cancel') });
       if (!ok) return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const days = (program.days ?? [])
-      .filter(d => d.weekIndex !== k)
-      .map(d => (d.weekIndex > k ? { ...d, weekIndex: d.weekIndex - 1 } : d));
-    const weekMeta = (program.weekMeta ?? [])
-      .filter(m => m.index !== k)
-      .map(m => (m.index > k ? { ...m, index: m.index - 1 } : m));
-    commit({ days, weeks: program.weeks - 1, weekMeta });
+    reindexAndCommit((program.days ?? []).filter(x => !(x.weekIndex === week && x.dayIndex === day)));
+  };
+
+  const moveDay = (ordinal: number, dir: -1 | 1) => {
+    if (!program) return;
+    const seq = programSequence(program);
+    const j = ordinal + dir;
+    if (j < 0 || j >= seq.length) return;
+    Haptics.selectionAsync();
+    const a = seq[ordinal], b = seq[j];
+    const days = (program.days ?? []).map(d => {
+      if (d.weekIndex === a.weekIndex && d.dayIndex === a.dayIndex) return { ...d, weekIndex: b.weekIndex, dayIndex: b.dayIndex };
+      if (d.weekIndex === b.weekIndex && d.dayIndex === b.dayIndex) return { ...d, weekIndex: a.weekIndex, dayIndex: a.dayIndex };
+      return d;
+    });
+    reindexAndCommit(days);
   };
 
   const startDay = (day: ProgramDay) => {
@@ -192,7 +192,7 @@ export default function ProgramBuilderScreen() {
   }, [program, user]);
 
   // view = use the program (start each day); edit = author it. Default to use.
-  const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [mode, setMode] = useState<'view' | 'edit'>(edit ? 'edit' : 'view');
   const isEdit = mode === 'edit';
 
   const [shareOpen, setShareOpen] = useState(false);
@@ -286,6 +286,7 @@ export default function ProgramBuilderScreen() {
   // enrollment overlay for the week grid: highlight today + show done/skipped
   const enrolled = activeEnrollment && activeEnrollment.programId === program.id ? activeEnrollment : null;
   const todayPos = enrolled ? positionToday(enrolled, program) : null;
+  const orderedDays = programSequence(program);
 
   return (
     <View style={[s.container, { backgroundColor: theme.background }]}>
@@ -439,151 +440,105 @@ export default function ProgramBuilderScreen() {
           </Pressable>
         )}
 
-        {/* weeks grid */}
-        {Array.from({ length: program.weeks }, (_, w) => (
-          <View key={w} style={[s.weekCard, { backgroundColor: theme.card }]}>
-            <View style={s.weekHeader}>
-              <Text style={[s.weekTitle, { color: Colors.primary }]}>
-                {t('programs.weekN', { n: w + 1 })}{!isEdit && weekMetaFor(w)?.name ? ` · ${weekMetaFor(w)!.name}` : ''}
-              </Text>
-              {isEdit && program.weeks > 1 && (
+        {/* day list */}
+        {orderedDays.length === 0 && !isEdit && (
+          <View style={[s.viewSummary, { backgroundColor: theme.card, alignItems: 'center' }]}>
+            <Text style={[s.viewNotes, { color: theme.textMuted, marginTop: 0 }]}>{t('programs.noDaysYet', { defaultValue: 'No days in this program yet.' })}</Text>
+          </View>
+        )}
+        {orderedDays.map((sd) => {
+          const w = sd.weekIndex, dIdx = sd.dayIndex, ord = sd.ordinal, day = sd.day;
+          const tmplName = templateName(day.templateId);
+          const inlineCount = day.exercises?.length ?? 0;
+          const planned = !day.restDay && (!!day.templateId || inlineCount > 0);
+          const title = day.restDay
+            ? t('programs.restDay')
+            : tmplName || (inlineCount > 0 ? (day.name || t('programs.buildWorkout')) : (day.label || t('programs.emptyDay', { defaultValue: 'Empty day' })));
+          const cStatus = enrolled && !isEdit ? dayStatus(enrolled, w, dIdx) : null;
+          const isToday = !!todayPos && !isEdit && !todayPos.finishedPlan && todayPos.week === w && todayPos.dayIndex === dIdx;
+          const statusCol = cStatus === 'done' ? Colors.semantic.success : cStatus === 'skipped' ? Colors.semantic.warn : cStatus === 'rest' ? theme.textSecondary : null;
+          const dateStr = enrolled && !isEdit ? dateForOrdinal(enrolled, ord).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
+          const onRow = isEdit
+            ? () => openDay(w, dIdx)
+            : (enrolled && planned)
+              ? () => { Haptics.selectionAsync(); setMarking(false); setMarkDur(''); setDayAction({ week: w, day: dIdx }); }
+              : (planned ? () => startDay(day) : undefined);
+          const sub = [
+            dateStr,
+            day.restDay ? '' : inlineCount > 0 ? t('programs.exercisesN', { n: inlineCount }) : day.label ? day.label : t('programs.tapToBuild', { defaultValue: 'Tap to build' }),
+          ].filter(Boolean).join('  ·  ');
+          return (
+            <Pressable
+              key={ord}
+              onPress={onRow}
+              disabled={!onRow}
+              style={({ pressed }) => [
+                s.dayRow2,
+                { backgroundColor: pressed && onRow ? theme.cardAlt : theme.card, borderColor: theme.border },
+                planned && { borderColor: Colors.electric + '40' },
+                statusCol && { borderColor: statusCol + '77' },
+                isToday && { borderColor: Colors.electric, borderWidth: 1.5 },
+              ]}
+            >
+              <View style={[s.dayBadge, {
+                backgroundColor: day.restDay ? theme.cardAlt : Colors.electric,
+                borderColor: day.restDay ? theme.border : 'transparent',
+                borderWidth: day.restDay ? 1 : 0,
+              }]}>
+                <Text style={[s.dayBadgeText, { color: day.restDay ? theme.textMuted : '#04120B' }]}>{`D${ord + 1}`}</Text>
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[s.dayTitle, { color: day.restDay ? theme.textSecondary : theme.text, flexShrink: 1 }]} numberOfLines={1}>{title}</Text>
+                  {isToday && (
+                    <View style={[s.todayTag, { backgroundColor: Colors.electric }]}>
+                      <Text style={s.todayTagText}>{t('programs.today', { defaultValue: 'TODAY' })}</Text>
+                    </View>
+                  )}
+                </View>
+                {!!sub && <Text style={[s.daySub, { color: theme.textMuted }]} numberOfLines={1}>{sub}</Text>}
+              </View>
+              {inlineCount > 0 && (
                 <Pressable
-                  onPress={() => removeWeek(w)}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay({ ...day, exercises: resolveDayExercises(enrolled, w, dIdx, (day.exercises as any[]) || []) } as any); }}
                   hitSlop={8}
-                  accessibilityLabel={t('programs.removeWeek')}
-                  style={({ pressed }) => [s.weekTrashBtn, { opacity: pressed ? 0.6 : 1 }]}
+                  style={({ pressed }) => [s.peekBtn, { backgroundColor: theme.cardAlt, opacity: pressed ? 0.6 : 1 }]}
+                  accessibilityLabel={t('programs.viewAsText', { defaultValue: 'View as text' })}
                 >
-                  <Ionicons name="trash-outline" size={15} color={theme.textMuted} />
+                  <Ionicons name="list-outline" size={16} color={Colors.electric} />
                 </Pressable>
               )}
-            </View>
-            {isEdit ? (
-              <WeekMetaFields
-                key={`wm-${program.id}-${w}`}
-                meta={weekMetaFor(w)}
-                theme={theme}
-                onCommitName={(v) => commitWeekMeta(w, { name: v })}
-                onCommitNotes={(v) => commitWeekMeta(w, { notes: v })}
-              />
-            ) : (!!weekMetaFor(w)?.notes && (
-              <Text style={[s.viewNotes, { color: theme.textMuted, marginTop: 0, marginBottom: 8 }]}>{weekMetaFor(w)!.notes}</Text>
-            ))}
-            {DAY_KEYS.map((dk, dIdx) => {
-              const day = findDay(w, dIdx);
-              const tmplName = templateName(day?.templateId);
-              const inlineCount = day?.exercises?.length ?? 0;
-              const planned = !!day && !day.restDay && (!!day.templateId || inlineCount > 0);
-              let stateText: string;
-              let stateColor = theme.textMuted;
-              if (day?.restDay) {
-                stateText = t('programs.restDay');
-                stateColor = theme.textSecondary;
-              } else if (tmplName) {
-                stateText = tmplName;
-                stateColor = theme.text;
-              } else if (inlineCount > 0) {
-                stateText = `${day?.name || t('programs.buildWorkout')} · ${t('programs.exercisesN', { n: inlineCount })}`;
-                stateColor = theme.text;
-              } else if (day?.label) {
-                stateText = day.label;
-                stateColor = theme.text;
-              } else {
-                stateText = '—';
-              }
-              const title = day?.restDay
-                ? t('programs.restDay')
-                : tmplName || (inlineCount > 0 ? (day?.name || t('programs.buildWorkout')) : (day?.label || t('programs.addWorkout', { defaultValue: 'Add workout' })));
-              const empty = !day?.restDay && !planned && !day?.label;
-              // view = tap a day; enrolled → action sheet, else start it. edit = author it.
-              const onRow = isEdit
-                ? () => openDay(w, dIdx)
-                : (enrolled && planned)
-                  ? () => { Haptics.selectionAsync(); setMarking(false); setMarkDur(''); setDayAction({ week: w, day: dIdx }); }
-                  : (planned ? () => startDay(day!) : undefined);
-              // enrollment overlay
-              const cStatus = enrolled && !isEdit ? dayStatus(enrolled, w, dIdx) : null;
-              const isToday = !!todayPos && !isEdit && todayPos.started && !todayPos.finishedPlan && todayPos.week === w && todayPos.dayIndex === dIdx;
-              const statusCol = cStatus === 'done' ? Colors.semantic.success : cStatus === 'skipped' ? Colors.semantic.warn : null;
-              const ord = enrolled && !isEdit ? ordinalOf(program, w, dIdx) : -1;
-              const dateStr = ord >= 0 && enrolled ? dateForOrdinal(enrolled, ord).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
-              return (
-                <Pressable
-                  key={dk}
-                  onPress={onRow}
-                  disabled={!onRow}
-                  style={({ pressed }) => [
-                    s.dayRow2,
-                    { backgroundColor: pressed && onRow ? theme.cardAlt : 'transparent', borderColor: theme.border, opacity: !isEdit && empty ? 0.55 : 1 },
-                    planned && { borderColor: Colors.electric + '55' },
-                    statusCol && { borderColor: statusCol + '77' },
-                    isToday && { borderColor: Colors.electric, borderWidth: 1.5, backgroundColor: Colors.electric + '14' },
-                  ]}
-                >
-                  <View style={[s.dayBadge, {
-                    backgroundColor: planned ? Colors.electric : theme.cardAlt,
-                    borderColor: day?.restDay ? theme.border : 'transparent',
-                    borderWidth: day?.restDay ? 1 : 0,
-                  }]}>
-                    <Text style={[s.dayBadgeText, { color: planned ? '#04120B' : theme.textMuted }]}>{ord >= 0 ? `D${ord + 1}` : t(`workoutTab.${dk}`)}</Text>
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={[s.dayTitle, { color: empty ? theme.textMuted : day?.restDay ? theme.textSecondary : theme.text, flexShrink: 1 }]} numberOfLines={1}>{empty && !isEdit ? '—' : title}</Text>
-                      {isToday && (
-                        <View style={[s.todayTag, { backgroundColor: Colors.electric }]}>
-                          <Text style={s.todayTagText}>{t('programs.today', { defaultValue: 'TODAY' })}</Text>
-                        </View>
-                      )}
-                    </View>
-                    {(planned && inlineCount > 0) || dateStr ? (
-                      <Text style={[s.daySub, { color: theme.textMuted }]} numberOfLines={1}>
-                        {[dateStr, planned && inlineCount > 0 ? t('programs.exercisesN', { n: inlineCount }) : ''].filter(Boolean).join('  ·  ')}
-                      </Text>
-                    ) : null}
-                  </View>
-                  {inlineCount > 0 && (
-                    <Pressable
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay({ ...day!, exercises: resolveDayExercises(enrolled, w, dIdx, (day!.exercises as any[]) || []) } as any); }}
-                      hitSlop={8}
-                      style={({ pressed }) => [s.peekBtn, { backgroundColor: theme.cardAlt, opacity: pressed ? 0.6 : 1 }]}
-                      accessibilityLabel={t('programs.viewAsText', { defaultValue: 'View as text' })}
-                    >
-                      <Ionicons name="list-outline" size={16} color={Colors.electric} />
-                    </Pressable>
-                  )}
-                  {cStatus ? (
-                    <View style={[s.statusChip, { backgroundColor: statusCol! + '22' }]}>
-                      <Ionicons name={cStatus === 'done' ? 'checkmark-circle' : 'close-circle'} size={13} color={statusCol!} />
-                      <Text style={[s.statusChipText, { color: statusCol! }]}>{t(`programs.${cStatus}`, { defaultValue: cStatus })}</Text>
-                    </View>
-                  ) : planned && !isEdit ? (
-                    <View style={[s.startBtn, { backgroundColor: Colors.electric }]}>
-                      <Ionicons name="play" size={11} color="#04120B" />
-                      <Text style={[s.startBtnText, { color: '#04120B' }]}>{t('programs.startDay')}</Text>
-                    </View>
-                  ) : day?.restDay ? (
-                    <Ionicons name="moon" size={15} color={theme.textSecondary} />
-                  ) : isEdit ? (
-                    <Ionicons name={empty ? 'add-circle-outline' : 'chevron-forward'} size={empty ? 18 : 15} color={empty ? Colors.electric : theme.textMuted} />
-                  ) : null}
-                </Pressable>
-              );
-            })}
-          </View>
-        ))}
+              {isEdit ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Pressable onPress={() => moveDay(ord, -1)} disabled={ord === 0} hitSlop={4} style={{ padding: 3, opacity: ord === 0 ? 0.3 : 1 }}><Ionicons name="chevron-up" size={18} color={theme.textSecondary} /></Pressable>
+                  <Pressable onPress={() => moveDay(ord, 1)} disabled={ord === orderedDays.length - 1} hitSlop={4} style={{ padding: 3, opacity: ord === orderedDays.length - 1 ? 0.3 : 1 }}><Ionicons name="chevron-down" size={18} color={theme.textSecondary} /></Pressable>
+                  <Pressable onPress={() => deleteDayAt(w, dIdx)} hitSlop={4} style={{ padding: 3 }}><Ionicons name="trash-outline" size={17} color={theme.textMuted} /></Pressable>
+                </View>
+              ) : cStatus ? (
+                <View style={[s.statusChip, { backgroundColor: statusCol! + '22' }]}>
+                  <Ionicons name={cStatus === 'done' ? 'checkmark-circle' : cStatus === 'skipped' ? 'close-circle' : 'moon'} size={13} color={statusCol!} />
+                  <Text style={[s.statusChipText, { color: statusCol! }]}>{t(`programs.${cStatus}`, { defaultValue: cStatus })}</Text>
+                </View>
+              ) : planned ? (
+                <View style={[s.startBtn, { backgroundColor: Colors.electric }]}>
+                  <Ionicons name="play" size={11} color="#04120B" />
+                  <Text style={[s.startBtnText, { color: '#04120B' }]}>{t('programs.startDay')}</Text>
+                </View>
+              ) : day.restDay ? (
+                <Ionicons name="moon" size={15} color={theme.textSecondary} />
+              ) : null}
+            </Pressable>
+          );
+        })}
 
-        {/* add week — edit mode only */}
+        {/* add day — edit mode only */}
         {isEdit && (
           <Pressable
-            onPress={addWeek}
-            disabled={program.weeks >= 52}
-            style={({ pressed }) => [
-              s.addWeekBtn,
-              { backgroundColor: theme.card, borderColor: Colors.primary + '40', opacity: program.weeks >= 52 ? 0.4 : pressed ? 0.85 : 1 },
-            ]}
+            onPress={addDay}
+            style={({ pressed }) => [s.addWeekBtn, { backgroundColor: theme.card, borderColor: Colors.electric + '55', opacity: pressed ? 0.85 : 1 }]}
           >
-            <Ionicons name="add" size={18} color={Colors.primary} />
-            <Text style={[s.addWeekText, { color: Colors.primary }]}>{t('programs.addWeek')}</Text>
+            <Ionicons name="add" size={18} color={Colors.electric} />
+            <Text style={[s.addWeekText, { color: Colors.electric }]}>{t('programs.addDay', { defaultValue: 'Add day' })}</Text>
           </Pressable>
         )}
       </ScrollView>
@@ -611,7 +566,7 @@ export default function ProgramBuilderScreen() {
               return (
                 <>
                   <Text style={[s.actionTitle, { color: theme.text }]}>
-                    {t('programs.weekN', { n: dayAction.week + 1 })} · {t(`workoutTab.${DAY_KEYS[dayAction.day]}`)}{d?.name ? ` · ${d.name}` : ''}
+                    {t('programs.dayN', { n: dayAction.week * 7 + dayAction.day + 1, defaultValue: `Day ${dayAction.week * 7 + dayAction.day + 1}` })}{d?.name ? ` · ${d.name}` : ''}
                   </Text>
                   {marking ? (
                     <>
@@ -661,7 +616,7 @@ export default function ProgramBuilderScreen() {
             <View style={s.sheetHeader}>
               <Text style={[s.sheetTitle, { color: theme.text }]}>
                 {editing
-                  ? `${t('programs.weekN', { n: editing.week + 1 })} · ${t(`workoutTab.${DAY_KEYS[editing.day]}`)}`
+                  ? t('programs.dayN', { n: editing.week * 7 + editing.day + 1, defaultValue: `Day ${editing.week * 7 + editing.day + 1}` })
                   : t('programs.planDay')}
               </Text>
               <Pressable onPress={() => setEditing(null)} hitSlop={8}>
@@ -1000,38 +955,6 @@ export default function ProgramBuilderScreen() {
 // Per-week name + notes. Local-first (typed value is source of truth) and committed
 // on blur, matching the program name/notes fields above. Keyed by program+week so it
 // re-seeds when the program changes.
-function WeekMetaFields({ meta, theme, onCommitName, onCommitNotes }: {
-  meta?: WeekMeta;
-  theme: typeof Colors.dark;
-  onCommitName: (v: string) => void;
-  onCommitNotes: (v: string) => void;
-}) {
-  const { t } = useTranslation();
-  const [name, setName] = useState(meta?.name ?? '');
-  const [notes, setNotes] = useState(meta?.notes ?? '');
-  return (
-    <View style={s.weekMetaWrap}>
-      <TextInput
-        style={[s.weekNameInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-        value={name}
-        onChangeText={setName}
-        onBlur={() => onCommitName(name.trim())}
-        placeholder={t('programs.weekNamePlaceholder', { defaultValue: 'Week name (optional)' })}
-        placeholderTextColor={theme.textMuted}
-      />
-      <TextInput
-        style={[s.weekNotesInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-        value={notes}
-        onChangeText={setNotes}
-        onBlur={() => onCommitNotes(notes.trim())}
-        placeholder={t('programs.weekNotesPlaceholder', { defaultValue: 'Notes for this week (optional)' })}
-        placeholderTextColor={theme.textMuted}
-        multiline
-      />
-    </View>
-  );
-}
-
 function ActBtn({ icon, color, label, onPress, theme }: { icon: any; color: string; label: string; onPress: () => void; theme: any }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [s.actBtn, { backgroundColor: pressed ? theme.cardAlt : 'transparent' }]}>

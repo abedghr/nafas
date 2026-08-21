@@ -32,8 +32,8 @@ export default function ProgramsScreen() {
 
   const handleNewProgram = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const id = addProgram({ name: 'New Program', startDate: null, weeks: 4, notes: '', days: [] });
-    router.push(('/program/' + id) as any);
+    const id = addProgram({ name: 'New Program', startDate: null, weeks: 1, notes: '', days: [] });
+    router.push(('/program/' + id + '?edit=1') as any);
   };
 
   const handleDelete = async (p: Program) => {
@@ -125,7 +125,8 @@ export default function ProgramsScreen() {
         ) : (
           programs.map((p: any, index) => {
             const planned = plannedCount(p);
-            const progress = p.weeks > 0 ? Math.min(1, planned / (p.weeks * 7)) : 0;
+            const totalDays = p.days?.length ?? 0;
+            const progress = totalDays > 0 ? Math.min(1, planned / totalDays) : 0;
             const expired = !!p.expired;
             const received = !p.canShare && p.canShare !== undefined;
             return (
@@ -139,7 +140,7 @@ export default function ProgramsScreen() {
                     <View style={{ flex: 1 }}>
                       <Display variant="d3" color={theme.text} numberOfLines={1}>{p.name}</Display>
                       <View style={s.chipRow}>
-                        <Chip label={t('programs.weeksCount', { n: p.weeks })} icon="calendar-outline" />
+                        <Chip label={t('programs.daysCount', { n: totalDays, defaultValue: `${totalDays} days` })} icon="calendar-outline" />
                         {received && <Chip label={t('programs.shared', { defaultValue: 'Shared' })} icon="gift-outline" />}
                         {expired && <Chip label={t('programs.expired', { defaultValue: 'Expired' })} icon="time-outline" />}
                       </View>
