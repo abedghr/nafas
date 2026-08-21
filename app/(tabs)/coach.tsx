@@ -300,7 +300,7 @@ export default function CoachScreen() {
           </View>
 
           {activeTab === 'dashboard' && (
-            <View>
+            <View style={{ gap: 16, paddingTop: 6 }}>
               {activeSession && (
                 <Animated.View entering={FadeInDown.duration(400)}>
                   <Pressable
@@ -620,9 +620,9 @@ const s = StyleSheet.create({
   aiTipBadge: { width: 28, height: 28, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   aiTipTitle: { fontSize: 15, fontFamily: 'Rubik_600SemiBold' },
   aiTipText: { fontSize: 14, fontFamily: 'Rubik_400Regular', lineHeight: 21 },
-  sectionTitle: { fontSize: 17, fontFamily: 'Rubik_600SemiBold', paddingHorizontal: 20, marginTop: 24, marginBottom: 12 },
+  sectionTitle: { fontSize: 17, fontFamily: 'Rubik_600SemiBold', paddingHorizontal: 20, marginTop: 8, marginBottom: 4 },
   programsCard: {
-    marginHorizontal: 20, marginTop: 16, borderRadius: 16, padding: 14,
+    marginHorizontal: 20, borderRadius: 16, padding: 14,
     flexDirection: 'row', alignItems: 'center', gap: 12,
   },
   programsCardIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
@@ -777,7 +777,7 @@ const s = StyleSheet.create({
   },
   saveBtnText: { color: '#fff', fontSize: 16, fontFamily: 'Rubik_600SemiBold' },
   resumeBanner: {
-    marginHorizontal: 20, marginBottom: 16, borderRadius: 16, padding: 16,
+    marginHorizontal: 20, borderRadius: 16, padding: 16,
     flexDirection: 'row', alignItems: 'center', gap: 12,
   },
   resumeBannerPulse: {
@@ -814,7 +814,7 @@ const s = StyleSheet.create({
     paddingVertical: 12, borderRadius: 12, borderWidth: 1,
   },
   secondaryCtaText: { fontSize: 14, fontFamily: 'Rubik_600SemiBold' },
-  ringsCard: { flexDirection: 'row', alignItems: 'center', gap: 20, marginHorizontal: 20, marginTop: 14, padding: 18, borderRadius: 20 },
+  ringsCard: { flexDirection: 'row', alignItems: 'center', gap: 20, marginHorizontal: 20, padding: 18, borderRadius: 20 },
   ringsLegend: { flex: 1, gap: 12 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   legendDot: { width: 9, height: 9, borderRadius: 5 },

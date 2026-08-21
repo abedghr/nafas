@@ -777,6 +777,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     workoutApi.enrollments().then(srv => { if (Array.isArray(srv)) setEnrollments(srv as any); }).catch(() => {});
   }, []);
 
+  // The mount fetch can run before a fresh login's token exists (leaving programs/
+  // enrollments empty until a reload). Refetch once the user is known.
+  useEffect(() => {
+    if (!user?.id) return;
+    refreshPrograms();
+    refreshEnrollments();
+  }, [user?.id, refreshPrograms, refreshEnrollments]);
+
   // Start a program for a period. Server retires any prior active enrollment.
   const startProgram = useCallback(async (programId: string, startDate: string) => {
     const created: any = await workoutApi.enroll(programId, startDate);
