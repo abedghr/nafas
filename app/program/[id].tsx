@@ -403,6 +403,14 @@ export default function ProgramBuilderScreen() {
                     </View>
                   );
                 })()}
+                <Pressable
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/program-history/${program.id}` as any); }}
+                  style={({ pressed }) => [s.historyBtn, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}
+                >
+                  <Ionicons name="time-outline" size={16} color={theme.textSecondary} />
+                  <Text style={[s.historyBtnText, { color: theme.textSecondary }]}>{t('programs.viewHistory', { defaultValue: 'View history' })}</Text>
+                  <Ionicons name="chevron-forward" size={15} color={theme.textMuted} />
+                </Pressable>
               </View>
             );
           }
@@ -1107,6 +1115,8 @@ const s = StyleSheet.create({
   statTile: { flex: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center', gap: 3 },
   statValue: { fontFamily: Fonts.monoBold, fontSize: 15 },
   statLabel: { fontSize: 10, fontWeight: '600' },
+  historyBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginTop: 2 },
+  historyBtnText: { flex: 1, fontSize: 13.5, fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet: {
     height: '88%', borderTopLeftRadius: 24, borderTopRightRadius: 24,
