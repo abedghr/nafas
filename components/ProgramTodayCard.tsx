@@ -10,8 +10,8 @@ import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
-import { Type } from '@/constants/typography';
-import { programSequence, positionToday, dayStatus, dateForOrdinal, type SeqDay } from '@/lib/program-schedule';
+import { Type, Fonts } from '@/constants/typography';
+import { programSequence, positionToday, dayStatus, dateForOrdinal, programProgress, type SeqDay } from '@/lib/program-schedule';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
 
 const shortDate = (d: Date) => d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
@@ -32,6 +32,7 @@ export default function ProgramTodayCard() {
   const seq = programSequence(program);
   const pos = positionToday(activeEnrollment, program);
   const today = seq[pos.ordinal];
+  const prog = programProgress(activeEnrollment, program);
   const stColor = (st: string | null) => st === 'done' ? Colors.semantic.success : st === 'skipped' ? Colors.semantic.warn : theme.textMuted;
 
   const start = (sd: SeqDay) => {
@@ -50,6 +51,17 @@ export default function ProgramTodayCard() {
           <Text style={[s.name, { color: theme.text }]} numberOfLines={1}>{program.name}</Text>
         </View>
         <Pressable onPress={() => router.push(`/program/${program.id}` as any)} hitSlop={8}><Ionicons name="chevron-forward" size={18} color={theme.textMuted} /></Pressable>
+      </View>
+
+      {/* progress */}
+      <View style={{ gap: 6 }}>
+        <View style={s.progRow}>
+          <Text style={[s.progText, { color: theme.textSecondary }]}>{t('programs.dayProgress', { done: prog.decided, total: prog.total, defaultValue: `${prog.decided} of ${prog.total} days` })}</Text>
+          <Text style={[s.progPct, { color: Colors.electric }]}>{Math.round(prog.pct * 100)}%</Text>
+        </View>
+        <View style={[s.progTrack, { backgroundColor: theme.cardAlt }]}>
+          <View style={[s.progFill, { width: `${Math.round(prog.pct * 100)}%`, backgroundColor: Colors.electric }]} />
+        </View>
       </View>
 
       {/* Day-N strip */}
@@ -169,6 +181,11 @@ const s = StyleSheet.create({
   badge: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   kicker: { ...Type.caption, letterSpacing: 1, textTransform: 'uppercase' },
   name: { ...Type.h2 },
+  progRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  progText: { ...Type.caption },
+  progPct: { fontFamily: Fonts.monoBold, fontSize: 12 },
+  progTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  progFill: { height: 6, borderRadius: 3 },
   strip: { gap: 8, paddingVertical: 2, paddingRight: 8 },
   chip: { alignItems: 'center', gap: 5, paddingVertical: 9, paddingHorizontal: 12, borderRadius: 12, minWidth: 64 },
   chipDay: { fontSize: 11, fontWeight: '800' },
