@@ -23,7 +23,7 @@ export default function ProgramBuilderScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { programs, updateProgram, workoutTemplates, isDark, user, pinnedProgramId, setPinnedProgramId, enrollments, activeEnrollment, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, workoutLogs, weightUnit } = useApp();
+  const { programs, updateProgram, workoutTemplates, isDark, user, enrollments, activeEnrollment, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, workoutLogs, weightUnit } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
@@ -303,19 +303,6 @@ export default function ProgramBuilderScreen() {
           >
             <Ionicons name={isEdit ? 'checkmark' : 'create-outline'} size={22} color={isEdit ? Colors.electric : theme.text} />
           </Pressable>
-          {!isEdit && (
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                setPinnedProgramId(pinnedProgramId === program.id ? null : program.id);
-              }}
-              hitSlop={12}
-              accessibilityLabel={t('programs.pinToHome', { defaultValue: 'Pin to home' })}
-              style={({ pressed }) => [s.backBtn, { opacity: pressed ? 0.6 : 1 }]}
-            >
-              <Ionicons name={pinnedProgramId === program.id ? 'bookmark' : 'bookmark-outline'} size={21} color={pinnedProgramId === program.id ? Colors.electric : theme.text} />
-            </Pressable>
-          )}
           {shareable && !isEdit && (
             <Pressable onPress={openShare} hitSlop={12} accessibilityLabel={t('programs.share', { defaultValue: 'Share' })} style={({ pressed }) => [s.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
               <Ionicons name="share-social-outline" size={22} color={Colors.electric} />

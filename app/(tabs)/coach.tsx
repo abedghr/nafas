@@ -12,7 +12,6 @@ import * as Crypto from 'expo-crypto';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
-import { programToWeeklyPlan } from '@/lib/workout-summary';
 import ProgramTodayCard from '@/components/ProgramTodayCard';
 import { AppHeader, HeroCard, StatTile, ActivityRings, CountUp, Button } from '@/components/ui';
 import { Fonts, Type } from '@/constants/typography';
@@ -75,60 +74,6 @@ function generateInsights(workouts: any[], streak: number, weeklyWorkouts: numbe
   return insights;
 }
 
-function generateAIPlan(goal: string, interests: string[], t: (key: string, opts?: any) => string) {
-  const D = {
-    mon: t('workoutTab.dayMonday'), tue: t('workoutTab.dayTuesday'), wed: t('workoutTab.dayWednesday'),
-    thu: t('workoutTab.dayThursday'), fri: t('workoutTab.dayFriday'), satSun: t('workoutTab.daySatSun'),
-  };
-  const plans: Record<string, { name: string; days: { day: string; focus: string; exercises: string[] }[] }> = {
-    build_muscle: {
-      name: t('workoutTab.planHypertrophyName'),
-      days: [
-        { day: D.mon, focus: t('workoutTab.focusPushChestShoulders'), exercises: ['Bench Press 4x8-10', 'Overhead Press 3x10', 'Incline DB Press 3x12', 'Lateral Raises 3x15', 'Tricep Dips 3x12'] },
-        { day: D.tue, focus: t('workoutTab.focusPullBackBiceps'), exercises: ['Deadlift 4x6-8', 'Pull Ups 4x8-10', 'Barbell Row 3x10', 'Face Pulls 3x15', 'Bicep Curls 3x12'] },
-        { day: D.wed, focus: t('workoutTab.focusRestActiveRecovery'), exercises: ['Light stretching', '15-20 min walk', 'Foam rolling'] },
-        { day: D.thu, focus: t('workoutTab.focusLegsCore'), exercises: ['Squats 4x8-10', 'Romanian Deadlift 3x10', 'Leg Press 3x12', 'Calf Raises 4x15', 'Plank 3x60s'] },
-        { day: D.fri, focus: t('workoutTab.focusUpperBodyPower'), exercises: ['Bench Press 5x5', 'Barbell Row 5x5', 'Overhead Press 4x8', 'Pull Ups 4x8', 'Cable Flyes 3x15'] },
-        { day: D.satSun, focus: t('workoutTab.focusRest'), exercises: ['Full recovery', 'Meal prep', 'Light mobility work'] },
-      ],
-    },
-    lose_weight: {
-      name: t('workoutTab.planFatBurnerName'),
-      days: [
-        { day: D.mon, focus: t('workoutTab.focusFullBodyCircuit'), exercises: ['Squats 3x15', 'Push Ups 3x15', 'Rows 3x15', 'Lunges 3x12/leg', 'Plank 3x45s'] },
-        { day: D.tue, focus: t('workoutTab.focusHiitCardio'), exercises: ['30s sprints x 8', 'Burpees 4x10', 'Jump Squats 4x12', 'Mountain Climbers 4x20', 'Cool-down walk 10min'] },
-        { day: D.wed, focus: t('workoutTab.focusUpperBodyCore'), exercises: ['Bench Press 3x12', 'Pull Ups 3x10', 'Shoulder Press 3x12', 'Russian Twists 3x20', 'Bicycle Crunches 3x20'] },
-        { day: D.thu, focus: t('workoutTab.focusActiveRecovery'), exercises: ['30 min walk/jog', 'Yoga/stretching 20 min', 'Foam rolling'] },
-        { day: D.fri, focus: t('workoutTab.focusLowerBodyHiit'), exercises: ['Deadlift 3x10', 'Leg Press 3x15', 'Walking Lunges 3x12', 'Box Jumps 4x8', 'Tabata finisher 4 min'] },
-        { day: D.satSun, focus: t('workoutTab.focusLightActivity'), exercises: ['Outdoor walk 30+ min', 'Light sports/swimming', 'Stretching'] },
-      ],
-    },
-    improve_fitness: {
-      name: t('workoutTab.planGeneralFitnessName'),
-      days: [
-        { day: D.mon, focus: t('workoutTab.focusStrengthConditioning'), exercises: ['Squats 3x10', 'Bench Press 3x10', 'Rows 3x10', '20 min moderate cardio'] },
-        { day: D.tue, focus: t('workoutTab.focusCardioMobility'), exercises: ['30 min run/bike', 'Dynamic stretching', 'Core work 15 min'] },
-        { day: D.wed, focus: t('workoutTab.focusUpperBody'), exercises: ['Overhead Press 3x10', 'Pull Ups 3x8', 'Dips 3x10', 'Face Pulls 3x15', 'Farmer Walks 3x40m'] },
-        { day: D.thu, focus: t('workoutTab.focusRest'), exercises: ['Light walk', 'Stretching', 'Recovery'] },
-        { day: D.fri, focus: t('workoutTab.focusLowerBody'), exercises: ['Deadlift 3x8', 'Leg Press 3x12', 'Lunges 3x10', 'Calf Raises 3x15', 'Plank 3x60s'] },
-        { day: D.satSun, focus: t('workoutTab.focusActiveFun'), exercises: ['Sports/outdoor activity', 'Light cardio', 'Mobility work'] },
-      ],
-    },
-    learn_skill: {
-      name: t('workoutTab.planSkillBuilderName'),
-      days: [
-        { day: D.mon, focus: t('workoutTab.focusSkillPractice'), exercises: ['Handstand work 20 min', 'L-Sit progressions 4x20s', 'Pull Ups 4x6-8', 'Core work 15 min'] },
-        { day: D.tue, focus: t('workoutTab.focusStrengthBase'), exercises: ['Dips 4x8', 'Rows 4x10', 'Push Ups 4x15', 'Squats 3x10'] },
-        { day: D.wed, focus: t('workoutTab.focusActiveRecovery'), exercises: ['Stretching 30 min', 'Wrist conditioning', 'Light cardio 20 min'] },
-        { day: D.thu, focus: t('workoutTab.focusSkillStrength'), exercises: ['Muscle-up progressions 5x3', 'Front lever work 4x10s', 'Hollow body holds 4x30s', 'Planche leans 4x15s'] },
-        { day: D.fri, focus: t('workoutTab.focusFullBody'), exercises: ['Deadlift 3x8', 'Overhead Press 3x10', 'Pull Ups 4x8', 'Pistol squat practice 3x5'] },
-        { day: D.satSun, focus: t('workoutTab.focusPlayRest'), exercises: ['Free skill practice', 'Flexibility work', 'Full rest day'] },
-      ],
-    },
-  };
-  return plans[goal] || plans.improve_fitness;
-}
-
 function InsightCard({ insight, index }: { insight: ReturnType<typeof generateInsights>[0]; index: number }) {
   const { isDark } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
@@ -171,55 +116,6 @@ function WorkoutHistoryItem({ workout, index }: { workout: any; index: number })
         <Text style={[s.historyDate, { color: theme.textMuted }]}>{workout.date}</Text>
       </View>
     </Animated.View>
-  );
-}
-
-function PlanModal({ visible, onClose, plan, pinned }: { visible: boolean; onClose: () => void; plan: ReturnType<typeof generateAIPlan> | null; pinned?: boolean }) {
-  const { t } = useTranslation();
-  const { isDark } = useApp();
-  const theme = isDark ? Colors.dark : Colors.light;
-  if (!plan) return null;
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={s.modalOverlay}>
-        <View style={[s.modalContent, { backgroundColor: theme.background }]}>
-          <View style={s.modalHandle}><View style={[s.handleBar, { backgroundColor: theme.border }]} /></View>
-          <View style={s.modalHeader}>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <LinearGradient colors={[Colors.primary, Colors.primaryDark]} style={s.aiSmallBadge}>
-                  <Ionicons name={pinned ? 'bookmark' : 'sparkles'} size={12} color="#fff" />
-                </LinearGradient>
-                <Text style={[s.modalTitle, { color: theme.text }]}>{plan.name}</Text>
-              </View>
-              <Text style={[s.planSubtitle, { color: theme.textMuted }]}>{pinned ? t('workoutTab.pinnedProgramPlan', { defaultValue: 'Your pinned program' }) : t('workoutTab.aiGeneratedWeeklyPlan')}</Text>
-            </View>
-            <Pressable onPress={onClose} hitSlop={8}>
-              <Ionicons name="close" size={24} color={theme.text} />
-            </Pressable>
-          </View>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 32 }}>
-            {plan.days.map((day, i) => (
-              <Animated.View key={day.day} entering={FadeInDown.duration(300).delay(i * 60)}>
-                <View style={[s.planDayCard, { backgroundColor: theme.card }]}>
-                  <View style={s.planDayHeader}>
-                    <Text style={[s.planDayName, { color: Colors.primary }]}>{day.day}</Text>
-                    <Text style={[s.planDayFocus, { color: theme.text }]}>{day.focus}</Text>
-                  </View>
-                  {day.exercises.map((ex, j) => (
-                    <View key={j} style={s.planExerciseRow}>
-                      <View style={[s.planExDot, { backgroundColor: Colors.primary }]} />
-                      <Text style={[s.planExText, { color: theme.textSecondary }]}>{ex}</Text>
-                    </View>
-                  ))}
-                </View>
-              </Animated.View>
-            ))}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
   );
 }
 
@@ -306,10 +202,9 @@ function RecentWorkoutCard({ log, index }: { log: any; index: number }) {
 export default function CoachScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { isDark, workouts, weeklyWorkouts, streak, user, workoutLogs, activeSession, weightUnit, programs, pinnedProgramId, activeEnrollment } = useApp();
+  const { isDark, workouts, weeklyWorkouts, streak, user, workoutLogs, activeSession, weightUnit, programs, activeEnrollment } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const [activeTab, setActiveTab] = useState<'dashboard' | 'insights'>('dashboard');
-  const [showPlanModal, setShowPlanModal] = useState(false);
   const [showStart, setShowStart] = useState(false);
   const [tipIndex] = useState(Math.floor(Math.random() * aiTips.length));
 
@@ -326,12 +221,6 @@ export default function CoachScreen() {
   const totalWorkoutCount = logsAsWorkouts.length;
   const avgDuration = totalWorkoutCount > 0 ? Math.round(logsAsWorkouts.reduce((a, w) => a + w.duration, 0) / totalWorkoutCount) : 0;
   const insights = useMemo(() => generateInsights(logsAsWorkouts, streak, weeklyWorkouts, t), [logsAsWorkouts, streak, weeklyWorkouts, t]);
-  const pinnedProgram = useMemo(() => programs.find((p: any) => p.id === pinnedProgramId), [programs, pinnedProgramId]);
-  const plan = useMemo(
-    () => (pinnedProgram ? programToWeeklyPlan(pinnedProgram, weightUnit) : generateAIPlan(user?.goal || 'improve_fitness', user?.interests || [], t)),
-    [pinnedProgram, weightUnit, user?.goal, user?.interests, t],
-  );
-  const planPinned = !!pinnedProgram;
   const topPad = Platform.OS === 'web' ? 67 + 16 : insets.top + 12;
 
   const weeklyVolumeFromLogs = useMemo(() => {
@@ -390,7 +279,7 @@ export default function CoachScreen() {
             name={user?.name || t('workoutTab.athlete')}
             greeting={new Date().getHours() < 12 ? t('workoutTab.goodMorning') : new Date().getHours() < 18 ? t('workoutTab.goodAfternoon') : t('workoutTab.goodEvening')}
             actionIcon="calendar-outline"
-            onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowPlanModal(true); }}
+            onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/programs' as any); }}
           />
 
           <CompleteProfileBanner />
@@ -624,31 +513,26 @@ export default function CoachScreen() {
                   <ProgramTodayCard />
                 </Animated.View>
               ) : (
-              <Animated.View entering={FadeInDown.duration(400).delay(600)}>
-                <Pressable
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowPlanModal(true); }}
-                  style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1 }]}
-                >
-                  <LinearGradient colors={['#1C1C2E', '#232338']} style={[s.planPreview, { borderColor: Colors.primary + '30' }]}>
-                    <View style={s.planPreviewHeader}>
-                      <LinearGradient colors={[Colors.primary, '#48CAE4']} style={s.aiSmallBadge}>
-                        <Ionicons name={planPinned ? 'bookmark' : 'sparkles'} size={12} color="#fff" />
-                      </LinearGradient>
-                      <Text style={[s.planPreviewTitle, { color: theme.text }]}>{planPinned ? t('workoutTab.pinnedProgram', { defaultValue: 'Pinned Program' }) : t('workoutTab.aiWeeklyPlan')}</Text>
-                      <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+                <Animated.View entering={FadeInDown.duration(400).delay(600)} style={{ paddingHorizontal: 20 }}>
+                  <Pressable
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/programs' as any); }}
+                    style={({ pressed }) => [s.noProgramCard, { backgroundColor: theme.card, opacity: pressed ? 0.9 : 1 }]}
+                  >
+                    <View style={[s.aiSmallBadge, { backgroundColor: Colors.electric + '22', width: 34, height: 34 }]}>
+                      <Ionicons name="flag-outline" size={17} color={Colors.electric} />
                     </View>
-                    <Text style={[s.planPreviewName, { color: Colors.primary }]}>{plan.name}</Text>
-                    <Text style={[s.planPreviewSub, { color: theme.textMuted }]}>{t('workoutTab.planPreviewSub', { n: plan.days.length })}</Text>
-                  </LinearGradient>
-                </Pressable>
-              </Animated.View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.planPreviewTitle, { color: theme.text }]}>{t('programs.noActiveProgram', { defaultValue: 'No active program' })}</Text>
+                      <Text style={[s.planPreviewSub, { color: theme.textMuted }]}>{t('programs.startOneToTrack', { defaultValue: 'Start a program to follow day by day' })}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+                  </Pressable>
+                </Animated.View>
               )}
             </View>
           )}
         </View>
       </ScrollView>
-
-      <PlanModal visible={showPlanModal} onClose={() => setShowPlanModal(false)} plan={plan} pinned={planPinned} />
 
       {/* start-workout chooser: program vs new */}
       <Modal visible={showStart} transparent animationType="fade" onRequestClose={() => setShowStart(false)}>
@@ -854,6 +738,7 @@ const s = StyleSheet.create({
   totalProgressLabel: { fontSize: 11, fontFamily: 'Rubik_400Regular' },
   totalProgressValue: { fontSize: 20, fontFamily: 'Rubik_700Bold' },
   totalProgressDivider: { width: 1, height: 32 },
+  noProgramCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 16 },
   startOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   startSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 36, gap: 12 },
   startHandle: { alignItems: 'center', paddingBottom: 6 },

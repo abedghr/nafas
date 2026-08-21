@@ -395,8 +395,6 @@ interface AppContextValue {
   toggleTheme: () => void;
   weightUnit: WeightUnit;
   setWeightUnit: (u: WeightUnit) => void;
-  pinnedProgramId: string | null;
-  setPinnedProgramId: (id: string | null) => void;
   likedPosts: Set<string>;
   toggleLike: (postId: string) => void;
   streak: number;
@@ -451,7 +449,6 @@ const STORAGE_KEYS = {
   CUSTOM_EX: 'nafas_custom_exercises',
   ACTIVE_SESSION: 'nafas_active_session',
   WEIGHT_UNIT: 'nafas_weight_unit',
-  PINNED_PROGRAM: 'nafas_pinned_program',
 };
 
 function getDefaultTargets(weight: number, goal: string) {
@@ -482,7 +479,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [language, setLangState] = useState('en');
   const [isDark, setIsDark] = useState(true);
   const [weightUnit, setWeightUnitState] = useState<WeightUnit>('kg');
-  const [pinnedProgramId, setPinnedProgramIdState] = useState<string | null>(null);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set(['p2', 'p5']));
   const [inBodyTests, setInBodyTests] = useState<InBodyTest[]>([]);
   const [workoutTemplates, setWorkoutTemplates] = useState<WorkoutTemplate[]>([]);
@@ -522,7 +518,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION),
         ]);
         AsyncStorage.getItem(STORAGE_KEYS.WEIGHT_UNIT).then(u => { if (u === 'lb' || u === 'kg') setWeightUnitState(u); });
-        AsyncStorage.getItem(STORAGE_KEYS.PINNED_PROGRAM).then(id => { if (id) setPinnedProgramIdState(id); });
         if (savedUser) setUserState(JSON.parse(savedUser));
         if (savedOnboarding === 'true') setOnboardingState(true);
         if (savedWorkouts) setWorkouts(JSON.parse(savedWorkouts));
@@ -673,12 +668,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       AsyncStorage.setItem(STORAGE_KEYS.THEME, next ? 'dark' : 'light');
       return next;
     });
-  }, []);
-
-  const setPinnedProgramId = useCallback((id: string | null) => {
-    setPinnedProgramIdState(id);
-    if (id) AsyncStorage.setItem(STORAGE_KEYS.PINNED_PROGRAM, id);
-    else AsyncStorage.removeItem(STORAGE_KEYS.PINNED_PROGRAM);
   }, []);
 
   const setWeightUnit = useCallback((u: WeightUnit) => {
@@ -956,7 +945,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({
     user, setUser, onboardingComplete, setOnboardingComplete,
     workouts, addWorkout, todayNutrition, foodNames, addMealItem, removeMealItem, setNutritionTargets,
-    language, setLanguage, isDark, toggleTheme, weightUnit, setWeightUnit, pinnedProgramId, setPinnedProgramId,
+    language, setLanguage, isDark, toggleTheme, weightUnit, setWeightUnit,
     enrollments, activeEnrollment, refreshEnrollments, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, setEnrollmentDayEdit,
     likedPosts, toggleLike, streak, weeklyWorkouts,
     inBodyTests, addInBodyTest,
@@ -967,7 +956,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     exerciseLibrary, workoutTypes: workoutTypesData, muscleGroups: WORKOUT_MUSCLE_GROUPS,
     activeSession, setActiveSession,
     logout, deleteAccount,
-  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, weightUnit, setWeightUnit, pinnedProgramId, setPinnedProgramId, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, programs, addProgram, updateProgram, deleteProgram, refreshPrograms, enrollments, activeEnrollment, refreshEnrollments, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, setEnrollmentDayEdit, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
+  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, weightUnit, setWeightUnit, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, programs, addProgram, updateProgram, deleteProgram, refreshPrograms, enrollments, activeEnrollment, refreshEnrollments, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, setEnrollmentDayEdit, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
 
   if (!loaded) return null;
 
