@@ -1268,7 +1268,7 @@ function TemplatePickerModal({ visible, onClose, onSelect, onEdit, onDelete, tem
 export default function PrepareWorkoutScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { templateId, run, programId, weekIndex, dayIndex, enrollmentId, slotDay } = useLocalSearchParams<{ templateId?: string; run?: string; programId?: string; weekIndex?: string; dayIndex?: string; enrollmentId?: string; slotDay?: string }>();
+  const { templateId, run, programId, weekIndex, dayIndex, enrollmentId, slotDay, subEnroll, subWeek, subDay } = useLocalSearchParams<{ templateId?: string; run?: string; programId?: string; weekIndex?: string; dayIndex?: string; enrollmentId?: string; slotDay?: string; subEnroll?: string; subWeek?: string; subDay?: string }>();
   const inProgram = !!programId;
   const isRunning = !!run; // running a program day (start live) vs authoring a program day (save only)
   const {
@@ -1551,6 +1551,8 @@ export default function PrepareWorkoutScreen() {
         templateExerciseIds: (programs.find(p => p.id === programId)?.days ?? [])
           .find(d => d.weekIndex === Number(weekIndex) && d.dayIndex === Number(slotDay))?.exercises
           ?.map((e: any) => e.exerciseId) ?? [],
+      } } : subEnroll && subDay != null ? { program: {
+        enrollmentId: subEnroll, weekIndex: Number(subWeek), slotDay: Number(subDay), substitute: true,
       } } : {}),
     });
     // replace (not push) so Back from the live session never returns to this "new workout" page
@@ -1598,7 +1600,7 @@ export default function PrepareWorkoutScreen() {
         keyboardShouldPersistTaps="handled"
       >
           <View style={{ gap: 14, marginBottom: 14 }}>
-            {workoutTemplates.length > 0 && exercises.length === 0 && (
+            {exercises.length === 0 && (
               <Pressable
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowTemplatePicker(true); }}
                 style={({ pressed }) => [s.loadTemplateBtn, { backgroundColor: theme.card, borderColor: Colors.primary + '30', opacity: pressed ? 0.9 : 1 }]}
@@ -1606,7 +1608,9 @@ export default function PrepareWorkoutScreen() {
                 <Ionicons name="download-outline" size={20} color={Colors.primary} />
                 <View style={{ flex: 1 }}>
                   <Text style={[s.loadTemplateBtnTitle, { color: theme.text }]}>{t('workoutPrep.loadFromMyWorkouts')}</Text>
-                  <Text style={[s.loadTemplateBtnSub, { color: theme.textMuted }]}>{t('workoutPrep.savedWorkoutsAvailable', { count: workoutTemplates.length })}</Text>
+                  <Text style={[s.loadTemplateBtnSub, { color: theme.textMuted }]}>
+                    {workoutTemplates.length > 0 ? t('workoutPrep.savedWorkoutsAvailable', { count: workoutTemplates.length }) : t('workoutPrep.noSavedYet', { defaultValue: 'No saved workouts yet' })}
+                  </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
               </Pressable>

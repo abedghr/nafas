@@ -287,7 +287,7 @@ export interface ActiveSession {
   preWorkout: boolean;
   // set when this session is a program day being run, so finishing marks it done
   // + records add/remove deviations vs the template exercise ids.
-  program?: { enrollmentId: string; weekIndex: number; slotDay: number; templateExerciseIds?: string[] };
+  program?: { enrollmentId: string; weekIndex: number; slotDay: number; templateExerciseIds?: string[]; substitute?: boolean };
   exercises: {
     exerciseId: string;
     name: string;

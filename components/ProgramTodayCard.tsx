@@ -35,6 +35,9 @@ export default function ProgramTodayCard() {
   const pct = Math.round(prog.pct * 100);
   const todayStatus = today ? dayStatus(activeEnrollment, today.weekIndex, today.dayIndex) : null;
   const runnable = !!today && !today.day.restDay && ((today.day.exercises?.length ?? 0) > 0 || !!today.day.templateId);
+  // one program workout per calendar day: a completion with a real log today locks the next
+  const isToday = (iso?: string | null) => { if (!iso) return false; const d = new Date(iso), n = new Date(); return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate(); };
+  const trainedToday = activeEnrollment.completions.some((c) => !!c.logId && isToday(c.completedDate));
 
   const start = (sd: SeqDay) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -72,6 +75,10 @@ export default function ProgramTodayCard() {
             {todayStatus ? (
               <View style={[s.statusPill, { backgroundColor: (todayStatus === 'done' ? Colors.semantic.success : todayStatus === 'skipped' ? Colors.semantic.warn : theme.textSecondary) + '22' }]}>
                 <Text style={[s.statusPillText, { color: todayStatus === 'done' ? Colors.semantic.success : todayStatus === 'skipped' ? Colors.semantic.warn : theme.textSecondary }]}>{t(`programs.${todayStatus}`, { defaultValue: todayStatus })}</Text>
+              </View>
+            ) : trainedToday ? (
+              <View style={[s.statusPill, { backgroundColor: theme.cardAlt }]}>
+                <Text style={[s.statusPillText, { color: theme.textMuted, textTransform: 'none' }]}>{t('programs.nextTomorrow', { defaultValue: 'Next tomorrow' })}</Text>
               </View>
             ) : runnable ? (
               <Pressable onPress={() => start(today)} style={[s.startBtn, { backgroundColor: Colors.electric }]}>
@@ -122,16 +129,12 @@ export default function ProgramTodayCard() {
                 );
               }
               if (skipping) {
-                const skipAndGo = (route: string) => {
-                  setEnrollmentDay(activeEnrollment.id, today.weekIndex, today.dayIndex, 'skipped');
-                  setSheetOpen(false);
-                  router.push(route as any);
-                };
                 return (
                   <>
                     <Text style={[s.sheetTitle, { color: theme.text }]}>{t('programs.skipTitle', { defaultValue: 'Skip today — what instead?' })}</Text>
                     <SheetBtn icon="moon" color={theme.textSecondary} label={t('programs.restDayOpt', { defaultValue: 'Rest day' })} onPress={() => { setEnrollmentDay(activeEnrollment.id, today.weekIndex, today.dayIndex, 'rest'); setSheetOpen(false); }} theme={theme} />
-                    <SheetBtn icon="add-circle-outline" color={Colors.electric} label={t('programs.buildDifferent', { defaultValue: 'Build a different workout' })} onPress={() => skipAndGo('/prepare-workout')} theme={theme} />
+                    {/* only marks the day skipped once a substitute is actually completed */}
+                    <SheetBtn icon="add-circle-outline" color={Colors.electric} label={t('programs.buildDifferent', { defaultValue: 'Build a different workout' })} onPress={() => { setSheetOpen(false); router.push(`/prepare-workout?subEnroll=${activeEnrollment.id}&subWeek=${today.weekIndex}&subDay=${today.dayIndex}` as any); }} theme={theme} />
                     <SheetBtn icon="close-circle" color={Colors.semantic.warn} label={t('programs.justSkip', { defaultValue: 'Just skip (nothing today)' })} onPress={() => { setEnrollmentDay(activeEnrollment.id, today.weekIndex, today.dayIndex, 'skipped'); setSheetOpen(false); }} theme={theme} />
                   </>
                 );
@@ -139,11 +142,11 @@ export default function ProgramTodayCard() {
               return (
                 <>
                   <Text style={[s.sheetTitle, { color: theme.text }]}>{`Day ${pos.ordinal + 1}`}{today.day.name ? ` · ${today.day.name}` : ''}</Text>
+                  {runnable && !trainedToday && (
+                    <SheetBtn icon="play" color={Colors.electric} label={t('programs.startDay', { defaultValue: 'Start' })} onPress={() => { setSheetOpen(false); start(today); }} theme={theme} />
+                  )}
                   {runnable && (
-                    <>
-                      <SheetBtn icon="play" color={Colors.electric} label={t('programs.startDay', { defaultValue: 'Start' })} onPress={() => { setSheetOpen(false); start(today); }} theme={theme} />
-                      <SheetBtn icon="reader-outline" color={theme.text} label={t('workoutPrep.viewAsText', { defaultValue: 'View as text' })} onPress={() => { setTextDay({ ...today.day, exercises: resolveDayExercises(activeEnrollment, today.weekIndex, today.dayIndex, (today.day.exercises as any[]) || []) }); setSheetOpen(false); }} theme={theme} />
-                    </>
+                    <SheetBtn icon="reader-outline" color={theme.text} label={t('workoutPrep.viewAsText', { defaultValue: 'View as text' })} onPress={() => { setTextDay({ ...today.day, exercises: resolveDayExercises(activeEnrollment, today.weekIndex, today.dayIndex, (today.day.exercises as any[]) || []) }); setSheetOpen(false); }} theme={theme} />
                   )}
                   <SheetBtn icon="checkmark-circle" color={Colors.semantic.success} label={t('programs.markDone', { defaultValue: 'Mark done' })} onPress={() => setMarking(true)} theme={theme} />
                   <SheetBtn icon="play-skip-forward" color={Colors.semantic.warn} label={t('programs.skipToday', { defaultValue: 'Skip today' })} onPress={() => setSkipping(true)} theme={theme} />
