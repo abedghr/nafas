@@ -1742,50 +1742,35 @@ export default function PrepareWorkoutScreen() {
           colors={['transparent', 'rgba(10,10,15,0.95)', 'rgba(10,10,15,1)']}
           style={StyleSheet.absoluteFill}
         />
-        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
-          <Pressable
-            onPress={() => {
-              if (!resolvedName) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); alertDialog(t('workoutPrep.pickTypeFirst'), t('workoutPrep.pickTypeHint')); return; }
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setShowPicker(true);
-            }}
-            style={({ pressed }) => [s.addExBtn, { flex: 1, marginBottom: 0, opacity: !resolvedName ? 0.4 : pressed ? 0.9 : 1, borderColor: Colors.primary }]}
-          >
-            <Ionicons name="add" size={19} color={Colors.primary} />
-            <Text style={[s.addExBtnText, { color: Colors.primary }]}>{t('workoutPrep.addExercise')}</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              if (!resolvedName) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); alertDialog(t('workoutPrep.pickTypeFirst'), t('workoutPrep.pickTypeHint')); return; }
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setShowComboBuilder(true);
-            }}
-            style={({ pressed }) => [s.addExBtn, { flex: 1, marginBottom: 0, opacity: !resolvedName ? 0.4 : pressed ? 0.9 : 1, borderColor: Colors.accent }]}
-          >
-            <Ionicons name="git-merge-outline" size={19} color={Colors.accent} />
-            <Text style={[s.addExBtnText, { color: Colors.accent }]}>{t('workoutSession.addCombo')}</Text>
-          </Pressable>
-        </View>
-
-        <Pressable
-          onPress={() => {
+        {(() => {
+          const guard = (fn: () => void) => () => {
             if (!resolvedName) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); alertDialog(t('workoutPrep.pickTypeFirst'), t('workoutPrep.pickTypeHint')); return; }
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setShowIntervalBuilder(true);
-          }}
-          style={({ pressed }) => [s.addExBtn, { marginBottom: 12, opacity: !resolvedName ? 0.4 : pressed ? 0.9 : 1, borderColor: Colors.electric }]}
-        >
-          <Ionicons name="pulse-outline" size={19} color={Colors.electric} />
-          <Text style={[s.addExBtnText, { color: Colors.electric }]}>{t('intervalBuilder.addInterval', { defaultValue: 'Add Interval' })}</Text>
-        </Pressable>
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); fn();
+          };
+          const chips: { icon: any; label: string; color: string; onPress: () => void }[] = [
+            { icon: 'add', label: t('workoutPrep.exercise', { defaultValue: 'Exercise' }), color: Colors.primary, onPress: guard(() => setShowPicker(true)) },
+            { icon: 'git-merge-outline', label: t('workoutPrep.combo', { defaultValue: 'Combo' }), color: Colors.accent, onPress: guard(() => setShowComboBuilder(true)) },
+            { icon: 'pulse-outline', label: t('workoutPrep.interval', { defaultValue: 'Interval' }), color: Colors.electric, onPress: guard(() => setShowIntervalBuilder(true)) },
+          ];
+          return (
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+              {chips.map((c) => (
+                <Pressable key={c.label} onPress={c.onPress} style={({ pressed }) => [s.addChip, { borderColor: c.color + '80', opacity: !resolvedName ? 0.4 : pressed ? 0.8 : 1 }]}>
+                  <Ionicons name={c.icon} size={16} color={c.color} />
+                  <Text style={[s.addChipText, { color: c.color }]} numberOfLines={1}>{c.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          );
+        })()}
 
         <Pressable
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPreWorkout(p => !p); }}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1, borderRadius: 14, padding: 14, marginBottom: 12 }}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Ionicons name="flash-outline" size={18} color={Colors.primary} />
-            <Text style={{ color: theme.text, fontSize: 14, fontWeight: '500' }}>{t('workoutPrep.preWorkoutTaken')}</Text>
+            <Ionicons name="flash-outline" size={17} color={Colors.primary} />
+            <Text style={{ color: theme.text, fontSize: 13.5, fontWeight: '500' }}>{t('workoutPrep.preWorkoutTaken')}</Text>
           </View>
           <Switch
             value={preWorkout}
@@ -2273,6 +2258,18 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  addChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    height: 38,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderStyle: 'dashed' as any,
+  },
+  addChipText: { fontSize: 13, fontWeight: '700' },
   bottomRow: {
     flexDirection: 'row',
     gap: 10,

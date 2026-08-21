@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import ProgramTodayCard from '@/components/ProgramTodayCard';
 import ProgramOverviewModal from '@/components/ProgramOverviewModal';
-import { AppHeader, HeroCard, StatTile, ActivityRings, CountUp, Button } from '@/components/ui';
+import { AppHeader, StatTile, ActivityRings, CountUp, Button } from '@/components/ui';
 import { Fonts, Type } from '@/constants/typography';
 import { toDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
 import Colors from '@/constants/colors';
@@ -354,19 +354,11 @@ export default function CoachScreen() {
               )}
 
               <Animated.View entering={FadeInDown.duration(500)} style={{ paddingHorizontal: 20 }}>
-                <HeroCard
-                  title={t('workoutTab.startWorkout')}
-                  subtitle={streak >= 3 ? t('workoutTab.heroStreakMotivation', { n: streak }) : t('workoutTab.heroReadyMotivation')}
-                  ctaLabel={t('workoutTab.startWorkout')}
-                  onCta={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowStart(true); }}
-                  height={210}
-                />
                 <Button
                   variant="ghost"
                   icon="library-outline"
                   label={t('workoutTab.myWorkouts')}
                   onPress={() => router.push('/saved-workouts' as any)}
-                  style={{ marginTop: 12 }}
                 />
               </Animated.View>
 
@@ -535,6 +527,16 @@ export default function CoachScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* fixed start-workout FAB */}
+      <Pressable
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowStart(true); }}
+        style={({ pressed }) => [s.fab, { bottom: insets.bottom + 78, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+        accessibilityLabel={t('workoutTab.startWorkout')}
+      >
+        <Ionicons name="play" size={22} color="#04120B" />
+        <Text style={s.fabText}>{t('workoutTab.startWorkout')}</Text>
+      </Pressable>
 
       <ProgramOverviewModal visible={showOverview} onClose={() => setShowOverview(false)} />
 
@@ -743,6 +745,12 @@ const s = StyleSheet.create({
   totalProgressValue: { fontSize: 20, fontFamily: 'Rubik_700Bold' },
   totalProgressDivider: { width: 1, height: 32 },
   noProgramCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 16 },
+  fab: {
+    position: 'absolute', right: 20, flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: Colors.electric, paddingLeft: 18, paddingRight: 22, height: 54, borderRadius: 27,
+    shadowColor: Colors.electric, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
+  },
+  fabText: { color: '#04120B', fontSize: 15, fontFamily: 'Rubik_700Bold', fontWeight: '800' },
   startOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   startSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 36, gap: 12 },
   startHandle: { alignItems: 'center', paddingBottom: 6 },

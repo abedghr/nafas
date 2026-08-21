@@ -132,7 +132,6 @@ export default function ProgramTodayCard() {
                     <Text style={[s.sheetTitle, { color: theme.text }]}>{t('programs.skipTitle', { defaultValue: 'Skip today — what instead?' })}</Text>
                     <SheetBtn icon="moon" color={theme.textSecondary} label={t('programs.restDayOpt', { defaultValue: 'Rest day' })} onPress={() => { setEnrollmentDay(activeEnrollment.id, today.weekIndex, today.dayIndex, 'rest'); setSheetOpen(false); }} theme={theme} />
                     <SheetBtn icon="add-circle-outline" color={Colors.electric} label={t('programs.buildDifferent', { defaultValue: 'Build a different workout' })} onPress={() => skipAndGo('/prepare-workout')} theme={theme} />
-                    <SheetBtn icon="albums-outline" color={theme.text} label={t('programs.fromTemplate', { defaultValue: 'From a saved workout' })} onPress={() => skipAndGo('/saved-workouts')} theme={theme} />
                     <SheetBtn icon="close-circle" color={Colors.semantic.warn} label={t('programs.justSkip', { defaultValue: 'Just skip (nothing today)' })} onPress={() => { setEnrollmentDay(activeEnrollment.id, today.weekIndex, today.dayIndex, 'skipped'); setSheetOpen(false); }} theme={theme} />
                   </>
                 );
@@ -149,6 +148,7 @@ export default function ProgramTodayCard() {
                   <SheetBtn icon="checkmark-circle" color={Colors.semantic.success} label={t('programs.markDone', { defaultValue: 'Mark done' })} onPress={() => setMarking(true)} theme={theme} />
                   <SheetBtn icon="play-skip-forward" color={Colors.semantic.warn} label={t('programs.skipToday', { defaultValue: 'Skip today' })} onPress={() => setSkipping(true)} theme={theme} />
                   <SheetBtn icon="swap-horizontal" color={theme.text} label={t('programs.swapDay', { defaultValue: 'Swap with another day' })} onPress={() => setSwapping(true)} theme={theme} />
+                  {(activeEnrollment.dayOrder?.length ?? 0) > 0 && <SheetBtn icon="arrow-undo" color={theme.textSecondary} label={t('programs.resetOrder', { defaultValue: 'Reset day order' })} onPress={() => { updateEnrollmentLocal(activeEnrollment.id, { dayOrder: [] }); setSheetOpen(false); }} theme={theme} />}
                   {todayStatus && <SheetBtn icon="refresh" color={theme.textMuted} label={t('programs.clearStatus', { defaultValue: 'Clear' })} onPress={() => { clearEnrollmentDay(activeEnrollment.id, today.weekIndex, today.dayIndex); setSheetOpen(false); }} theme={theme} />}
                 </>
               );
