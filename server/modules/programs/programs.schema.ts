@@ -49,6 +49,8 @@ export const EnrollUpdateSchema = z.object({
   status: z.enum(["active", "finished", "abandoned"]).optional(),
   // per-day flagged deviations, keyed by "<week>-<day>"
   dayEdits: z.record(z.object({ added: z.array(z.any()).optional(), removed: z.array(z.string()).optional() })).optional(),
+  // per-enrollment day order: array of "<week>-<day>" keys
+  dayOrder: z.array(z.string()).optional(),
 });
 export const DayStatusSchema = z.object({
   weekIndex: z.number().int().min(0),

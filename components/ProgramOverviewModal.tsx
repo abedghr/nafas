@@ -19,7 +19,7 @@ export default function ProgramOverviewModal({ visible, onClose }: { visible: bo
   const program = programs.find((p: any) => p.id === activeEnrollment?.programId);
   if (!visible || !activeEnrollment || !program) return null;
 
-  const seq = programSequence(program);
+  const seq = programSequence(program, activeEnrollment);
   const pos = positionToday(activeEnrollment, program);
 
   return (

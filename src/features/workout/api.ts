@@ -45,7 +45,7 @@ export const workoutApi = {
   // program enrollment / scheduling
   enrollments: () => apiFetch<{ data: any[] }>("/enrollments", { auth: true }).then((r) => r.data),
   enroll: (programId: string, startDate: string) => apiFetch("/enrollments", { method: "POST", auth: true, body: { programId, startDate } }),
-  updateEnrollment: (id: string, body: { startDate?: string; status?: string; dayEdits?: Record<string, { added?: unknown[]; removed?: string[] }> }) =>
+  updateEnrollment: (id: string, body: { startDate?: string; status?: string; dayEdits?: Record<string, { added?: unknown[]; removed?: string[] }>; dayOrder?: string[] }) =>
     apiFetch(`/enrollments/${id}`, { method: "PATCH", auth: true, body }),
   deleteEnrollment: (id: string) => apiFetch(`/enrollments/${id}`, { method: "DELETE", auth: true }),
   setEnrollmentDay: (id: string, body: { weekIndex: number; dayIndex: number; status: "done" | "skipped" | "rest"; completedDate?: string | null; durationMin?: number | null; logId?: string | null }) =>

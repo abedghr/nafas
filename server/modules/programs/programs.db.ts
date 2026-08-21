@@ -75,6 +75,8 @@ export const programEnrollments = pgTable("program_enrollments", {
   // per-day deviations for THIS enrollment, keyed by program-day id:
   // { "<dayId>": { added: TemplateExercise[], removed: string[] } } — flagged edits.
   dayEdits: jsonb("day_edits").$type<Record<string, { added?: unknown[]; removed?: string[] }>>().notNull().default({}),
+  // per-enrollment day order (from swaps): array of "<week>-<day>" keys
+  dayOrder: jsonb("day_order").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   finishedAt: timestamp("finished_at"),
 }, (t) => ({ userIdx: index("enroll_user_idx").on(t.userId, t.status) }));

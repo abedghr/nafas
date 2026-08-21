@@ -12,13 +12,35 @@ const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0);
 // week then day. Position in the plan is by this ordinal, NOT by weekday: the
 // start date is Day 1 and each following calendar day is the next day here.
 export interface SeqDay { ordinal: number; weekIndex: number; dayIndex: number; day: ProgramDay }
-export function programSequence(program: Program): SeqDay[] {
-  return [...(program.days || [])]
-    .sort((a, b) => a.weekIndex - b.weekIndex || a.dayIndex - b.dayIndex)
-    .map((day, ordinal) => ({ ordinal, weekIndex: day.weekIndex, dayIndex: day.dayIndex, day }));
+const key = (w: number, d: number) => `${w}-${d}`;
+
+// Ordered day sequence. Default order is by (week,day); if an enrollment carries
+// a dayOrder permutation (from swaps), that wins — unknown keys fall to the end.
+export function programSequence(program: Program, enr?: Enrollment | null): SeqDay[] {
+  const days = [...(program.days || [])].sort((a, b) => a.weekIndex - b.weekIndex || a.dayIndex - b.dayIndex);
+  const order = enr?.dayOrder;
+  if (order && order.length) {
+    const rank = new Map(order.map((k, i) => [k, i]));
+    days.sort((a, b) => {
+      const ra = rank.has(key(a.weekIndex, a.dayIndex)) ? rank.get(key(a.weekIndex, a.dayIndex))! : Number.MAX_SAFE_INTEGER;
+      const rb = rank.has(key(b.weekIndex, b.dayIndex)) ? rank.get(key(b.weekIndex, b.dayIndex))! : Number.MAX_SAFE_INTEGER;
+      return ra - rb || (a.weekIndex - b.weekIndex) || (a.dayIndex - b.dayIndex);
+    });
+  }
+  return days.map((day, ordinal) => ({ ordinal, weekIndex: day.weekIndex, dayIndex: day.dayIndex, day }));
 }
-export function ordinalOf(program: Program, week: number, dayIndex: number): number {
-  const f = programSequence(program).find((s) => s.weekIndex === week && s.dayIndex === dayIndex);
+
+// Swap two positions in the enrollment's day order; returns the new order array
+// (full list of "w-d" keys) to persist.
+export function swapDayOrder(enr: Enrollment, program: Program, ordinalA: number, ordinalB: number): string[] {
+  const seq = programSequence(program, enr);
+  const keys = seq.map((s) => key(s.weekIndex, s.dayIndex));
+  if (ordinalA < 0 || ordinalB < 0 || ordinalA >= keys.length || ordinalB >= keys.length) return keys;
+  [keys[ordinalA], keys[ordinalB]] = [keys[ordinalB], keys[ordinalA]];
+  return keys;
+}
+export function ordinalOf(program: Program, week: number, dayIndex: number, enr?: Enrollment | null): number {
+  const f = programSequence(program, enr).find((s) => s.weekIndex === week && s.dayIndex === dayIndex);
   return f ? f.ordinal : -1;
 }
 // Calendar date a given ordinal falls on for this enrollment.
@@ -38,7 +60,7 @@ export function dayStatus(enr: Enrollment, week: number, day: number): 'done' | 
 // Current day = first day in the sequence with no status yet (completion-based,
 // NOT calendar). finishedPlan when every day is done/skipped/rested.
 export function positionToday(enr: Enrollment, program: Program): Position {
-  const seq = programSequence(program);
+  const seq = programSequence(program, enr);
   const idx = seq.findIndex((s) => !dayStatus(enr, s.weekIndex, s.dayIndex));
   const finishedPlan = idx === -1 && seq.length > 0;
   const ordinal = idx === -1 ? Math.max(0, seq.length - 1) : idx;

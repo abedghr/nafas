@@ -72,7 +72,7 @@ export default function ProgramHistoryScreen() {
               {rows.length === 0 ? (
                 <Text style={[Type.body, { color: theme.textMuted, textAlign: 'center', marginTop: 20 }]}>{t('programs.noHistory', { defaultValue: 'No history yet.' })}</Text>
               ) : rows.map((c, i) => {
-                const ord = program ? ordinalOf(program, c.weekIndex, c.dayIndex) : -1;
+                const ord = program ? ordinalOf(program, c.weekIndex, c.dayIndex, enr) : -1;
                 const ch = chip(c.status);
                 return (
                   <View key={i} style={[s.row, { backgroundColor: theme.card }]}>

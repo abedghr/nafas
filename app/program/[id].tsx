@@ -286,7 +286,7 @@ export default function ProgramBuilderScreen() {
   // enrollment overlay for the week grid: highlight today + show done/skipped
   const enrolled = activeEnrollment && activeEnrollment.programId === program.id ? activeEnrollment : null;
   const todayPos = enrolled ? positionToday(enrolled, program) : null;
-  const orderedDays = programSequence(program);
+  const orderedDays = programSequence(program, isEdit ? null : enrolled);
 
   return (
     <View style={[s.container, { backgroundColor: theme.background }]}>

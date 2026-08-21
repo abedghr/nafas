@@ -230,13 +230,14 @@ export const programsService = {
     return this._enrollmentWithDays(row);
   },
 
-  async updateEnrollment(userId: string, id: string, patch: { startDate?: string; status?: string; dayEdits?: Record<string, { added?: unknown[]; removed?: string[] }> }) {
+  async updateEnrollment(userId: string, id: string, patch: { startDate?: string; status?: string; dayEdits?: Record<string, { added?: unknown[]; removed?: string[] }>; dayOrder?: string[] }) {
     const [e] = await db.select().from(programEnrollments).where(and(eq(programEnrollments.id, id), eq(programEnrollments.userId, userId)));
     if (!e) return null;
     await db.update(programEnrollments).set({
       ...(patch.startDate ? { startDate: new Date(patch.startDate) } : {}),
       ...(patch.status ? { status: patch.status, ...(patch.status === "finished" ? { finishedAt: new Date() } : {}) } : {}),
       ...(patch.dayEdits ? { dayEdits: patch.dayEdits } : {}),
+      ...(patch.dayOrder ? { dayOrder: patch.dayOrder } : {}),
     }).where(eq(programEnrollments.id, id));
     const [row] = await db.select().from(programEnrollments).where(eq(programEnrollments.id, id));
     return this._enrollmentWithDays(row);

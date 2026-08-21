@@ -193,6 +193,7 @@ export interface Enrollment {
   startDate: string;
   status: 'active' | 'finished' | 'abandoned';
   dayEdits: Record<string, DayEdit>;
+  dayOrder?: string[]; // per-enrollment day sequence (from swaps); "<week>-<day>" keys
   completions: DayCompletion[];
 }
 
@@ -416,7 +417,7 @@ interface AppContextValue {
   refreshEnrollments: () => void;
   startProgram: (programId: string, startDate: string) => Promise<void>;
   endEnrollment: (id: string) => void;
-  updateEnrollmentLocal: (id: string, patch: { startDate?: string; status?: Enrollment['status']; dayEdits?: Enrollment['dayEdits'] }) => void;
+  updateEnrollmentLocal: (id: string, patch: { startDate?: string; status?: Enrollment['status']; dayEdits?: Enrollment['dayEdits']; dayOrder?: string[] }) => void;
   setEnrollmentDay: (id: string, weekIndex: number, dayIndex: number, status: DayStatus, opts?: { completedDate?: string; durationMin?: number; logId?: string }) => void;
   clearEnrollmentDay: (id: string, weekIndex: number, dayIndex: number) => void;
   setEnrollmentDayEdit: (id: string, weekIndex: number, dayIndex: number, edit: DayEdit) => void;
@@ -790,7 +791,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     workoutApi.updateEnrollment(id, { status: 'finished' }).catch(() => {});
   }, []);
 
-  const updateEnrollmentLocal = useCallback((id: string, patch: { startDate?: string; status?: Enrollment['status']; dayEdits?: Enrollment['dayEdits'] }) => {
+  const updateEnrollmentLocal = useCallback((id: string, patch: { startDate?: string; status?: Enrollment['status']; dayEdits?: Enrollment['dayEdits']; dayOrder?: string[] }) => {
     setEnrollments(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
     workoutApi.updateEnrollment(id, patch).catch(() => {});
   }, []);
