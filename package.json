@@ -29,6 +29,7 @@
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "start": "npx expo start",
+    "build": "npx expo export --platform web --output-dir dist",
     "lint": "npx expo lint",
     "lint:fix": "npx expo lint --fix",
     "android": "expo run:android",
