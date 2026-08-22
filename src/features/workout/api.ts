@@ -66,6 +66,8 @@ export const workoutApi = {
   putActiveSession: (data: unknown) => apiFetch("/active-session", { method: "PUT", auth: true, body: { data } }),
   clearActiveSession: () => apiFetch("/active-session", { method: "DELETE", auth: true }),
 
+  aiGenerateProgram: (body: { text?: string; file?: { mimeType: string; data: string } }) =>
+    apiFetch<any>("/workout/ai/generate", { method: "POST", auth: true, body }),
   insights: () => apiFetch<{ insights: string[] }>("/workout/insights", { auth: true }),
   recommendations: (goal?: string) => apiFetch<{ recommendations: string[] }>(`/workout/recommendations${goal ? `?goal=${goal}` : ""}`, { auth: true }),
   weeklyPlan: (goal?: string) => apiFetch<{ plan: { day: string; focus: string }[] }>(`/workout/weekly-plan${goal ? `?goal=${goal}` : ""}`, { auth: true }),

@@ -116,8 +116,9 @@ export default function ProgramsScreen() {
           </Animated.View>
         )}
 
-        <Animated.View entering={FadeInDown.duration(450)} style={{ marginBottom: 20 }}>
+        <Animated.View entering={FadeInDown.duration(450)} style={{ marginBottom: 20, gap: 10 }}>
           <Button variant="primary" label={t('programs.newProgram')} playIcon="add" onPress={handleNewProgram} />
+          <Button variant="ghost" icon="sparkles" label={t('programs.createWithAI', { defaultValue: 'Create with AI' })} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/ai-create' as any); }} />
         </Animated.View>
 
         {programs.length === 0 ? (

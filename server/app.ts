@@ -51,6 +51,7 @@ function setupCors(app: express.Application) {
 function setupBodyParsing(app: express.Application) {
   app.use(
     express.json({
+      limit: "25mb", // base64 image/PDF uploads for AI generation
       verify: (req, _res, buf) => {
         req.rawBody = buf;
       },

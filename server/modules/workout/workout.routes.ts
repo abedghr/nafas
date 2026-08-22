@@ -5,9 +5,16 @@ import { requireAuth } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { qstr } from "../../core/http";
 import { workoutService } from "./workout.service";
+import { generateProgram } from "./workout.ai";
+import { geminiConfigured } from "../../core/gemini";
 import {
   ExerciseSchema, WorkoutTypeSchema, TemplateCreateSchema, LogCreateSchema, ActiveSessionSchema,
 } from "./workout.schema";
+
+const AiGenerateSchema = z.object({
+  text: z.string().max(4000).optional(),
+  file: z.object({ mimeType: z.string(), data: z.string() }).optional(),
+}).refine((v) => v.text || v.file, { message: "text or file required" });
 
 export const workoutRouter = Router();
 workoutRouter.use(requireAuth);
@@ -99,6 +106,17 @@ registry.registerPath({ method: "delete", path: "/api/active-session", tags: ["W
 workoutRouter.delete("/active-session", async (req, res) => { await workoutService.clearActiveSession(req.user!.sub); res.status(204).end(); });
 
 // ── AI (inside workout) ──
+registry.registerPath({ method: "post", path: "/api/workout/ai/generate", tags: ["Workout: AI"], summary: "Generate a program from text/image/PDF (Gemini)", security: sec, request: { body: body(AiGenerateSchema) }, responses: { 200: json(z.any()) } });
+workoutRouter.post("/workout/ai/generate", validate({ body: AiGenerateSchema }), async (req, res) => {
+  if (!geminiConfigured()) return res.status(503).json({ code: "AI_UNAVAILABLE", message: "AI is not configured (GEMINI_API_KEY missing)." });
+  try {
+    const draft = await generateProgram(req.body);
+    res.json(draft);
+  } catch (e: any) {
+    res.status(502).json({ code: "AI_ERROR", message: String(e?.message ?? e) });
+  }
+});
+
 registry.registerPath({ method: "get", path: "/api/workout/insights", tags: ["Workout: AI"], summary: "Smart insights", security: sec, responses: { 200: json(z.object({ insights: z.array(z.string()) })) } });
 workoutRouter.get("/workout/insights", async (req, res) => res.json(await workoutService.insights(req.user!.sub)));
 
