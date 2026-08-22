@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -9,11 +9,10 @@ import { exerciseIcon } from '@/lib/exercise-icon';
 import { useApp } from '@/lib/app-context';
 import { muscleLabel } from '@/lib/exercise-i18n';
 
-// Nafas exercise-picker row: branded media tile · name · primary-muscle subtitle ·
-// trailing progress-arrow (opens the exercise's progression chart).
-// Real demonstration photos are hidden for now — the media tile is a Nafas-brand
-// placeholder (green gradient squircle + exercise-type glyph), identical treatment
-// for every exercise until real images land.
+// Nafas exercise-picker row: media tile · name · primary-muscle subtitle ·
+// trailing progress-arrow (opens the exercise's progression chart). Shows the
+// exercise photo when available (open-licensed free-exercise-db), else a
+// Nafas-brand gradient squircle + exercise-type glyph.
 export default function ExerciseRow({ ex, onPress, theme, trailing, divider = true, onInfo }: {
   ex: any;
   onPress: () => void;
@@ -26,6 +25,8 @@ export default function ExerciseRow({ ex, onPress, theme, trailing, divider = tr
 }) {
   const { language } = useApp();
   const isAr = language === 'ar';
+  const [imgErr, setImgErr] = useState(false);
+  const showImg = !!ex.imageUrl && !imgErr;
   return (
     <Pressable
       onPress={onPress}
@@ -35,18 +36,27 @@ export default function ExerciseRow({ ex, onPress, theme, trailing, divider = tr
         { backgroundColor: pressed ? theme.card : 'transparent' },
       ]}
     >
-      <LinearGradient
-        colors={[Colors.primary + '2E', Colors.primary + '0A']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={s.tile}
-      >
-        <MaterialCommunityIcons
-          name={exerciseIcon(ex.name, ex.muscleGroup) as any}
-          size={24}
-          color={Colors.primary}
+      {showImg ? (
+        <Image
+          source={{ uri: ex.imageUrl }}
+          style={s.tileImg}
+          resizeMode="cover"
+          onError={() => setImgErr(true)}
         />
-      </LinearGradient>
+      ) : (
+        <LinearGradient
+          colors={[Colors.primary + '2E', Colors.primary + '0A']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={s.tile}
+        >
+          <MaterialCommunityIcons
+            name={exerciseIcon(ex.name, ex.muscleGroup) as any}
+            size={24}
+            color={Colors.primary}
+          />
+        </LinearGradient>
+      )}
 
       <View style={s.textCol}>
         <Text style={[s.name, { color: theme.text }]} numberOfLines={1}>{ex.name}</Text>
@@ -80,6 +90,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: Colors.primary + '26',
   },
+  tileImg: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#fff' },
   textCol: { flex: 1, minWidth: 0 },
   name: { fontSize: 15, fontWeight: '700', letterSpacing: 0.1 },
   subtitle: { fontSize: 12, fontWeight: '500', marginTop: 3 },

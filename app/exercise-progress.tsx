@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Image } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,6 +30,7 @@ export default function ExerciseProgressScreen() {
   const { name } = useLocalSearchParams<{ name: string }>();
   const [points, setPoints] = useState<Point[]>([]);
   const [loading, setLoading] = useState(true);
+  const [imgErr, setImgErr] = useState(false);
 
   useEffect(() => {
     if (!name) return;
@@ -79,9 +80,13 @@ export default function ExerciseProgressScreen() {
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 32 }} showsVerticalScrollIndicator={false}>
           {/* hero: branded tile + headline + primary-muscle / equipment chips */}
           <View style={s.hero}>
-            <LinearGradient colors={[Colors.electric + '2E', Colors.electric + '0A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.heroTile}>
-              <MaterialCommunityIcons name={exerciseIcon(String(name), ex?.muscleGroup) as any} size={34} color={Colors.electric} />
-            </LinearGradient>
+            {ex?.imageUrl && !imgErr ? (
+              <Image source={{ uri: ex.imageUrl }} style={s.heroImg} resizeMode="cover" onError={() => setImgErr(true)} />
+            ) : (
+              <LinearGradient colors={[Colors.electric + '2E', Colors.electric + '0A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.heroTile}>
+                <MaterialCommunityIcons name={exerciseIcon(String(name), ex?.muscleGroup) as any} size={34} color={Colors.electric} />
+              </LinearGradient>
+            )}
             <Display variant="d2" color={theme.text} style={s.heroName}>{name}</Display>
             <View style={s.chipRow}>
               {!!ex?.primaryMuscle && <Chip label={muscleLabel(ex.primaryMuscle, isAr)} active />}
@@ -193,6 +198,7 @@ const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   hero: { alignItems: 'center', gap: 14, marginTop: 8, marginBottom: 4 },
   heroTile: { width: 80, height: 80, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.electric + '26' },
+  heroImg: { width: 120, height: 120, borderRadius: 24, backgroundColor: '#fff' },
   heroName: { textAlign: 'center', marginTop: 2 },
   chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
   card: { borderRadius: 16, padding: 16 },
