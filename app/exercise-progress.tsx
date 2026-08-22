@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Image } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -13,7 +13,6 @@ import { Display, StatTile, SectionHeader, Chip, Button, EmptyState, CountUp } f
 import ProgressChart from '@/components/ProgressChart';
 import { workoutApi } from '@/src/features/workout/api';
 import { exerciseLibrary } from '@/src/features/workout/library-cache';
-import { exerciseIcon } from '@/lib/exercise-icon';
 import { bodyTargetLabel, muscleLabel, equipLabel } from '@/lib/exercise-i18n';
 
 type Point = { date: string; weight: number; reps: number; volume: number; holdSec?: number; distanceM?: number };
@@ -80,11 +79,11 @@ export default function ExerciseProgressScreen() {
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 32 }} showsVerticalScrollIndicator={false}>
           {/* hero: branded tile + headline + primary-muscle / equipment chips */}
           <View style={s.hero}>
-            {ex?.imageUrl && !imgErr ? (
-              <Image source={{ uri: ex.imageUrl }} style={s.heroImg} resizeMode="cover" onError={() => setImgErr(true)} />
+            {(ex?.gifUrl || ex?.imageUrl) && !imgErr ? (
+              <Image source={{ uri: ex.gifUrl || ex.imageUrl }} style={s.heroImg} resizeMode="cover" onError={() => setImgErr(true)} />
             ) : (
               <LinearGradient colors={[Colors.electric + '2E', Colors.electric + '0A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.heroTile}>
-                <MaterialCommunityIcons name={exerciseIcon(String(name), ex?.muscleGroup) as any} size={34} color={Colors.electric} />
+                <Ionicons name="body-outline" size={40} color={Colors.electric} />
               </LinearGradient>
             )}
             <Display variant="d2" color={theme.text} style={s.heroName}>{name}</Display>

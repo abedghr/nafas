@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
-import { exerciseIcon } from '@/lib/exercise-icon';
 import { useApp } from '@/lib/app-context';
 import { muscleLabel } from '@/lib/exercise-i18n';
 
@@ -26,7 +25,8 @@ export default function ExerciseRow({ ex, onPress, theme, trailing, divider = tr
   const { language } = useApp();
   const isAr = language === 'ar';
   const [imgErr, setImgErr] = useState(false);
-  const showImg = !!ex.imageUrl && !imgErr;
+  const media = ex.gifUrl || ex.imageUrl; // animated GIF preferred, else photo
+  const showImg = !!media && !imgErr;
   return (
     <Pressable
       onPress={onPress}
@@ -38,7 +38,7 @@ export default function ExerciseRow({ ex, onPress, theme, trailing, divider = tr
     >
       {showImg ? (
         <Image
-          source={{ uri: ex.imageUrl }}
+          source={{ uri: media }}
           style={s.tileImg}
           resizeMode="cover"
           onError={() => setImgErr(true)}
@@ -50,11 +50,7 @@ export default function ExerciseRow({ ex, onPress, theme, trailing, divider = tr
           end={{ x: 1, y: 1 }}
           style={s.tile}
         >
-          <MaterialCommunityIcons
-            name={exerciseIcon(ex.name, ex.muscleGroup) as any}
-            size={24}
-            color={Colors.primary}
-          />
+          <Ionicons name="body-outline" size={24} color={Colors.primary} />
         </LinearGradient>
       )}
 
