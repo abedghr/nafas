@@ -8,7 +8,23 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { useTranslation } from 'react-i18next';
+
+// read a file uri as base64, cross-platform (web blob, native file-system legacy)
+async function uriToBase64(uri: string): Promise<string> {
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(uri)).blob();
+    return await new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => res(String(fr.result).split(',')[1] || '');
+      fr.onerror = rej;
+      fr.readAsDataURL(blob);
+    });
+  }
+  const FS = require('expo-file-system/legacy');
+  return FS.readAsStringAsync(uri, { encoding: 'base64' });
+}
 import { useApp } from '@/lib/app-context';
 import { workoutApi } from '@/src/features/workout/api';
 import { alertDialog } from '@/lib/dialog';
@@ -30,24 +46,37 @@ export default function AICreateScreen() {
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
   const [text, setText] = useState('');
-  const [image, setImage] = useState<{ uri: string; mimeType: string; data: string } | null>(null);
+  const [att, setAtt] = useState<{ mimeType: string; data: string; label: string; previewUri?: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const pickImage = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.7 });
     if (res.canceled || !res.assets?.[0]) return;
     const a = res.assets[0];
-    setImage({ uri: a.uri, mimeType: a.mimeType || 'image/jpeg', data: a.base64 || '' });
+    setAtt({ mimeType: a.mimeType || 'image/jpeg', data: a.base64 || '', label: t('aiCreate.photoAttached', { defaultValue: 'Photo attached' }), previewUri: a.uri });
+  };
+
+  const pickFile = async () => {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'text/plain'], copyToCacheDirectory: true, multiple: false });
+      if (res.canceled || !res.assets?.[0]) return;
+      const a = res.assets[0];
+      const data = await uriToBase64(a.uri);
+      if (!data) throw new Error('read failed');
+      setAtt({ mimeType: a.mimeType || 'application/pdf', data, label: a.name || 'Document' });
+    } catch {
+      alertDialog(t('aiCreate.fileFailed', { defaultValue: 'Could not read that file. PDF or text works best (export Word to PDF).' }), '');
+    }
   };
 
   const generate = async () => {
-    if (!text.trim() && !image) { alertDialog(t('aiCreate.needInput', { defaultValue: 'Add a description or a photo first.' }), ''); return; }
+    if (!text.trim() && !att) { alertDialog(t('aiCreate.needInput', { defaultValue: 'Add a description, a photo, or a file first.' }), ''); return; }
     setBusy(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       const draft = await workoutApi.aiGenerateProgram({
         text: text.trim() || undefined,
-        file: image ? { mimeType: image.mimeType, data: image.data } : undefined,
+        file: att ? { mimeType: att.mimeType, data: att.data } : undefined,
       });
       if (!draft?.days?.length) throw new Error(t('aiCreate.emptyDraft', { defaultValue: 'The AI returned an empty plan. Try rephrasing.' }));
       const id = addProgram(draft);
@@ -92,18 +121,30 @@ export default function AICreateScreen() {
           ))}
         </View>
 
-        <Text style={[s.label, { color: theme.textSecondary, marginTop: 18 }]}>{t('aiCreate.attach', { defaultValue: 'Attach a photo (optional)' })}</Text>
-        {image ? (
+        <Text style={[s.label, { color: theme.textSecondary, marginTop: 18 }]}>{t('aiCreate.attach', { defaultValue: 'Attach a photo or file (optional)' })}</Text>
+        {att ? (
           <View style={[s.attached, { borderColor: theme.border }]}>
-            <Image source={{ uri: image.uri }} style={s.thumb} resizeMode="cover" />
-            <Text style={[s.attachedName, { color: theme.text, flex: 1 }]} numberOfLines={1}>{t('aiCreate.photoAttached', { defaultValue: 'Photo attached' })}</Text>
-            <Pressable onPress={() => setImage(null)} hitSlop={8} disabled={busy}><Ionicons name="close-circle" size={22} color={theme.textMuted} /></Pressable>
+            {att.previewUri ? (
+              <Image source={{ uri: att.previewUri }} style={s.thumb} resizeMode="cover" />
+            ) : (
+              <View style={[s.thumb, { backgroundColor: Colors.electric + '18', alignItems: 'center', justifyContent: 'center' }]}>
+                <Ionicons name="document-text-outline" size={22} color={Colors.electric} />
+              </View>
+            )}
+            <Text style={[s.attachedName, { color: theme.text, flex: 1 }]} numberOfLines={1}>{att.label}</Text>
+            <Pressable onPress={() => setAtt(null)} hitSlop={8} disabled={busy}><Ionicons name="close-circle" size={22} color={theme.textMuted} /></Pressable>
           </View>
         ) : (
-          <Pressable onPress={pickImage} style={({ pressed }) => [s.attachBtn, { borderColor: Colors.electric + '55', opacity: pressed ? 0.85 : 1 }]} disabled={busy}>
-            <Ionicons name="image-outline" size={18} color={Colors.electric} />
-            <Text style={[s.attachBtnText, { color: Colors.electric }]}>{t('aiCreate.addPhoto', { defaultValue: 'Add a photo of a program' })}</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Pressable onPress={pickImage} style={({ pressed }) => [s.attachBtn, { flex: 1, borderColor: Colors.electric + '55', opacity: pressed ? 0.85 : 1 }]} disabled={busy}>
+              <Ionicons name="image-outline" size={18} color={Colors.electric} />
+              <Text style={[s.attachBtnText, { color: Colors.electric }]}>{t('aiCreate.addPhoto', { defaultValue: 'Photo' })}</Text>
+            </Pressable>
+            <Pressable onPress={pickFile} style={({ pressed }) => [s.attachBtn, { flex: 1, borderColor: Colors.electric + '55', opacity: pressed ? 0.85 : 1 }]} disabled={busy}>
+              <Ionicons name="document-attach-outline" size={18} color={Colors.electric} />
+              <Text style={[s.attachBtnText, { color: Colors.electric }]}>{t('aiCreate.addFile', { defaultValue: 'PDF / file' })}</Text>
+            </Pressable>
+          </View>
         )}
 
         <Pressable onPress={generate} disabled={busy} style={({ pressed }) => [s.generate, { backgroundColor: Colors.electric, opacity: busy ? 0.7 : pressed ? 0.9 : 1 }]}>
