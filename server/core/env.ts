@@ -11,7 +11,7 @@ const schema = z.object({
   JWT_REFRESH_TTL: z.string().default("30d"),
   // Generative AI (Gemini) — optional; AI endpoints 503 until set
   GEMINI_API_KEY: z.string().optional(),
-  GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+  GEMINI_MODEL: z.string().default("gemini-3.6-flash"),
 });
 
 const parsed = schema.safeParse(process.env);
