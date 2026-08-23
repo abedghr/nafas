@@ -92,15 +92,15 @@ function mapDraft(draft: Draft, lib: { name: string; tok: string[] }[]) {
 
 // one-shot generate (kept for the simple Create-with-AI path)
 export async function generateProgram(input: { text?: string; file?: { mimeType: string; data: string } }) {
-  const { names, lib } = await exerciseLib();
+  const { lib } = await exerciseLib();
   const parts: GeminiPart[] = [];
   if (input.file?.data) parts.push({ inline_data: { mime_type: input.file.mimeType, data: input.file.data } });
-  parts.push({ text: `ALLOWED EXERCISES (prefer verbatim):\n${names.join("\n")}\n\nREQUEST:\n${input.text || "Create a balanced program from the attached file."}` });
+  parts.push({ text: input.text || "Create a complete, well-structured program from the attached file — transcribe every exercise, set and rep faithfully." });
   const draft = await geminiJSON<Draft>({ system: ONESHOT_SYSTEM, parts, schema: PROGRAM_SCHEMA as any });
   return mapDraft(draft, lib);
 }
 
-const ONESHOT_SYSTEM = `You are a strength & conditioning coach for the Nafas app. Output a program as ordered days (Day 1..N; rest days allowed). Prefer exercise names from ALLOWED EXERCISES verbatim; otherwise use a clear standard English name. Each set: reps (+weightKg if weighted) OR durationSeconds for holds. Faithfully transcribe any attached program file.`;
+const ONESHOT_SYSTEM = `You are a strength & conditioning coach for the Nafas app. Output a COMPLETE program as ordered days (Day 1..N; rest days allowed). Every training day lists real exercises, and every exercise has concrete sets: reps (plus weightKg if weighted) for lifts, or durationSeconds for holds/cardio. Use clear standard English exercise names (e.g. "Barbell Bench Press", "Pull-Up"). When a program file is attached, transcribe it FAITHFULLY — capture every exercise, every set and rep, and any rounds/ladders/AMRAP/circuit structure exactly (put each round or rung in its own set, use the set note for context). Never simplify or drop items.`;
 
 // ── context-aware chat ──
 async function userContext(userId: string): Promise<string> {
@@ -119,23 +119,23 @@ async function userContext(userId: string): Promise<string> {
   ].join(" ");
 }
 
-const CHAT_SYSTEM = (ctx: string, names: string[]) => `You are the Nafas AI training coach — friendly, concise, expert. Help the athlete build or adjust a training program.
+const CHAT_SYSTEM = (ctx: string) => `You are the Nafas AI training coach — friendly, expert, concise. Help the athlete get a complete, well-structured training program.
 
 ATHLETE CONTEXT: ${ctx}
 
-HOW TO BEHAVE:
-- Have a short back-and-forth. Ask only what you need (goal, experience, days/week, session length, equipment/location, injuries). Offer clear options the athlete can pick from.
-- Before generating, briefly say what you'll build. When you have enough, CALL the tool "propose_program" with the full draft — do NOT print the program as text. The app shows it to the athlete to APPROVE before saving.
-- Tailor to the athlete's context (goal, history, active program). If they attach a file/photo of a program, transcribe it faithfully via propose_program.
-- Prefer exercise names from ALLOWED EXERCISES verbatim so they link to the app's library; else use a clear standard English name.
-- Keep replies short and mobile-friendly. You may reply in the athlete's language.
-
-ALLOWED EXERCISES (prefer verbatim): ${names.join(", ")}`;
+HOW TO WORK:
+- Keep a short back-and-forth. Ask only the few things you still need (goal, experience level, days/week, session length, equipment/location, injuries). Offer concrete options the athlete can pick from. Don't interrogate — at most 1-3 questions, then build.
+- The moment you have enough, CALL the tool "propose_program" with a COMPLETE draft. Never print a program as chat text; the app shows the proposal for the athlete to APPROVE before it is saved.
+- Every training day lists real exercises, and every exercise has concrete sets — reps (plus a weightKg or an RPE note) for lifts, or durationSeconds for holds/planks/cardio. Never leave a vague "3 sets" without numbers.
+- Build the full week when relevant (a 4-day split = 4 training days; rest days allowed). Match volume and intensity to the athlete's level and goal, and use their context (goal, history, active program).
+- If the athlete attaches a photo/PDF/whiteboard of a program, transcribe it FAITHFULLY via propose_program: capture every exercise, every set and rep, and any rounds/ladders/AMRAP/circuit structure exactly as written (put each round or rung in its own set, use the set note for context). Do not simplify or drop items.
+- Use clear standard English exercise names (e.g. "Barbell Bench Press", "Pull-Up").
+- Keep chat replies short and mobile-friendly. You may reply in the athlete's language.`;
 
 const PROPOSE_TOOL = { name: "propose_program", description: "Propose a complete training program for the athlete to review and approve before it is saved.", parameters: PROGRAM_SCHEMA as any };
 
 export async function chat(userId: string, input: { messages: { role: "user" | "model"; text: string }[]; files?: { mimeType: string; data: string }[] }) {
-  const { names, lib } = await exerciseLib();
+  const { lib } = await exerciseLib();
   const ctx = await userContext(userId);
   const contents: ChatContent[] = input.messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] as GeminiPart[] }));
   // attach any files to the latest user turn
@@ -143,7 +143,7 @@ export async function chat(userId: string, input: { messages: { role: "user" | "
     const last = contents[contents.length - 1];
     for (const f of input.files) last.parts.unshift({ inline_data: { mime_type: f.mimeType, data: f.data } });
   }
-  const r = await geminiChat({ system: CHAT_SYSTEM(ctx, names), contents, tools: [PROPOSE_TOOL] });
+  const r = await geminiChat({ system: CHAT_SYSTEM(ctx), contents, tools: [PROPOSE_TOOL] });
   if (r.call?.name === "propose_program") {
     return { type: "proposal" as const, message: r.text || "Here's a program I put together — review and approve it.", program: mapDraft(r.call.args as Draft, lib) };
   }

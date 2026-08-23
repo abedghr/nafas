@@ -97,7 +97,12 @@ export default function AICoachScreen() {
       setMessages((cur) => [...cur, reply]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
-      const msg = /AI_UNAVAILABLE|not configured/i.test(String(e?.message)) ? t('aiCreate.unavailable', { defaultValue: 'AI is not set up yet. Add the Gemini key to enable it.' }) : String(e?.message ?? e);
+      const raw = String(e?.message ?? e);
+      const msg = /AI_UNAVAILABLE|not configured/i.test(raw)
+        ? t('aiCreate.unavailable', { defaultValue: 'AI is not set up yet. Add the Gemini key to enable it.' })
+        : /Load failed|Network|tim</i.test(raw)
+        ? t('aiCoach.netError', { defaultValue: 'That took too long or the connection dropped. Try again — a large file can take a while.' })
+        : raw;
       setMessages((cur) => [...cur, { role: 'model', local: true, text: '⚠️ ' + msg }]);
     } finally { setBusy(false); scrollDown(); }
   };
@@ -184,25 +189,44 @@ export default function AICoachScreen() {
   );
 }
 
+// compact "3 × 10", "3 × 30s", varied "12/10/8", "· 40kg"
+function setLabel(sets: any[] = []): string {
+  if (!sets.length) return '';
+  const isHold = sets.every((x) => x.durationSeconds != null);
+  const vals = sets.map((x) => (isHold ? x.durationSeconds : x.reps)).filter((v) => v != null);
+  if (!vals.length) return `${sets.length} ${sets.length === 1 ? 'set' : 'sets'}`;
+  const unit = isHold ? 's' : '';
+  const uniform = vals.every((v) => v === vals[0]);
+  const body = uniform ? `${sets.length} × ${vals[0]}${unit}` : vals.map((v) => `${v}${unit}`).join('/');
+  const w = sets.find((x) => x.weight != null)?.weight;
+  return w != null ? `${body} · ${w}kg` : body;
+}
+
 function ProposalCard({ program, theme, t, onApprove }: { program: any; theme: any; t: any; onApprove: () => void }) {
+  const [open, setOpen] = useState(true);
   const days = (program.days || []).filter((d: any) => !d.restDay);
   const exCount = days.reduce((a: number, d: any) => a + (d.exercises?.length || 0), 0);
   return (
     <View style={[s.proposal, { backgroundColor: theme.card, borderColor: Colors.electric + '44' }]}>
-      <View style={s.proposalHead}>
+      <Pressable style={s.proposalHead} onPress={() => setOpen((v) => !v)}>
         <View style={[s.headerBadge, { backgroundColor: Colors.electric + '22' }]}><Ionicons name="barbell" size={15} color={Colors.electric} /></View>
         <View style={{ flex: 1 }}>
           <Text style={[s.proposalName, { color: theme.text }]} numberOfLines={2}>{program.name}</Text>
           <Text style={[s.proposalMeta, { color: theme.textMuted }]}>{t('aiCoach.planMeta', { defaultValue: '{{days}} training days · {{ex}} exercises', days: days.length, ex: exCount })}</Text>
         </View>
-      </View>
-      {days.slice(0, 4).map((d: any, i: number) => (
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={theme.textMuted} />
+      </Pressable>
+      {open && days.map((d: any, i: number) => (
         <View key={i} style={s.proposalDay}>
-          <Text style={[s.proposalDayName, { color: theme.textSecondary }]} numberOfLines={1}>{d.name}</Text>
-          <Text style={[s.proposalDayEx, { color: theme.textMuted }]} numberOfLines={1}>{(d.exercises || []).map((e: any) => e.name).slice(0, 4).join(' · ')}</Text>
+          <Text style={[s.proposalDayName, { color: theme.text }]} numberOfLines={1}>{d.name}</Text>
+          {(d.exercises || []).map((e: any, j: number) => (
+            <View key={j} style={s.proposalExRow}>
+              <Text style={[s.proposalExName, { color: theme.textSecondary }]} numberOfLines={1}>{e.name}</Text>
+              <Text style={[s.proposalExSets, { color: theme.textMuted }]}>{setLabel(e.sets)}</Text>
+            </View>
+          ))}
         </View>
       ))}
-      {days.length > 4 && <Text style={[s.proposalMore, { color: theme.textMuted }]}>{t('aiCoach.moreDays', { defaultValue: '+{{n}} more days', n: days.length - 4 })}</Text>}
       <Pressable onPress={onApprove} style={({ pressed }) => [s.approveBtn, { backgroundColor: Colors.electric, opacity: pressed ? 0.9 : 1 }]}>
         <Ionicons name="checkmark" size={18} color="#04120B" />
         <Text style={s.approveText}>{t('aiCoach.approve', { defaultValue: 'Review & save' })}</Text>
@@ -230,10 +254,11 @@ const s = StyleSheet.create({
   proposalHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   proposalName: { ...Type.bodyMed, fontWeight: '800', fontSize: 15 },
   proposalMeta: { ...Type.caption, marginTop: 2 },
-  proposalDay: { paddingVertical: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(128,128,128,0.2)' },
-  proposalDayName: { fontSize: 13, fontWeight: '700' },
-  proposalDayEx: { fontSize: 12, marginTop: 1 },
-  proposalMore: { fontSize: 12, fontStyle: 'italic' },
+  proposalDay: { paddingTop: 8, paddingBottom: 2, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(128,128,128,0.2)' },
+  proposalDayName: { fontSize: 13, fontWeight: '700', marginBottom: 4 },
+  proposalExRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 2 },
+  proposalExName: { flex: 1, fontSize: 13 },
+  proposalExSets: { fontSize: 12, fontVariant: ['tabular-nums'] },
   approveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 46, borderRadius: 14, marginTop: 4 },
   approveText: { color: '#04120B', fontSize: 15, fontWeight: '800' },
   approveHint: { fontSize: 11.5, textAlign: 'center' },

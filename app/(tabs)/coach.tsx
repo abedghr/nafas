@@ -11,6 +11,7 @@ import * as Haptics from 'expo-haptics';
 import * as Crypto from 'expo-crypto';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '@/lib/app-context';
 import ProgramTodayCard from '@/components/ProgramTodayCard';
 import ProgramOverviewModal from '@/components/ProgramOverviewModal';
@@ -208,6 +209,10 @@ export default function CoachScreen() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'insights'>('dashboard');
   const [showStart, setShowStart] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
+  const [aiHint, setAiHint] = useState(false);
+  useEffect(() => { AsyncStorage.getItem('nafas_ai_hint_seen').then((v) => setAiHint(!v)); }, []);
+  const openAiCoach = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); if (aiHint) { setAiHint(false); AsyncStorage.setItem('nafas_ai_hint_seen', '1'); } router.push('/ai-coach' as any); };
+  const dismissHint = () => { setAiHint(false); AsyncStorage.setItem('nafas_ai_hint_seen', '1'); };
   const [tipIndex] = useState(Math.floor(Math.random() * aiTips.length));
 
   // Insights/summary run off the real server-backed logs (normalized to the
@@ -280,9 +285,23 @@ export default function CoachScreen() {
             style={s.header}
             name={user?.name || t('workoutTab.athlete')}
             greeting={new Date().getHours() < 12 ? t('workoutTab.goodMorning') : new Date().getHours() < 18 ? t('workoutTab.goodAfternoon') : t('workoutTab.goodEvening')}
+            secondaryActionIcon="sparkles"
+            onSecondaryAction={openAiCoach}
+            secondaryTint={Colors.electric}
             actionIcon="calendar-outline"
             onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); activeEnrollment ? setShowOverview(true) : router.push('/programs' as any); }}
           />
+
+          {aiHint && (
+            <Animated.View entering={FadeInDown.duration(400)} style={s.hintWrap}>
+              <View style={[s.hintArrow, { borderBottomColor: Colors.electric + '18' }]} />
+              <Pressable onPress={openAiCoach} style={[s.hintPill, { backgroundColor: Colors.electric + '18', borderColor: Colors.electric + '44' }]}>
+                <Ionicons name="sparkles" size={14} color={Colors.electric} />
+                <Text style={[s.hintText, { color: theme.text }]} numberOfLines={1}>{t('aiCoach.hint', { defaultValue: 'Build your workout or program with AI' })}</Text>
+                <Pressable onPress={dismissHint} hitSlop={8}><Ionicons name="close" size={15} color={theme.textMuted} /></Pressable>
+              </Pressable>
+            </Animated.View>
+          )}
 
           <CompleteProfileBanner />
 
@@ -352,22 +371,6 @@ export default function CoachScreen() {
                   </Pressable>
                 </Animated.View>
               )}
-
-              <Animated.View entering={FadeInDown.duration(450).delay(80)} style={{ paddingHorizontal: 20 }}>
-                <Pressable
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/ai-coach' as any); }}
-                  style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }]}
-                >
-                  <LinearGradient colors={[Colors.electric, '#48CAE4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.aiCoachCard}>
-                    <View style={s.aiCoachIcon}><Ionicons name="sparkles" size={22} color="#04120B" /></View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.aiCoachTitle}>{t('aiCoach.cardTitle', { defaultValue: 'AI Coach' })}</Text>
-                      <Text style={s.aiCoachSub}>{t('aiCoach.cardSub', { defaultValue: 'Chat to build a program from your goal, history or a file' })}</Text>
-                    </View>
-                    <Ionicons name="arrow-forward" size={18} color="#04120B" />
-                  </LinearGradient>
-                </Pressable>
-              </Animated.View>
 
               <Animated.View entering={FadeInDown.duration(500)} style={{ paddingHorizontal: 20 }}>
                 <Button
@@ -761,10 +764,10 @@ const s = StyleSheet.create({
   totalProgressValue: { fontSize: 20, fontFamily: 'Rubik_700Bold' },
   totalProgressDivider: { width: 1, height: 32 },
   noProgramCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 16 },
-  aiCoachCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, padding: 16 },
-  aiCoachIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center' },
-  aiCoachTitle: { color: '#04120B', fontSize: 16, fontFamily: 'Rubik_700Bold' },
-  aiCoachSub: { color: 'rgba(4,18,11,0.75)', fontSize: 12, fontFamily: 'Rubik_400Regular', marginTop: 2, lineHeight: 16 },
+  hintWrap: { alignItems: 'flex-end', paddingHorizontal: 20, marginTop: 4, marginBottom: 8 },
+  hintPill: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 12, paddingLeft: 12, paddingRight: 10, paddingVertical: 9, maxWidth: '92%' },
+  hintText: { flexShrink: 1, fontSize: 13, fontFamily: 'Rubik_500Medium' },
+  hintArrow: { width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderBottomWidth: 7, borderLeftColor: 'transparent', borderRightColor: 'transparent', marginRight: 16, marginBottom: -1 },
   fab: {
     position: 'absolute', right: 20, flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: Colors.electric, paddingLeft: 18, paddingRight: 22, height: 54, borderRadius: 27,

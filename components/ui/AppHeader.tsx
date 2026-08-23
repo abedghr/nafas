@@ -15,6 +15,9 @@ export function AppHeader({
   actionIcon,
   onAction,
   actionBadge,
+  secondaryActionIcon,
+  onSecondaryAction,
+  secondaryTint,
   style,
 }: {
   name: string;
@@ -24,6 +27,9 @@ export function AppHeader({
   actionIcon?: keyof typeof Ionicons.glyphMap;
   onAction?: () => void;
   actionBadge?: boolean;
+  secondaryActionIcon?: keyof typeof Ionicons.glyphMap;
+  onSecondaryAction?: () => void;
+  secondaryTint?: string;
   style?: any;
 }) {
   const { isDark } = useApp();
@@ -39,18 +45,30 @@ export function AppHeader({
           <Text style={[Type.h2, { color: theme.text }]} numberOfLines={1}>{name}</Text>
         </View>
       </Pressable>
-      {actionIcon && (
-        <Pressable onPress={onAction} style={[s.action, { backgroundColor: theme.card, borderColor: theme.border }]} hitSlop={6}>
-          <Ionicons name={actionIcon} size={20} color={theme.text} />
-          {actionBadge && <View style={s.badge} />}
-        </Pressable>
-      )}
+      <View style={s.actions}>
+        {secondaryActionIcon && (
+          <Pressable
+            onPress={onSecondaryAction}
+            style={[s.action, secondaryTint ? { backgroundColor: secondaryTint + '1F', borderColor: secondaryTint + '55' } : { backgroundColor: theme.card, borderColor: theme.border }]}
+            hitSlop={6}
+          >
+            <Ionicons name={secondaryActionIcon} size={20} color={secondaryTint || theme.text} />
+          </Pressable>
+        )}
+        {actionIcon && (
+          <Pressable onPress={onAction} style={[s.action, { backgroundColor: theme.card, borderColor: theme.border }]} hitSlop={6}>
+            <Ionicons name={actionIcon} size={20} color={theme.text} />
+            {actionBadge && <View style={s.badge} />}
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   left: { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#222' },
   greeting: { fontFamily: Fonts.medium, fontSize: 12 },
