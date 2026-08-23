@@ -10,6 +10,9 @@ export interface ApiExercise {
   equipment?: string;
   imageUrl?: string;
   gifUrl?: string;
+  instructions?: string;
+  targetMuscle?: string;
+  secondaryMuscles?: string;
   isCustom: boolean;
   workoutTypes: string[];
   bodyTargets: { bodyTarget: string; percentage: number }[];
@@ -124,6 +127,9 @@ export function mapExercise(e: ApiExercise) {
     equipment: e.equipment || "",
     imageUrl: e.imageUrl || "",
     gifUrl: e.gifUrl || "",
+    instructions: e.instructions || "",
+    targetMuscle: e.targetMuscle || "",
+    secondaryMuscles: e.secondaryMuscles || "",
     defaultSetType: e.measurementType === "time_hold" ? ("hold" as const) : ("reps" as const),
     muscles: [...e.bodyTargets].sort((a, b) => b.percentage - a.percentage).map((t) => t.bodyTarget), // strongest first
     bodyTargets: [...e.bodyTargets].sort((a, b) => b.percentage - a.percentage), // strongest first, with %

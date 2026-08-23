@@ -103,6 +103,23 @@ export default function ExerciseProgressScreen() {
             </View>
           )}
 
+          {/* how to do it — step-by-step (MIT dataset) */}
+          {!!ex?.instructions && (
+            <View style={{ marginTop: 24 }}>
+              <SectionHeader title={t('workoutTab.howToDoIt', { defaultValue: 'How to do it' })} />
+              <View style={[s.card, { backgroundColor: theme.card, gap: 12 }]}>
+                {ex.instructions.split('\n').filter(Boolean).map((step: string, i: number) => (
+                  <View key={i} style={s.stepRow}>
+                    <View style={[s.stepNum, { backgroundColor: Colors.electric + '1F' }]}>
+                      <Text style={[s.stepNumText, { color: Colors.electric }]}>{i + 1}</Text>
+                    </View>
+                    <Text style={[Type.body, { color: theme.textSecondary, flex: 1 }]}>{step}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
           {/* target muscles — weighted bars */}
           {targets.length > 0 && (
             <View style={{ marginTop: 24 }}>
@@ -195,6 +212,9 @@ const s = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 4, gap: 10 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  stepNum: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  stepNumText: { fontSize: 12, fontFamily: 'Rubik_700Bold' },
   hero: { alignItems: 'center', gap: 14, marginTop: 8, marginBottom: 4 },
   heroTile: { width: 80, height: 80, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.electric + '26' },
   heroImg: { width: 120, height: 120, borderRadius: 24, backgroundColor: '#fff' },

@@ -9,7 +9,7 @@ import { ApiError } from "../../middleware/error";
 import type { TemplateCreate, LogCreate } from "./workout.schema";
 
 async function hydrateExercises(
-  rows: { id: string; name: string; description: string; measurementType: string; isCustom: boolean; equipment?: string; imageUrl?: string; gifUrl?: string }[],
+  rows: { id: string; name: string; description: string; measurementType: string; isCustom: boolean; equipment?: string; imageUrl?: string; gifUrl?: string; instructions?: string; targetMuscle?: string; secondaryMuscles?: string }[],
   locale = "en",
 ) {
   if (rows.length === 0) return [];
@@ -49,6 +49,9 @@ async function hydrateExercises(
       equipment: r.equipment ?? "",
       imageUrl: r.imageUrl ?? "",
       gifUrl: r.gifUrl ?? "",
+      instructions: r.instructions ?? "",
+      targetMuscle: r.targetMuscle ?? "",
+      secondaryMuscles: r.secondaryMuscles ?? "",
       workoutTypes: typesByEx.get(r.id) ?? [],
       bodyTargets: targetsByEx.get(r.id) ?? [],
     };

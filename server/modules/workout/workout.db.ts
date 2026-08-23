@@ -26,6 +26,9 @@ export const exercises = pgTable("exercises", {
   description: text("description").notNull().default(""),
   measurementType: measurementType("measurement_type").notNull().default("reps"),
   equipment: varchar("equipment", { length: 32 }).notNull().default(""), // None/Barbell/Dumbbell/Kettlebell/Machine/Plate/Resistance Band/Suspension Band/Other
+  instructions: text("instructions").notNull().default(""),             // step-by-step, one step per line (MIT: hasaneyldrm/exercises-dataset)
+  targetMuscle: varchar("target_muscle", { length: 48 }).notNull().default(""),   // primary muscle (free-text label)
+  secondaryMuscles: text("secondary_muscles").notNull().default(""),    // comma-joined secondary muscles
   imageUrl: text("image_url").notNull().default(""),                     // open-licensed exercise image URL (empty → icon fallback)
   gifUrl: text("gif_url").notNull().default(""),                         // animated demo (future: licensed GIFs); empty → fall back to image/icon
   videoUrl: text("video_url").notNull().default(""),                     // form video / YouTube embed (future); empty → none
