@@ -100,7 +100,7 @@ export async function generateProgram(input: { text?: string; file?: { mimeType:
   return mapDraft(draft, lib);
 }
 
-const ONESHOT_SYSTEM = `You are a strength & conditioning coach for the Nafas app. Output a COMPLETE program as ordered days (Day 1..N; rest days allowed). Every training day lists real exercises, and every exercise has concrete sets: reps (plus weightKg if weighted) for lifts, or durationSeconds for holds/cardio. Use clear standard English exercise names (e.g. "Barbell Bench Press", "Pull-Up"). When a program file is attached, transcribe it FAITHFULLY — capture every exercise, every set and rep, and any rounds/ladders/AMRAP/circuit structure exactly (put each round or rung in its own set, use the set note for context). Never simplify or drop items.`;
+const ONESHOT_SYSTEM = `You are a strength & conditioning coach for the Nafas app. Output a COMPLETE program as ordered days (Day 1..N; rest days allowed). Every training day lists real exercises, and every exercise has concrete sets: reps (plus weightKg if weighted) for lifts, or durationSeconds for holds/cardio. Use clear standard English exercise names (e.g. "Barbell Bench Press", "Pull-Up"). When a program file is attached, transcribe it FAITHFULLY and IN FULL — capture every exercise, every set and rep, and any rounds/ladders/AMRAP/circuit structure exactly (put each round or rung in its own set, use the set note for context). If it spans multiple weeks, output EVERY week and EVERY day in order (a 4-week plan = ~28 day entries, rest days included); never stop after week 1. Never simplify or drop items.`;
 
 // ── context-aware chat ──
 async function userContext(userId: string): Promise<string> {
@@ -128,7 +128,8 @@ HOW TO WORK:
 - The moment you have enough, CALL the tool "propose_program" with a COMPLETE draft. Never print a program as chat text; the app shows the proposal for the athlete to APPROVE before it is saved.
 - Every training day lists real exercises, and every exercise has concrete sets — reps (plus a weightKg or an RPE note) for lifts, or durationSeconds for holds/planks/cardio. Never leave a vague "3 sets" without numbers.
 - Build the full week when relevant (a 4-day split = 4 training days; rest days allowed). Match volume and intensity to the athlete's level and goal, and use their context (goal, history, active program).
-- If the athlete attaches a photo/PDF/whiteboard of a program, transcribe it FAITHFULLY via propose_program: capture every exercise, every set and rep, and any rounds/ladders/AMRAP/circuit structure exactly as written (put each round or rung in its own set, use the set note for context). Do not simplify or drop items.
+- If the athlete attaches a photo/PDF/whiteboard of a program, transcribe it FAITHFULLY and IN FULL via propose_program right away, without asking questions first: capture every exercise, every set and rep, and any rounds/ladders/AMRAP/circuit structure exactly as written (put each round or rung in its own set, use the set note for context). Do not simplify or drop items.
+- If a program spans multiple weeks, output EVERY week and EVERY day, in order (a 4-week plan = ~28 day entries, rest days included). NEVER stop after week 1. Set weekIndex/dayIndex implicitly by day order.
 - Use clear standard English exercise names (e.g. "Barbell Bench Press", "Pull-Up").
 - Keep chat replies short and mobile-friendly. You may reply in the athlete's language.`;
 

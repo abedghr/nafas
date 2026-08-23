@@ -14,7 +14,7 @@ export function geminiConfigured(): boolean {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // POST to Gemini with retry+backoff on transient errors (429 quota, 500, 503 overload).
-async function callGemini(model: string, body: unknown, tries = 4): Promise<any> {
+async function callGemini(model: string, body: any, tries = 4): Promise<any> {
   let lastErr = "";
   for (let i = 0; i < tries; i++) {
     const res = await fetch(`${BASE}/${model}:generateContent?key=${env.GEMINI_API_KEY}`, {
@@ -24,7 +24,13 @@ async function callGemini(model: string, body: unknown, tries = 4): Promise<any>
     });
     const json: any = await res.json().catch(() => null);
     if (res.ok) return json;
-    lastErr = `Gemini ${res.status}: ${json?.error?.message ?? "request failed"}`;
+    const msg = json?.error?.message ?? "request failed";
+    lastErr = `Gemini ${res.status}: ${msg}`;
+    // some models don't accept thinkingConfig — strip it and retry once rather than failing
+    if (res.status === 400 && /think/i.test(msg) && body?.generationConfig?.thinkingConfig) {
+      delete body.generationConfig.thinkingConfig;
+      continue;
+    }
     if (![429, 500, 503].includes(res.status) || i === tries - 1) throw new Error(lastErr);
     await sleep(1500 * Math.pow(2, i)); // 1.5s, 3s, 6s
   }
@@ -47,8 +53,11 @@ export async function geminiJSON<T = any>(opts: {
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: opts.schema,
-      maxOutputTokens: opts.maxOutputTokens ?? 8192,
+      // high cap so a multi-week program isn't truncated mid-output
+      maxOutputTokens: opts.maxOutputTokens ?? 32768,
       temperature: 0.4,
+      // flash "thinking" adds large latency; minimise it (transcription needs recall, not reasoning)
+      thinkingConfig: { thinkingBudget: 0 },
     },
   };
   if (opts.system) body.systemInstruction = { parts: [{ text: opts.system }] };
@@ -77,7 +86,8 @@ export async function geminiChat(opts: {
   const model = opts.model || env.GEMINI_MODEL;
   const body: Record<string, unknown> = {
     contents: opts.contents,
-    generationConfig: { maxOutputTokens: 8192, temperature: 0.6 },
+    // high cap so a proposed multi-week program isn't truncated; thinking off for speed
+    generationConfig: { maxOutputTokens: 32768, temperature: 0.6, thinkingConfig: { thinkingBudget: 0 } },
   };
   if (opts.system) body.systemInstruction = { parts: [{ text: opts.system }] };
   if (opts.tools?.length) body.tools = [{ function_declarations: opts.tools }];
