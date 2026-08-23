@@ -11,6 +11,26 @@ export function geminiConfigured(): boolean {
   return !!env.GEMINI_API_KEY;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// POST to Gemini with retry+backoff on transient errors (429 quota, 500, 503 overload).
+async function callGemini(model: string, body: unknown, tries = 4): Promise<any> {
+  let lastErr = "";
+  for (let i = 0; i < tries; i++) {
+    const res = await fetch(`${BASE}/${model}:generateContent?key=${env.GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json: any = await res.json().catch(() => null);
+    if (res.ok) return json;
+    lastErr = `Gemini ${res.status}: ${json?.error?.message ?? "request failed"}`;
+    if (![429, 500, 503].includes(res.status) || i === tries - 1) throw new Error(lastErr);
+    await sleep(1500 * Math.pow(2, i)); // 1.5s, 3s, 6s
+  }
+  throw new Error(lastErr || "Gemini request failed");
+}
+
 // Send parts to Gemini and get back parsed JSON matching `schema` (a Gemini/OpenAPI
 // subset schema object). Throws on network / non-JSON / blocked responses.
 export async function geminiJSON<T = any>(opts: {
@@ -33,16 +53,38 @@ export async function geminiJSON<T = any>(opts: {
   };
   if (opts.system) body.systemInstruction = { parts: [{ text: opts.system }] };
 
-  const res = await fetch(`${BASE}/${model}:generateContent?key=${env.GEMINI_API_KEY}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const json: any = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(`Gemini ${res.status}: ${json?.error?.message ?? "request failed"}`);
+  const json = await callGemini(model, body);
   const cand = json?.candidates?.[0];
   if (!cand) throw new Error(`Gemini: no candidate (${json?.promptFeedback?.blockReason ?? "unknown"})`);
   const text = (cand.content?.parts ?? []).map((p: any) => p.text).filter(Boolean).join("");
   if (!text) throw new Error("Gemini: empty response");
   try { return JSON.parse(text) as T; } catch { throw new Error("Gemini: response was not valid JSON"); }
+}
+
+export type ChatContent = { role: "user" | "model"; parts: GeminiPart[] };
+export type ToolDecl = { name: string; description: string; parameters: Record<string, unknown> };
+export type ChatResult = { text?: string; call?: { name: string; args: any } };
+
+// Multi-turn chat with optional function-calling. Returns assistant text and/or a
+// tool call (functionCall) the caller can act on.
+export async function geminiChat(opts: {
+  system?: string;
+  contents: ChatContent[];
+  tools?: ToolDecl[];
+  model?: string;
+}): Promise<ChatResult> {
+  if (!env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not set");
+  const model = opts.model || env.GEMINI_MODEL;
+  const body: Record<string, unknown> = {
+    contents: opts.contents,
+    generationConfig: { maxOutputTokens: 8192, temperature: 0.6 },
+  };
+  if (opts.system) body.systemInstruction = { parts: [{ text: opts.system }] };
+  if (opts.tools?.length) body.tools = [{ function_declarations: opts.tools }];
+
+  const json = await callGemini(model, body);
+  const parts: any[] = json?.candidates?.[0]?.content?.parts ?? [];
+  const call = parts.find((p) => p.functionCall)?.functionCall;
+  const text = parts.map((p) => p.text).filter(Boolean).join("").trim();
+  return { text: text || undefined, call: call ? { name: call.name, args: call.args } : undefined };
 }

@@ -353,6 +353,22 @@ export default function CoachScreen() {
                 </Animated.View>
               )}
 
+              <Animated.View entering={FadeInDown.duration(450).delay(80)} style={{ paddingHorizontal: 20 }}>
+                <Pressable
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/ai-coach' as any); }}
+                  style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }]}
+                >
+                  <LinearGradient colors={[Colors.electric, '#48CAE4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.aiCoachCard}>
+                    <View style={s.aiCoachIcon}><Ionicons name="sparkles" size={22} color="#04120B" /></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.aiCoachTitle}>{t('aiCoach.cardTitle', { defaultValue: 'AI Coach' })}</Text>
+                      <Text style={s.aiCoachSub}>{t('aiCoach.cardSub', { defaultValue: 'Chat to build a program from your goal, history or a file' })}</Text>
+                    </View>
+                    <Ionicons name="arrow-forward" size={18} color="#04120B" />
+                  </LinearGradient>
+                </Pressable>
+              </Animated.View>
+
               <Animated.View entering={FadeInDown.duration(500)} style={{ paddingHorizontal: 20 }}>
                 <Button
                   variant="ghost"
@@ -745,6 +761,10 @@ const s = StyleSheet.create({
   totalProgressValue: { fontSize: 20, fontFamily: 'Rubik_700Bold' },
   totalProgressDivider: { width: 1, height: 32 },
   noProgramCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 16 },
+  aiCoachCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, padding: 16 },
+  aiCoachIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center' },
+  aiCoachTitle: { color: '#04120B', fontSize: 16, fontFamily: 'Rubik_700Bold' },
+  aiCoachSub: { color: 'rgba(4,18,11,0.75)', fontSize: 12, fontFamily: 'Rubik_400Regular', marginTop: 2, lineHeight: 16 },
   fab: {
     position: 'absolute', right: 20, flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: Colors.electric, paddingLeft: 18, paddingRight: 22, height: 54, borderRadius: 27,

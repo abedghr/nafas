@@ -5,7 +5,7 @@ import { requireAuth } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { qstr } from "../../core/http";
 import { workoutService } from "./workout.service";
-import { generateProgram } from "./workout.ai";
+import { generateProgram, chat as aiChat } from "./workout.ai";
 import { geminiConfigured } from "../../core/gemini";
 import {
   ExerciseSchema, WorkoutTypeSchema, TemplateCreateSchema, LogCreateSchema, ActiveSessionSchema,
@@ -15,6 +15,11 @@ const AiGenerateSchema = z.object({
   text: z.string().max(4000).optional(),
   file: z.object({ mimeType: z.string(), data: z.string() }).optional(),
 }).refine((v) => v.text || v.file, { message: "text or file required" });
+
+const AiChatSchema = z.object({
+  messages: z.array(z.object({ role: z.enum(["user", "model"]), text: z.string().max(8000) })).min(1).max(40),
+  files: z.array(z.object({ mimeType: z.string(), data: z.string() })).max(4).optional(),
+});
 
 export const workoutRouter = Router();
 workoutRouter.use(requireAuth);
@@ -112,6 +117,16 @@ workoutRouter.post("/workout/ai/generate", validate({ body: AiGenerateSchema }),
   try {
     const draft = await generateProgram(req.body);
     res.json(draft);
+  } catch (e: any) {
+    res.status(502).json({ code: "AI_ERROR", message: String(e?.message ?? e) });
+  }
+});
+
+registry.registerPath({ method: "post", path: "/api/workout/ai/chat", tags: ["Workout: AI"], summary: "AI coach chat — asks, advises, and proposes a program to approve (Gemini)", security: sec, request: { body: body(AiChatSchema) }, responses: { 200: json(z.any()) } });
+workoutRouter.post("/workout/ai/chat", validate({ body: AiChatSchema }), async (req, res) => {
+  if (!geminiConfigured()) return res.status(503).json({ code: "AI_UNAVAILABLE", message: "AI is not configured (GEMINI_API_KEY missing)." });
+  try {
+    res.json(await aiChat(req.user!.sub, req.body));
   } catch (e: any) {
     res.status(502).json({ code: "AI_ERROR", message: String(e?.message ?? e) });
   }
