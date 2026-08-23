@@ -210,9 +210,16 @@ export default function CoachScreen() {
   const [showStart, setShowStart] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
   const [aiHint, setAiHint] = useState(false);
-  useEffect(() => { AsyncStorage.getItem('nafas_ai_hint_seen').then((v) => setAiHint(!v)); }, []);
-  const openAiCoach = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); if (aiHint) { setAiHint(false); AsyncStorage.setItem('nafas_ai_hint_seen', '1'); } router.push('/ai-coach' as any); };
-  const dismissHint = () => { setAiHint(false); AsyncStorage.setItem('nafas_ai_hint_seen', '1'); };
+  useEffect(() => {
+    AsyncStorage.getItem('nafas_ai_hint_seen_v2').then((v) => {
+      if (v) return;
+      setAiHint(true);
+      AsyncStorage.setItem('nafas_ai_hint_seen_v2', '1'); // show once, ever
+      setTimeout(() => setAiHint(false), 6000); // auto-dismiss
+    });
+  }, []);
+  const openAiCoach = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setAiHint(false); router.push('/ai-coach' as any); };
+  const dismissHint = () => setAiHint(false);
   const [tipIndex] = useState(Math.floor(Math.random() * aiTips.length));
 
   // Insights/summary run off the real server-backed logs (normalized to the
@@ -291,17 +298,6 @@ export default function CoachScreen() {
             actionIcon="calendar-outline"
             onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); activeEnrollment ? setShowOverview(true) : router.push('/programs' as any); }}
           />
-
-          {aiHint && (
-            <Animated.View entering={FadeInDown.duration(400)} style={s.hintWrap}>
-              <View style={[s.hintArrow, { borderBottomColor: Colors.electric + '18' }]} />
-              <Pressable onPress={openAiCoach} style={[s.hintPill, { backgroundColor: Colors.electric + '18', borderColor: Colors.electric + '44' }]}>
-                <Ionicons name="sparkles" size={14} color={Colors.electric} />
-                <Text style={[s.hintText, { color: theme.text }]} numberOfLines={1}>{t('aiCoach.hint', { defaultValue: 'Build your workout or program with AI' })}</Text>
-                <Pressable onPress={dismissHint} hitSlop={8}><Ionicons name="close" size={15} color={theme.textMuted} /></Pressable>
-              </Pressable>
-            </Animated.View>
-          )}
 
           <CompleteProfileBanner />
 
@@ -547,6 +543,18 @@ export default function CoachScreen() {
         </View>
       </ScrollView>
 
+      {/* AI hint — floating popover anchored under the header sparkles icon */}
+      {aiHint && (
+        <Animated.View entering={FadeInDown.duration(300)} pointerEvents="box-none" style={[s.hintLayer, { top: topPad + 50 }]}>
+          <View style={[s.hintArrow, { borderBottomColor: theme.card }]} />
+          <Pressable onPress={openAiCoach} style={({ pressed }) => [s.hintPill, { backgroundColor: theme.card, borderColor: Colors.electric + '55', opacity: pressed ? 0.9 : 1 }]}>
+            <Ionicons name="sparkles" size={15} color={Colors.electric} />
+            <Text style={[s.hintText, { color: theme.text }]} numberOfLines={1}>{t('aiCoach.hint', { defaultValue: 'Build a workout or program with AI' })}</Text>
+            <Pressable onPress={dismissHint} hitSlop={10}><Ionicons name="close" size={16} color={theme.textMuted} /></Pressable>
+          </Pressable>
+        </Animated.View>
+      )}
+
       {/* fixed start-workout FAB */}
       <Pressable
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowStart(true); }}
@@ -764,10 +772,14 @@ const s = StyleSheet.create({
   totalProgressValue: { fontSize: 20, fontFamily: 'Rubik_700Bold' },
   totalProgressDivider: { width: 1, height: 32 },
   noProgramCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 16 },
-  hintWrap: { alignItems: 'flex-end', paddingHorizontal: 20, marginTop: 4, marginBottom: 8 },
-  hintPill: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 12, paddingLeft: 12, paddingRight: 10, paddingVertical: 9, maxWidth: '92%' },
+  hintLayer: { position: 'absolute', right: 20, alignItems: 'flex-end', zIndex: 50 },
+  hintPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 14,
+    paddingLeft: 12, paddingRight: 10, paddingVertical: 10, maxWidth: 300,
+    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+  },
   hintText: { flexShrink: 1, fontSize: 13, fontFamily: 'Rubik_500Medium' },
-  hintArrow: { width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderBottomWidth: 7, borderLeftColor: 'transparent', borderRightColor: 'transparent', marginRight: 16, marginBottom: -1 },
+  hintArrow: { width: 0, height: 0, borderLeftWidth: 7, borderRightWidth: 7, borderBottomWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', marginRight: 61, marginBottom: -1 },
   fab: {
     position: 'absolute', right: 20, flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: Colors.electric, paddingLeft: 18, paddingRight: 22, height: 54, borderRadius: 27,
