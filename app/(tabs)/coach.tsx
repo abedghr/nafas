@@ -211,10 +211,10 @@ export default function CoachScreen() {
   const [showOverview, setShowOverview] = useState(false);
   const [aiHint, setAiHint] = useState(false);
   useEffect(() => {
-    AsyncStorage.getItem('nafas_ai_hint_seen_v2').then((v) => {
+    AsyncStorage.getItem('nafas_ai_hint_seen_v3').then((v) => {
       if (v) return;
       setAiHint(true);
-      AsyncStorage.setItem('nafas_ai_hint_seen_v2', '1'); // show once, ever
+      AsyncStorage.setItem('nafas_ai_hint_seen_v3', '1'); // show once, ever
       setTimeout(() => setAiHint(false), 6000); // auto-dismiss
     });
   }, []);
@@ -298,6 +298,17 @@ export default function CoachScreen() {
             actionIcon="calendar-outline"
             onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); activeEnrollment ? setShowOverview(true) : router.push('/programs' as any); }}
           />
+
+          {aiHint && (
+            <Animated.View entering={FadeInDown.duration(300)} style={s.hintWrap}>
+              <View style={[s.hintArrow, { borderBottomColor: theme.card }]} />
+              <Pressable onPress={openAiCoach} style={({ pressed }) => [s.hintPill, { backgroundColor: theme.card, borderColor: Colors.electric + '55', opacity: pressed ? 0.9 : 1 }]}>
+                <Ionicons name="sparkles" size={15} color={Colors.electric} />
+                <Text style={[s.hintText, { color: theme.text }]} numberOfLines={1}>{t('aiCoach.hint', { defaultValue: 'Build a workout or program with AI' })}</Text>
+                <Pressable onPress={dismissHint} hitSlop={10}><Ionicons name="close" size={16} color={theme.textMuted} /></Pressable>
+              </Pressable>
+            </Animated.View>
+          )}
 
           <CompleteProfileBanner />
 
@@ -543,18 +554,6 @@ export default function CoachScreen() {
         </View>
       </ScrollView>
 
-      {/* AI hint — floating popover anchored under the header sparkles icon */}
-      {aiHint && (
-        <Animated.View entering={FadeInDown.duration(300)} pointerEvents="box-none" style={[s.hintLayer, { top: topPad + 50 }]}>
-          <View style={[s.hintArrow, { borderBottomColor: theme.card }]} />
-          <Pressable onPress={openAiCoach} style={({ pressed }) => [s.hintPill, { backgroundColor: theme.card, borderColor: Colors.electric + '55', opacity: pressed ? 0.9 : 1 }]}>
-            <Ionicons name="sparkles" size={15} color={Colors.electric} />
-            <Text style={[s.hintText, { color: theme.text }]} numberOfLines={1}>{t('aiCoach.hint', { defaultValue: 'Build a workout or program with AI' })}</Text>
-            <Pressable onPress={dismissHint} hitSlop={10}><Ionicons name="close" size={16} color={theme.textMuted} /></Pressable>
-          </Pressable>
-        </Animated.View>
-      )}
-
       {/* fixed start-workout FAB */}
       <Pressable
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowStart(true); }}
@@ -592,6 +591,17 @@ export default function CoachScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[s.startOptTitle, { color: theme.text }]}>{t('workoutTab.startNewWorkout', { defaultValue: 'New workout' })}</Text>
                 <Text style={[s.startOptSub, { color: theme.textMuted }]}>{t('workoutTab.startNewWorkoutSub', { defaultValue: 'Build a one-off session' })}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+            </Pressable>
+            <Pressable
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowStart(false); router.push('/ai-coach' as any); }}
+              style={({ pressed }) => [s.startOpt, { borderColor: Colors.electric + '55', backgroundColor: pressed ? theme.cardAlt : theme.card }]}
+            >
+              <View style={[s.startOptIcon, { backgroundColor: Colors.electric + '18' }]}><Ionicons name="sparkles" size={19} color={Colors.electric} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.startOptTitle, { color: theme.text }]}>{t('workoutTab.startWithAI', { defaultValue: 'Build with AI' })}</Text>
+                <Text style={[s.startOptSub, { color: theme.textMuted }]}>{t('workoutTab.startWithAISub', { defaultValue: 'Chat to create a workout or program' })}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
             </Pressable>
@@ -772,14 +782,14 @@ const s = StyleSheet.create({
   totalProgressValue: { fontSize: 20, fontFamily: 'Rubik_700Bold' },
   totalProgressDivider: { width: 1, height: 32 },
   noProgramCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 16 },
-  hintLayer: { position: 'absolute', right: 20, alignItems: 'flex-end', zIndex: 50 },
+  hintWrap: { alignItems: 'flex-end', paddingHorizontal: 20, marginTop: 6, marginBottom: 4 },
   hintPill: {
     flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 14,
-    paddingLeft: 12, paddingRight: 10, paddingVertical: 10, maxWidth: 300,
+    paddingLeft: 12, paddingRight: 10, paddingVertical: 10, maxWidth: '100%',
     shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },
   hintText: { flexShrink: 1, fontSize: 13, fontFamily: 'Rubik_500Medium' },
-  hintArrow: { width: 0, height: 0, borderLeftWidth: 7, borderRightWidth: 7, borderBottomWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', marginRight: 61, marginBottom: -1 },
+  hintArrow: { width: 0, height: 0, borderLeftWidth: 7, borderRightWidth: 7, borderBottomWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', marginRight: 67, marginBottom: -1 },
   fab: {
     position: 'absolute', right: 20, flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: Colors.electric, paddingLeft: 18, paddingRight: 22, height: 54, borderRadius: 27,
