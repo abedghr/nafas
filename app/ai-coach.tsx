@@ -36,7 +36,7 @@ async function uriToBase64(uri: string): Promise<string> {
   return FS.readAsStringAsync(uri, { encoding: 'base64' });
 }
 
-type Msg = { role: 'user' | 'model'; text: string; local?: boolean; program?: any; previewUri?: string; fileLabel?: string };
+type Msg = { role: 'user' | 'model'; text: string; local?: boolean; program?: any; workout?: any; previewUri?: string; fileLabel?: string };
 type Att = { mimeType: string; data: string; label: string; previewUri?: string };
 
 // one bouncing dot of the typing indicator
@@ -50,7 +50,7 @@ function Dot({ delay, color }: { delay: number; color: string }) {
 export default function AICoachScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { isDark, addProgram } = useApp();
+  const { isDark, addProgram, addWorkoutTemplate } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
@@ -116,8 +116,9 @@ export default function AICoachScreen() {
       // send only the real exchange (skip the local greeting), Gemini-style roles
       const apiMessages = next.filter((m) => !m.local).map((m) => ({ role: m.role, text: m.text }));
       const r = await workoutApi.aiChat({ messages: apiMessages, files: file ? [{ mimeType: file.mimeType, data: file.data }] : undefined });
-      const reply: Msg = r.type === 'proposal'
-        ? { role: 'model', text: r.message, program: r.program }
+      const reply: Msg =
+        r.type === 'proposal' ? { role: 'model', text: r.message, program: r.program }
+        : r.type === 'workout' ? { role: 'model', text: r.message, workout: r.workout }
         : { role: 'model', text: r.message };
       setMessages((cur) => [...cur, reply]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -133,10 +134,15 @@ export default function AICoachScreen() {
   };
 
   // Save ONLY here, on explicit tap, and only when the plan has real content.
-  const save = (program: any) => {
+  const saveProgram = (program: any) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const id = addProgram(program);
     router.replace(('/program/' + id + '?edit=1') as any); // saved → open to fine-tune/start
+  };
+  const saveWorkout = (workout: any) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    addWorkoutTemplate({ name: workout.name, exercises: workout.exercises } as any); // persists + syncs to server
+    router.replace('/saved-workouts' as any); // saved → appears in My Workouts
   };
 
   return (
@@ -164,7 +170,8 @@ export default function AICoachScreen() {
                 )}
                 {!!m.text && <Text style={[s.bubbleText, { color: m.role === 'user' ? '#04120B' : theme.text }]}>{m.text}</Text>}
               </View>
-              {m.program && <ProposalCard program={m.program} theme={theme} t={t} onSave={() => save(m.program)} />}
+              {m.program && <ProposalCard program={m.program} theme={theme} t={t} onSave={() => saveProgram(m.program)} />}
+              {m.workout && <WorkoutCard workout={m.workout} theme={theme} t={t} onSave={() => saveWorkout(m.workout)} />}
             </View>
           </Animated.View>
         ))}
@@ -295,6 +302,47 @@ function ProposalCard({ program, theme, t, onSave }: { program: any; theme: any;
       <Text style={[s.approveHint, { color: theme.textMuted }]}>
         {empty ? t('aiCoach.emptyHint', { defaultValue: 'Ask me to add exercises first.' }) : t('aiCoach.approveHint', { defaultValue: 'Review the days above. Nothing is saved until you tap Save. Or tell me what to change.' })}
       </Text>
+    </View>
+  );
+}
+
+function WorkoutCard({ workout, theme, t, onSave }: { workout: any; theme: any; t: any; onSave: () => void }) {
+  const libNames = useMemo(() => new Set(exerciseLibrary.map((e: any) => String(e.name).toLowerCase())), []);
+  const exs = workout.exercises || [];
+  const linked = exs.filter((e: any) => libNames.has(String(e.name).toLowerCase())).length;
+  const empty = exs.length === 0;
+  return (
+    <View style={[s.proposal, { backgroundColor: theme.card, borderColor: Colors.electric + '44' }]}>
+      <View style={s.proposalHead}>
+        <View style={[s.headerBadge, { backgroundColor: Colors.electric + '22' }]}><Ionicons name="flash" size={15} color={Colors.electric} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={[s.proposalName, { color: theme.text }]} numberOfLines={2}>{workout.name}</Text>
+          <Text style={[s.proposalMeta, { color: theme.textMuted }]}>{t('aiCoach.workoutMeta', { defaultValue: 'Single workout · {{n}} exercises', n: exs.length })}</Text>
+        </View>
+      </View>
+      {!empty && (
+        <View style={[s.matchRow, { backgroundColor: Colors.electric + '12' }]}>
+          <Ionicons name="link" size={13} color={Colors.electric} />
+          <Text style={[s.matchText, { color: theme.textSecondary }]}>{t('aiCoach.linkedSummary', { defaultValue: '{{n}} of {{total}} exercises linked to your library (with demos & tracking)', n: linked, total: exs.length })}</Text>
+        </View>
+      )}
+      <View style={s.proposalDay}>
+        {exs.map((e: any, j: number) => {
+          const isLinked = libNames.has(String(e.name).toLowerCase());
+          return (
+            <View key={j} style={s.proposalExRow}>
+              <View style={[s.exDot, { backgroundColor: isLinked ? Colors.electric : theme.textMuted + '55' }]} />
+              <Text style={[s.proposalExName, { color: theme.textSecondary }]} numberOfLines={1}>{e.name}</Text>
+              <Text style={[s.proposalExSets, { color: theme.textMuted }]}>{setLabel(e.sets)}</Text>
+            </View>
+          );
+        })}
+      </View>
+      <Pressable onPress={empty ? undefined : onSave} disabled={empty} style={({ pressed }) => [s.approveBtn, { backgroundColor: empty ? theme.cardAlt : Colors.electric, opacity: !empty && pressed ? 0.9 : 1 }]}>
+        <Ionicons name={empty ? 'alert-circle-outline' : 'bookmark'} size={18} color={empty ? theme.textMuted : '#04120B'} />
+        <Text style={[s.approveText, { color: empty ? theme.textMuted : '#04120B' }]}>{empty ? t('aiCoach.emptyNoSave', { defaultValue: 'Nothing to save yet' }) : t('aiCoach.saveWorkout', { defaultValue: 'Save workout' })}</Text>
+      </Pressable>
+      <Text style={[s.approveHint, { color: theme.textMuted }]}>{empty ? t('aiCoach.emptyHint', { defaultValue: 'Ask me to add exercises first.' }) : t('aiCoach.approveHintWorkout', { defaultValue: 'Nothing is saved until you tap Save. Or tell me what to change.' })}</Text>
     </View>
   );
 }

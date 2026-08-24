@@ -58,36 +58,56 @@ const PROGRAM_SCHEMA = {
   required: ["name", "days"],
 } as const;
 
-type DraftDay = { name?: string; restDay?: boolean; exercises?: { name: string; sets?: { reps?: number; weightKg?: number; durationSeconds?: number; note?: string }[] }[] };
+type DraftSet = { reps?: number; weightKg?: number; durationSeconds?: number; note?: string };
+type DraftExercise = { name: string; sets?: DraftSet[] };
+type DraftDay = { name?: string; restDay?: boolean; exercises?: DraftExercise[] };
 type Draft = { name?: string; description?: string; days?: DraftDay[] };
+type WorkoutDraft = { name?: string; exercises?: DraftExercise[] };
 
 async function exerciseLib() {
   const rows = await db.select({ name: exercisesTable.name }).from(exercisesTable);
   return { names: rows.map((r) => r.name).sort(), lib: rows.map((r) => ({ name: r.name, tok: toks(r.name) })) };
 }
 
-// draft (loose JSON from the model) → full composable-model program
-function mapDraft(draft: Draft, lib: { name: string; tok: string[] }[]) {
-  const matchName = (name: string) => {
+// closure that maps a loose exercise name → the closest library name (or null)
+function makeMatcher(lib: { name: string; tok: string[] }[]) {
+  return (name: string) => {
     const nt = toks(name); let best: { name: string; score: number } | null = null;
     for (const l of lib) { const s = jac(nt, l.tok); if (!best || s > best.score) best = { name: l.name, score: s }; }
     return best && best.score >= 0.7 ? best.name : null;
   };
+}
+function mapSets(sets: DraftSet[] = []) {
+  const out = sets.map((s) => {
+    const isHold = s.durationSeconds != null && s.reps == null;
+    return isHold
+      ? { type: "hold", measure: "time", durationSeconds: s.durationSeconds, ...(s.weightKg != null ? { weight: s.weightKg } : {}), ...(s.note ? { note: s.note } : {}) }
+      : { type: "reps", ...(s.reps != null ? { reps: s.reps } : {}), ...(s.weightKg != null ? { weight: s.weightKg } : {}), ...(s.note ? { note: s.note } : {}) };
+  });
+  return out.length ? out : [{ type: "reps", reps: 10 }];
+}
+// loose exercises → composable TemplateExercise[] (shared by program days and single workouts)
+function mapExercises(exercises: DraftExercise[] = [], seed: number, match: (n: string) => string | null) {
+  return exercises.map((e) => {
+    const matched = match(e.name);
+    return { exerciseId: `ai-${seed}-${(matched || e.name).replace(/\s+/g, "-").toLowerCase()}`, name: matched || e.name, muscleGroup: "Full Body", restSeconds: 90, sets: mapSets(e.sets) };
+  });
+}
+
+// draft → full composable-model program (multi-week, ordered days)
+function mapDraft(draft: Draft, lib: { name: string; tok: string[] }[]) {
+  const match = makeMatcher(lib);
   const days = (draft.days || []).map((d, i) => ({
     weekIndex: Math.floor(i / 7), dayIndex: i % 7, restDay: !!d.restDay, templateId: null as string | null,
     name: d.name || `Day ${i + 1}`, label: "", notes: "",
-    exercises: (d.exercises || []).map((e) => {
-      const matched = matchName(e.name);
-      const sets = (e.sets || []).map((s) => {
-        const isHold = s.durationSeconds != null && s.reps == null;
-        return isHold
-          ? { type: "hold", measure: "time", durationSeconds: s.durationSeconds, ...(s.weightKg != null ? { weight: s.weightKg } : {}), ...(s.note ? { note: s.note } : {}) }
-          : { type: "reps", ...(s.reps != null ? { reps: s.reps } : {}), ...(s.weightKg != null ? { weight: s.weightKg } : {}), ...(s.note ? { note: s.note } : {}) };
-      });
-      return { exerciseId: `ai-${i}-${(matched || e.name).replace(/\s+/g, "-").toLowerCase()}`, name: matched || e.name, muscleGroup: "Full Body", restSeconds: 90, sets: sets.length ? sets : [{ type: "reps", reps: 10 }] };
-    }),
+    exercises: mapExercises(d.exercises, i, match),
   }));
   return { name: draft.name || "AI Program", startDate: null, weeks: Math.max(1, Math.ceil(days.length / 7)), notes: draft.description || "", weekMeta: [], days };
+}
+
+// draft → a single reusable workout (one session; saved as a template client-side)
+function mapWorkout(draft: WorkoutDraft, lib: { name: string; tok: string[] }[]) {
+  return { name: draft.name || "AI Workout", exercises: mapExercises(draft.exercises, 0, makeMatcher(lib)) };
 }
 
 // one-shot generate (kept for the simple Create-with-AI path)
@@ -119,21 +139,55 @@ async function userContext(userId: string): Promise<string> {
   ].join(" ");
 }
 
-const CHAT_SYSTEM = (ctx: string) => `You are the Nafas AI training coach — friendly, expert, concise. Help the athlete get a complete, well-structured training program.
+const CHAT_SYSTEM = (ctx: string) => `You are the Nafas AI training coach — friendly, expert, concise. You help with ANYTHING in the workout section and choose the right action for what the athlete actually asked.
 
 ATHLETE CONTEXT: ${ctx}
 
-HOW TO WORK:
-- Keep a short back-and-forth. Ask only the few things you still need (goal, experience level, days/week, session length, equipment/location, injuries). Offer concrete options the athlete can pick from. Don't interrogate — at most 1-3 questions, then build.
-- The moment you have enough, CALL the tool "propose_program" with a COMPLETE draft. Never print a program as chat text; the app shows the proposal for the athlete to APPROVE before it is saved.
-- Every training day lists real exercises, and every exercise has concrete sets — reps (plus a weightKg or an RPE note) for lifts, or durationSeconds for holds/planks/cardio. Never leave a vague "3 sets" without numbers.
-- Build the full week when relevant (a 4-day split = 4 training days; rest days allowed). Match volume and intensity to the athlete's level and goal, and use their context (goal, history, active program).
-- If the athlete attaches a photo/PDF/whiteboard of a program, transcribe it FAITHFULLY and IN FULL via propose_program right away, without asking questions first: capture every exercise, every set and rep, and any rounds/ladders/AMRAP/circuit structure exactly as written (put each round or rung in its own set, use the set note for context). Do not simplify or drop items.
-- If a program spans multiple weeks, output EVERY week and EVERY day, in order (a 4-week plan = ~28 day entries, rest days included). NEVER stop after week 1. Set weekIndex/dayIndex implicitly by day order.
-- Use clear standard English exercise names (e.g. "Barbell Bench Press", "Pull-Up").
+WHAT YOU CAN DO (pick per request):
+1. ANSWER / ADVISE in plain text — technique and form cues, exercise selection, how to progress, or reading an attached photo/PDF (identify the equipment or exercise, critique form, describe what it shows). Do this whenever the athlete asks a question or wants feedback rather than a plan to save. Do NOT force a workout/program on them.
+2. Build a SINGLE WORKOUT — call "propose_workout" for a one-off session ("give me a push day", "a 30-min dumbbell workout", "turn this photo into a workout", "today's legs"). Saved as a reusable workout.
+3. Build a MULTI-WEEK PROGRAM — call "propose_program" for an ongoing plan ("a 4-week program", "a weekly split", "a plan to follow day by day", or transcribing a multi-day/multi-week program file).
+
+RULES FOR BOTH TOOLS:
+- If you're missing essentials (goal, experience, days/week, session length, equipment/location, injuries) ask at most 1-3 questions first, offering concrete options; then build.
+- Every exercise has concrete sets — reps (plus a weightKg or an RPE note) for lifts, or durationSeconds for holds/planks/cardio. Never a vague "3 sets" without numbers.
+- Never print a workout/program as chat text; always use the tool. The app shows the proposal for the athlete to review and save — nothing saves automatically.
+- Transcribe an attached program file FAITHFULLY and IN FULL: every exercise, set and rep, and any rounds/ladders/AMRAP/circuit exactly (each round/rung = its own set, use the set note). A single session → propose_workout; multiple days/weeks → propose_program with EVERY week and day in order (a 4-week plan = ~28 day entries incl. rest days), never stopping after week 1.
+- Use clear standard English exercise names (e.g. "Barbell Bench Press", "Pull-Up") so they link to the app's library.
 - Keep chat replies short and mobile-friendly. You may reply in the athlete's language.`;
 
-const PROPOSE_TOOL = { name: "propose_program", description: "Propose a complete training program for the athlete to review and approve before it is saved.", parameters: PROGRAM_SCHEMA as any };
+const WORKOUT_SCHEMA = {
+  type: "object",
+  properties: {
+    name: { type: "string" },
+    exercises: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          sets: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                reps: { type: "integer" },
+                weightKg: { type: "number" },
+                durationSeconds: { type: "integer" },
+                note: { type: "string" },
+              },
+            },
+          },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  required: ["name", "exercises"],
+} as const;
+
+const PROPOSE_TOOL = { name: "propose_program", description: "Propose a complete MULTI-WEEK training program (ordered days across one or more weeks) for the athlete to review and save.", parameters: PROGRAM_SCHEMA as any };
+const PROPOSE_WORKOUT_TOOL = { name: "propose_workout", description: "Propose a SINGLE workout session (one list of exercises with sets) for the athlete to review and save as a reusable workout.", parameters: WORKOUT_SCHEMA as any };
 
 export async function chat(userId: string, input: { messages: { role: "user" | "model"; text: string }[]; files?: { mimeType: string; data: string }[] }) {
   const { lib } = await exerciseLib();
@@ -144,9 +198,12 @@ export async function chat(userId: string, input: { messages: { role: "user" | "
     const last = contents[contents.length - 1];
     for (const f of input.files) last.parts.unshift({ inline_data: { mime_type: f.mimeType, data: f.data } });
   }
-  const r = await geminiChat({ system: CHAT_SYSTEM(ctx), contents, tools: [PROPOSE_TOOL] });
+  const r = await geminiChat({ system: CHAT_SYSTEM(ctx), contents, tools: [PROPOSE_TOOL, PROPOSE_WORKOUT_TOOL] });
   if (r.call?.name === "propose_program") {
-    return { type: "proposal" as const, message: r.text || "Here's a program I put together — review and approve it.", program: mapDraft(r.call.args as Draft, lib) };
+    return { type: "proposal" as const, message: r.text || "Here's a program I put together — review it and save when you're happy.", program: mapDraft(r.call.args as Draft, lib) };
+  }
+  if (r.call?.name === "propose_workout") {
+    return { type: "workout" as const, message: r.text || "Here's a workout — review it and save when you're happy.", workout: mapWorkout(r.call.args as WorkoutDraft, lib) };
   }
   return { type: "message" as const, message: r.text || "…" };
 }

@@ -72,7 +72,11 @@ export const workoutApi = {
   aiGenerateProgram: (body: { text?: string; file?: { mimeType: string; data: string } }) =>
     apiFetch<any>("/workout/ai/generate", { method: "POST", auth: true, body }),
   aiChat: (body: { messages: { role: "user" | "model"; text: string }[]; files?: { mimeType: string; data: string }[] }) =>
-    apiFetch<{ type: "message"; message: string } | { type: "proposal"; message: string; program: any }>("/workout/ai/chat", { method: "POST", auth: true, body }),
+    apiFetch<
+      | { type: "message"; message: string }
+      | { type: "proposal"; message: string; program: any }
+      | { type: "workout"; message: string; workout: any }
+    >("/workout/ai/chat", { method: "POST", auth: true, body }),
   insights: () => apiFetch<{ insights: string[] }>("/workout/insights", { auth: true }),
   recommendations: (goal?: string) => apiFetch<{ recommendations: string[] }>(`/workout/recommendations${goal ? `?goal=${goal}` : ""}`, { auth: true }),
   weeklyPlan: (goal?: string) => apiFetch<{ plan: { day: string; focus: string }[] }>(`/workout/weekly-plan${goal ? `?goal=${goal}` : ""}`, { auth: true }),
