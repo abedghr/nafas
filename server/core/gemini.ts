@@ -13,6 +13,12 @@ export function geminiConfigured(): boolean {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Minimise "thinking" latency. Gemini 3.x uses thinkingLevel; 2.5.x uses the
+// legacy thinkingBudget — sending the wrong one is a 400 "invalid argument".
+function thinkingCfg(model: string): Record<string, unknown> {
+  return /gemini-3/.test(model) ? { thinkingLevel: "low" } : { thinkingBudget: 0 };
+}
+
 // POST to Gemini with retry+backoff on transient errors (429 quota, 500, 503 overload).
 async function callGemini(model: string, body: any, tries = 4): Promise<any> {
   let lastErr = "";
@@ -26,8 +32,9 @@ async function callGemini(model: string, body: any, tries = 4): Promise<any> {
     if (res.ok) return json;
     const msg = json?.error?.message ?? "request failed";
     lastErr = `Gemini ${res.status}: ${msg}`;
-    // some models don't accept thinkingConfig — strip it and retry once rather than failing
-    if (res.status === 400 && /think/i.test(msg) && body?.generationConfig?.thinkingConfig) {
+    // a bad/unsupported thinkingConfig is a 400 "invalid argument" — strip it and
+    // retry once (any 400 while thinkingConfig is present) rather than failing
+    if (res.status === 400 && body?.generationConfig?.thinkingConfig) {
       delete body.generationConfig.thinkingConfig;
       continue;
     }
@@ -57,7 +64,7 @@ export async function geminiJSON<T = any>(opts: {
       maxOutputTokens: opts.maxOutputTokens ?? 32768,
       temperature: 0.4,
       // flash "thinking" adds large latency; minimise it (transcription needs recall, not reasoning)
-      thinkingConfig: { thinkingBudget: 0 },
+      thinkingConfig: thinkingCfg(model),
     },
   };
   if (opts.system) body.systemInstruction = { parts: [{ text: opts.system }] };
@@ -86,8 +93,8 @@ export async function geminiChat(opts: {
   const model = opts.model || env.GEMINI_MODEL;
   const body: Record<string, unknown> = {
     contents: opts.contents,
-    // high cap so a proposed multi-week program isn't truncated; thinking off for speed
-    generationConfig: { maxOutputTokens: 32768, temperature: 0.6, thinkingConfig: { thinkingBudget: 0 } },
+    // high cap so a proposed multi-week program isn't truncated; thinking minimised for speed
+    generationConfig: { maxOutputTokens: 32768, temperature: 0.6, thinkingConfig: thinkingCfg(model) },
   };
   if (opts.system) body.systemInstruction = { parts: [{ text: opts.system }] };
   if (opts.tools?.length) body.tools = [{ function_declarations: opts.tools }];
