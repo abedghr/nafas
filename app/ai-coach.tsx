@@ -1,18 +1,21 @@
 // AI Coach — a chat inside Workout. The coach knows the athlete's goal, history
-// and active program; it asks questions, offers options, and when ready proposes
-// a full program the athlete APPROVES before it's saved (opens in edit mode).
-// Attach a photo/PDF of an existing program and it transcribes it.
-import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, TextInput, Pressable, Image, ActivityIndicator, KeyboardAvoidingView } from 'react-native';
+// and active program; it asks questions, offers options, and proposes a full
+// program. NOTHING is saved until the athlete reviews every day/exercise in the
+// proposal card and taps Save (disabled if the plan is empty). Attach a photo/PDF
+// of an existing program and it transcribes it.
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Platform, TextInput, Pressable, Image, KeyboardAvoidingView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import Animated, { FadeInUp, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import { workoutApi } from '@/src/features/workout/api';
+import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import { alertDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 import { Type } from '@/constants/typography';
@@ -36,6 +39,14 @@ async function uriToBase64(uri: string): Promise<string> {
 type Msg = { role: 'user' | 'model'; text: string; local?: boolean; program?: any; previewUri?: string; fileLabel?: string };
 type Att = { mimeType: string; data: string; label: string; previewUri?: string };
 
+// one bouncing dot of the typing indicator
+function Dot({ delay, color }: { delay: number; color: string }) {
+  const v = useSharedValue(0.35);
+  useEffect(() => { v.value = withDelay(delay, withRepeat(withTiming(1, { duration: 480 }), -1, true)); }, []);
+  const st = useAnimatedStyle(() => ({ opacity: v.value, transform: [{ translateY: -4 * (v.value - 0.35) }] }));
+  return <Animated.View style={[{ width: 7, height: 7, borderRadius: 4, backgroundColor: color }, st]} />;
+}
+
 export default function AICoachScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -50,11 +61,12 @@ export default function AICoachScreen() {
   ];
 
   const [messages, setMessages] = useState<Msg[]>([
-    { role: 'model', local: true, text: t('aiCoach.greeting', { defaultValue: "Hi! I'm your training coach. Tell me your goal, how many days a week you can train, and what equipment you have — or attach a program and I'll read it. I'll put together a plan for you to approve." }) },
+    { role: 'model', local: true, text: t('aiCoach.greeting', { defaultValue: "Hi! I'm your training coach. Tell me your goal, how many days a week you can train, and what equipment you have — or attach a program and I'll read it. I'll put together a plan for you to review." }) },
   ]);
   const [text, setText] = useState('');
   const [att, setAtt] = useState<Att | null>(null);
   const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState('');
   const scrollRef = useRef<ScrollView>(null);
   const scrollDown = () => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 60);
 
@@ -77,6 +89,18 @@ export default function AICoachScreen() {
     }
   };
 
+  // ponytail: the backend is one request, so we can't stream real progress — walk
+  // through plausible prep stages on a timer to show HOW the coach is working.
+  const runStages = (withFile: boolean) => {
+    const steps = withFile
+      ? [t('aiCoach.stageRead', { defaultValue: 'Reading your file…' }), t('aiCoach.stageExtract', { defaultValue: 'Extracting the exercises…' }), t('aiCoach.stageMatch', { defaultValue: 'Matching to your library…' }), t('aiCoach.stageBuild', { defaultValue: 'Building your program…' })]
+      : [t('aiCoach.stageThink', { defaultValue: 'Thinking it through…' }), t('aiCoach.stageDesign', { defaultValue: 'Designing your plan…' }), t('aiCoach.stageMatch', { defaultValue: 'Matching to your library…' })];
+    let i = 0;
+    setStage(steps[0]);
+    const id = setInterval(() => { i = Math.min(i + 1, steps.length - 1); setStage(steps[i]); }, 1600);
+    return () => clearInterval(id);
+  };
+
   const send = async () => {
     const body = text.trim();
     if ((!body && !att) || busy) return;
@@ -87,6 +111,7 @@ export default function AICoachScreen() {
     setText('');
     const file = att; setAtt(null);
     setBusy(true); scrollDown();
+    const stopStages = runStages(!!file);
     try {
       // send only the real exchange (skip the local greeting), Gemini-style roles
       const apiMessages = next.filter((m) => !m.local).map((m) => ({ role: m.role, text: m.text }));
@@ -104,14 +129,14 @@ export default function AICoachScreen() {
         ? t('aiCoach.netError', { defaultValue: 'That took too long or the connection dropped. Try again — a large file can take a while.' })
         : raw;
       setMessages((cur) => [...cur, { role: 'model', local: true, text: '⚠️ ' + msg }]);
-    } finally { setBusy(false); scrollDown(); }
+    } finally { stopStages(); setStage(''); setBusy(false); scrollDown(); }
   };
 
-  const approve = (program: any) => {
-    if (!program?.days?.length) { alertDialog(t('aiCoach.emptyPlan', { defaultValue: 'That plan is empty — ask me to try again.' }), ''); return; }
+  // Save ONLY here, on explicit tap, and only when the plan has real content.
+  const save = (program: any) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const id = addProgram(program);
-    router.replace(('/program/' + id + '?edit=1') as any); // review + tweak before starting
+    router.replace(('/program/' + id + '?edit=1') as any); // saved → open to fine-tune/start
   };
 
   return (
@@ -125,31 +150,40 @@ export default function AICoachScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView ref={scrollRef} contentContainerStyle={{ padding: 16, paddingBottom: 24, gap: 12 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} onContentSizeChange={scrollDown}>
+      <ScrollView ref={scrollRef} contentContainerStyle={{ padding: 16, paddingBottom: 24, gap: 14 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} onContentSizeChange={scrollDown}>
         {messages.map((m, i) => (
-          <View key={i} style={{ alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-            <View style={[s.bubble, m.role === 'user' ? { backgroundColor: Colors.electric } : { backgroundColor: theme.card }]}>
-              {m.previewUri && <Image source={{ uri: m.previewUri }} style={s.bubbleImg} resizeMode="cover" />}
-              {m.fileLabel && (
-                <View style={s.fileChip}><Ionicons name="document-text-outline" size={14} color={m.role === 'user' ? '#04120B' : theme.textSecondary} /><Text style={[s.fileChipText, { color: m.role === 'user' ? '#04120B' : theme.textSecondary }]} numberOfLines={1}>{m.fileLabel}</Text></View>
-              )}
-              {!!m.text && <Text style={[s.bubbleText, { color: m.role === 'user' ? '#04120B' : theme.text }]}>{m.text}</Text>}
+          <Animated.View key={i} entering={FadeInUp.duration(260)} style={[s.msgRow, { justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }]}>
+            {m.role === 'model' && (
+              <View style={[s.aiAvatar, { backgroundColor: Colors.electric + '1F' }]}><Ionicons name="sparkles" size={13} color={Colors.electric} /></View>
+            )}
+            <View style={{ flexShrink: 1, alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+              <View style={[s.bubble, m.role === 'user' ? { backgroundColor: Colors.electric, borderBottomRightRadius: 6 } : { backgroundColor: theme.card, borderBottomLeftRadius: 6 }]}>
+                {m.previewUri && <Image source={{ uri: m.previewUri }} style={s.bubbleImg} resizeMode="cover" />}
+                {m.fileLabel && (
+                  <View style={s.fileChip}><Ionicons name="document-text-outline" size={14} color={m.role === 'user' ? '#04120B' : theme.textSecondary} /><Text style={[s.fileChipText, { color: m.role === 'user' ? '#04120B' : theme.textSecondary }]} numberOfLines={1}>{m.fileLabel}</Text></View>
+                )}
+                {!!m.text && <Text style={[s.bubbleText, { color: m.role === 'user' ? '#04120B' : theme.text }]}>{m.text}</Text>}
+              </View>
+              {m.program && <ProposalCard program={m.program} theme={theme} t={t} onSave={() => save(m.program)} />}
             </View>
-            {m.program && <ProposalCard program={m.program} theme={theme} t={t} onApprove={() => approve(m.program)} />}
-          </View>
+          </Animated.View>
         ))}
         {busy && (
-          <View style={{ alignItems: 'flex-start' }}>
-            <View style={[s.bubble, { backgroundColor: theme.card, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
-              <ActivityIndicator size="small" color={Colors.electric} />
-              <Text style={[s.bubbleText, { color: theme.textMuted }]}>{t('aiCoach.thinking', { defaultValue: 'Thinking…' })}</Text>
+          <Animated.View entering={FadeInUp.duration(200)} style={[s.msgRow, { justifyContent: 'flex-start' }]}>
+            <View style={[s.aiAvatar, { backgroundColor: Colors.electric + '1F' }]}><Ionicons name="sparkles" size={13} color={Colors.electric} /></View>
+            <View style={[s.bubble, { backgroundColor: theme.card, borderBottomLeftRadius: 6 }]}>
+              <View style={s.typingRow}>
+                <View style={s.dots}><Dot delay={0} color={Colors.electric} /><Dot delay={140} color={Colors.electric} /><Dot delay={280} color={Colors.electric} /></View>
+                {!!stage && <Text style={[s.stageText, { color: theme.textMuted }]}>{stage}</Text>}
+              </View>
             </View>
-          </View>
+          </Animated.View>
         )}
         {messages.length <= 1 && !busy && (
           <View style={s.suggestWrap}>
             {SUGGESTIONS.map((sug) => (
               <Pressable key={sug} onPress={() => setText(sug)} style={[s.chip, { borderColor: theme.border }]}>
+                <Ionicons name="sparkles-outline" size={13} color={Colors.electric} />
                 <Text style={[s.chipText, { color: theme.textSecondary }]} numberOfLines={1}>{sug}</Text>
               </Pressable>
             ))}
@@ -202,10 +236,15 @@ function setLabel(sets: any[] = []): string {
   return w != null ? `${body} · ${w}kg` : body;
 }
 
-function ProposalCard({ program, theme, t, onApprove }: { program: any; theme: any; t: any; onApprove: () => void }) {
+function ProposalCard({ program, theme, t, onSave }: { program: any; theme: any; t: any; onSave: () => void }) {
   const [open, setOpen] = useState(true);
+  const libNames = useMemo(() => new Set(exerciseLibrary.map((e: any) => String(e.name).toLowerCase())), []);
   const days = (program.days || []).filter((d: any) => !d.restDay);
-  const exCount = days.reduce((a: number, d: any) => a + (d.exercises?.length || 0), 0);
+  const allEx = days.flatMap((d: any) => d.exercises || []);
+  const exCount = allEx.length;
+  const linked = allEx.filter((e: any) => libNames.has(String(e.name).toLowerCase())).length;
+  const empty = exCount === 0;
+
   return (
     <View style={[s.proposal, { backgroundColor: theme.card, borderColor: Colors.electric + '44' }]}>
       <Pressable style={s.proposalHead} onPress={() => setOpen((v) => !v)}>
@@ -216,22 +255,46 @@ function ProposalCard({ program, theme, t, onApprove }: { program: any; theme: a
         </View>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={theme.textMuted} />
       </Pressable>
+
+      {/* how the coach prepared it — library match summary */}
+      {!empty && (
+        <View style={[s.matchRow, { backgroundColor: Colors.electric + '12' }]}>
+          <Ionicons name="link" size={13} color={Colors.electric} />
+          <Text style={[s.matchText, { color: theme.textSecondary }]}>
+            {t('aiCoach.linkedSummary', { defaultValue: '{{n}} of {{total}} exercises linked to your library (with demos & tracking)', n: linked, total: exCount })}
+          </Text>
+        </View>
+      )}
+
       {open && days.map((d: any, i: number) => (
         <View key={i} style={s.proposalDay}>
           <Text style={[s.proposalDayName, { color: theme.text }]} numberOfLines={1}>{d.name}</Text>
-          {(d.exercises || []).map((e: any, j: number) => (
-            <View key={j} style={s.proposalExRow}>
-              <Text style={[s.proposalExName, { color: theme.textSecondary }]} numberOfLines={1}>{e.name}</Text>
-              <Text style={[s.proposalExSets, { color: theme.textMuted }]}>{setLabel(e.sets)}</Text>
-            </View>
-          ))}
+          {(d.exercises || []).map((e: any, j: number) => {
+            const isLinked = libNames.has(String(e.name).toLowerCase());
+            return (
+              <View key={j} style={s.proposalExRow}>
+                <View style={[s.exDot, { backgroundColor: isLinked ? Colors.electric : theme.textMuted + '55' }]} />
+                <Text style={[s.proposalExName, { color: theme.textSecondary }]} numberOfLines={1}>{e.name}</Text>
+                <Text style={[s.proposalExSets, { color: theme.textMuted }]}>{setLabel(e.sets)}</Text>
+              </View>
+            );
+          })}
         </View>
       ))}
-      <Pressable onPress={onApprove} style={({ pressed }) => [s.approveBtn, { backgroundColor: Colors.electric, opacity: pressed ? 0.9 : 1 }]}>
-        <Ionicons name="checkmark" size={18} color="#04120B" />
-        <Text style={s.approveText}>{t('aiCoach.approve', { defaultValue: 'Review & save' })}</Text>
+
+      <Pressable
+        onPress={empty ? undefined : onSave}
+        disabled={empty}
+        style={({ pressed }) => [s.approveBtn, { backgroundColor: empty ? theme.cardAlt : Colors.electric, opacity: !empty && pressed ? 0.9 : 1 }]}
+      >
+        <Ionicons name={empty ? 'alert-circle-outline' : 'bookmark'} size={18} color={empty ? theme.textMuted : '#04120B'} />
+        <Text style={[s.approveText, { color: empty ? theme.textMuted : '#04120B' }]}>
+          {empty ? t('aiCoach.emptyNoSave', { defaultValue: 'Nothing to save yet' }) : t('aiCoach.save', { defaultValue: 'Save to my programs' })}
+        </Text>
       </Pressable>
-      <Text style={[s.approveHint, { color: theme.textMuted }]}>{t('aiCoach.approveHint', { defaultValue: 'Or tell me what to change.' })}</Text>
+      <Text style={[s.approveHint, { color: theme.textMuted }]}>
+        {empty ? t('aiCoach.emptyHint', { defaultValue: 'Ask me to add exercises first.' }) : t('aiCoach.approveHint', { defaultValue: 'Review the days above. Nothing is saved until you tap Save. Or tell me what to change.' })}
+      </Text>
     </View>
   );
 }
@@ -242,26 +305,34 @@ const s = StyleSheet.create({
   headerTitleWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   headerBadge: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { ...Type.h1 },
-  bubble: { maxWidth: '86%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
+  msgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  aiAvatar: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  bubble: { maxWidth: 300, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
   bubbleText: { ...Type.body, fontSize: 15, lineHeight: 21 },
   bubbleImg: { width: 160, height: 120, borderRadius: 10, marginBottom: 8, backgroundColor: '#fff' },
   fileChip: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   fileChipText: { fontSize: 12.5, fontWeight: '600', maxWidth: 180 },
+  typingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dots: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 8 },
+  stageText: { fontSize: 13, fontStyle: 'italic' },
   suggestWrap: { gap: 8, marginTop: 4 },
-  chip: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, alignSelf: 'flex-start' },
-  chipText: { fontSize: 13, fontWeight: '500' },
-  proposal: { marginTop: 8, borderRadius: 16, borderWidth: 1, padding: 14, width: '100%', gap: 8 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, alignSelf: 'flex-start' },
+  chipText: { fontSize: 13, fontWeight: '500', flexShrink: 1 },
+  proposal: { marginTop: 8, borderRadius: 16, borderWidth: 1, padding: 14, width: 300, gap: 8 },
   proposalHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   proposalName: { ...Type.bodyMed, fontWeight: '800', fontSize: 15 },
   proposalMeta: { ...Type.caption, marginTop: 2 },
+  matchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
+  matchText: { flex: 1, fontSize: 12, lineHeight: 16 },
   proposalDay: { paddingTop: 8, paddingBottom: 2, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(128,128,128,0.2)' },
   proposalDayName: { fontSize: 13, fontWeight: '700', marginBottom: 4 },
-  proposalExRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 2 },
+  proposalExRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
+  exDot: { width: 6, height: 6, borderRadius: 3 },
   proposalExName: { flex: 1, fontSize: 13 },
   proposalExSets: { fontSize: 12, fontVariant: ['tabular-nums'] },
   approveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 46, borderRadius: 14, marginTop: 4 },
-  approveText: { color: '#04120B', fontSize: 15, fontWeight: '800' },
-  approveHint: { fontSize: 11.5, textAlign: 'center' },
+  approveText: { fontSize: 15, fontWeight: '800' },
+  approveHint: { fontSize: 11.5, textAlign: 'center', lineHeight: 16 },
   inputBar: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingTop: 8 },
   attRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, padding: 8, marginBottom: 8 },
   attThumb: { width: 36, height: 36, borderRadius: 8, backgroundColor: '#fff' },
