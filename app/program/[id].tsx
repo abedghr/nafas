@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ScrollView, Platform, Modal, TextInput, Switch, Share,
 } from 'react-native';
@@ -22,7 +22,7 @@ export default function ProgramBuilderScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>();
-  const { programs, updateProgram, workoutTemplates, isDark, user, enrollments, activeEnrollment, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, workoutLogs, weightUnit } = useApp();
+  const { programs, updateProgram, deleteProgram, workoutTemplates, isDark, user, enrollments, activeEnrollment, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, workoutLogs, weightUnit } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
@@ -35,6 +35,21 @@ export default function ProgramBuilderScreen() {
     if (program) { setName(program.name); setNotes(program.notes ?? ''); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // "New Program" persists an empty draft up front; if the user backs out without
+  // adding anything, discard it instead of leaving an empty program behind.
+  const disposableRef = useRef(false);
+  useEffect(() => {
+    const p = programs.find(x => x.id === id);
+    const defaults = ['new program', String(t('programs.newProgram')).toLowerCase()];
+    const enrolled = (enrollments ?? []).some(e => e.programId === id);
+    disposableRef.current = !!p
+      && (p.days?.length ?? 0) === 0
+      && (!name.trim() || defaults.includes(name.trim().toLowerCase()))
+      && !notes.trim()
+      && !enrolled;
+  }, [programs, id, name, notes, enrollments, t]);
+  useEffect(() => () => { if (disposableRef.current) deleteProgram(String(id)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // "view as text" sheet — shows a day's full workout as bullet points
   const [textDay, setTextDay] = useState<ProgramDay | null>(null);
