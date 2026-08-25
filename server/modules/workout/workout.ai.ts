@@ -48,6 +48,17 @@ const PROGRAM_SCHEMA = {
                     },
                   },
                 },
+                combo: {
+                  type: "object",
+                  properties: {
+                    mode: { type: "string" },
+                    rounds: { type: "integer" },
+                    movements: {
+                      type: "array",
+                      items: { type: "object", properties: { name: { type: "string" }, reps: { type: "integer" }, durationSeconds: { type: "integer" }, weightKg: { type: "number" } }, required: ["name"] },
+                    },
+                  },
+                },
               },
               required: ["name"],
             },
@@ -61,7 +72,9 @@ const PROGRAM_SCHEMA = {
 } as const;
 
 type DraftSet = { reps?: number; weightKg?: number; durationSeconds?: number; note?: string };
-type DraftExercise = { name: string; sets?: DraftSet[] };
+type DraftMovement = { name: string; reps?: number; durationSeconds?: number; weightKg?: number };
+type DraftCombo = { mode?: string; rounds?: number; movements?: DraftMovement[] };
+type DraftExercise = { name: string; sets?: DraftSet[]; combo?: DraftCombo };
 type DraftDay = { name?: string; restDay?: boolean; exercises?: DraftExercise[] };
 type Draft = { name?: string; description?: string; days?: DraftDay[] };
 type WorkoutDraft = { name?: string; exercises?: DraftExercise[] };
@@ -90,7 +103,30 @@ function mapSets(sets: DraftSet[] = []) {
 }
 // loose exercises → composable TemplateExercise[] (shared by program days and single workouts)
 function mapExercises(exercises: DraftExercise[] = [], seed: number, match: (n: string) => string | null) {
-  return exercises.map((e) => {
+  return exercises.map((e, j) => {
+    // a circuit / AMRAP / EMOM done as rounds → one composable combo
+    if (e.combo && Array.isArray(e.combo.movements) && e.combo.movements.length) {
+      const c = e.combo;
+      const mode = ["circuit", "amrap", "emom"].includes(String(c.mode)) ? (c.mode as string) : "circuit";
+      return {
+        exerciseId: `ai-combo-${seed}-${j}`,
+        name: e.name || (c.movements || []).map((m) => m.name).join(" + "),
+        muscleGroup: "Combo", restSeconds: 90, combo: true, unbroken: true,
+        mode, intervalSeconds: 60, comboRounds: Math.max(1, Number(c.rounds) || 1),
+        components: (c.movements || []).map((m, k) => {
+          const mm = match(m.name);
+          const isHold = m.durationSeconds != null && m.reps == null;
+          return {
+            exerciseId: `ai-${seed}-${j}-${k}`, name: mm || m.name, muscleGroup: "Full Body",
+            setType: isHold ? "hold" : "reps",
+            ...(m.reps != null ? { reps: m.reps } : {}),
+            ...(m.durationSeconds != null ? { durationSeconds: m.durationSeconds } : {}),
+            ...(m.weightKg != null ? { weight: m.weightKg } : {}),
+          };
+        }),
+        sets: [],
+      };
+    }
     const matched = match(e.name);
     return { exerciseId: `ai-${seed}-${(matched || e.name).replace(/\s+/g, "-").toLowerCase()}`, name: matched || e.name, muscleGroup: "Full Body", restSeconds: 90, sets: mapSets(e.sets) };
   });
@@ -122,7 +158,7 @@ export async function generateProgram(input: { text?: string; file?: { mimeType:
   return mapDraft(draft, lib);
 }
 
-const ONESHOT_SYSTEM = `You are a strength & conditioning coach for the Nafas app. Output a COMPLETE program as ordered days (Day 1..N; rest days allowed). Every training day lists real exercises, and every exercise has concrete sets: reps (plus weightKg if weighted) for lifts, or durationSeconds for holds/cardio. Use clear standard English exercise names (e.g. "Barbell Bench Press", "Pull-Up"). When a program file is attached, transcribe it FAITHFULLY and IN FULL — capture every exercise, every set and rep, and any rounds/ladders/AMRAP/circuit structure exactly (put each round or rung in its own set, use the set note for context). If it spans multiple weeks, output EVERY week and EVERY day in order (a 4-week plan = ~28 day entries, rest days included); never stop after week 1. Never simplify or drop items.`;
+const ONESHOT_SYSTEM = `You are a strength & conditioning coach for the Nafas app. Output a COMPLETE program as ordered days (Day 1..N; rest days allowed). Every training day lists real exercises, and every exercise has concrete sets: reps (plus weightKg if weighted) for lifts, or durationSeconds for holds/cardio. When several movements are done together as rounds (circuit/AMRAP/EMOM), output ONE exercise with a "combo" object (mode, rounds, movements[]) instead of separate exercises; but for a ladder/pyramid with reps changing each round, list each movement separately with the full rep ladder as its sets. Use clear standard English exercise names (e.g. "Barbell Bench Press", "Pull-Up"). When a program file is attached, transcribe it FAITHFULLY and IN FULL — capture every exercise, every set and rep, and any rounds/ladders/AMRAP/circuit structure exactly (put each round or rung in its own set, use the set note for context). If it spans multiple weeks, output EVERY week and EVERY day in order (a 4-week plan = ~28 day entries, rest days included); never stop after week 1. Never simplify or drop items.`;
 
 // ── context-aware chat ──
 // Compact, token-bounded snapshot of the athlete so the coach can answer about
@@ -179,6 +215,7 @@ WHAT YOU CAN DO (pick per request):
 RULES FOR BOTH TOOLS:
 - If you're missing essentials (goal, experience, days/week, session length, equipment/location, injuries) ask at most 1-3 questions first, offering concrete options; then build.
 - Every exercise has concrete sets — reps (plus a weightKg or an RPE note) for lifts, or durationSeconds for holds/planks/cardio. Never a vague "3 sets" without numbers.
+- CIRCUITS/COMBOS: when several movements are done TOGETHER as rounds (a circuit, AMRAP, or EMOM — e.g. "3 rounds of 10 push-ups + 10 squats + 10 sit-ups"), output that as ONE exercise item with a "combo" object ({mode: "circuit"|"amrap"|"emom", rounds, movements:[{name, reps OR durationSeconds}]}). Do NOT split a circuit into separate exercises. EXCEPTION — a ladder/pyramid where the reps change every round (e.g. 5-4-3-2-1 muscle-ups paired with 12-14-16-18-20 dips): the app can't store per-round reps inside a combo, so list each movement separately with the FULL rep ladder as its sets (one set per round, exact numbers), and add a set note like "Round 1 of the ladder" so it reads as one circuit.
 - Never print a workout/program as chat text; always use the tool. The app shows the proposal for the athlete to review and save — nothing saves automatically.
 - Transcribe an attached program file FAITHFULLY and IN FULL: every exercise, set and rep, and any rounds/ladders/AMRAP/circuit exactly (each round/rung = its own set, use the set note). A single session → propose_workout; multiple days/weeks → propose_program with EVERY week and day in order (a 4-week plan = ~28 day entries incl. rest days), never stopping after week 1.
 - Use clear standard English exercise names (e.g. "Barbell Bench Press", "Pull-Up") so they link to the app's library.
@@ -203,6 +240,17 @@ const WORKOUT_SCHEMA = {
                 weightKg: { type: "number" },
                 durationSeconds: { type: "integer" },
                 note: { type: "string" },
+              },
+            },
+          },
+          combo: {
+            type: "object",
+            properties: {
+              mode: { type: "string" },
+              rounds: { type: "integer" },
+              movements: {
+                type: "array",
+                items: { type: "object", properties: { name: { type: "string" }, reps: { type: "integer" }, durationSeconds: { type: "integer" }, weightKg: { type: "number" } }, required: ["name"] },
               },
             },
           },
