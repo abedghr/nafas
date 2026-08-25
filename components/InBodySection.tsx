@@ -225,8 +225,9 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
   );
 }
 
-function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight }: {
+function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, target, onEditTarget }: {
   inBodyTests: any[]; latestInBody: any; theme: any; onAddTest: () => void; userHeight?: number;
+  target: { weight?: number; bodyFat?: number; skeletalMuscle?: number } | null; onEditTarget: () => void;
 }) {
   const { t } = useTranslation();
   // BMI is derivable from weight + height when not entered manually
@@ -388,6 +389,9 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight }: 
           </View>
           <Text style={[s.inbodyDate, { color: theme.textMuted }]}>{t('workoutTab.recorded', { date: latestInBody.date })}</Text>
 
+          <View style={s.sectionHead}><SectionHeader title={t('inbody.yourTarget', { defaultValue: 'Your target' })} /></View>
+          <TargetCard target={target} latest={latestInBody} oldest={inBodyTests[inBodyTests.length - 1]} theme={theme} t={t} onEdit={onEditTarget} />
+
           {trendInsights.length > 0 && (
             <View>
               <View style={s.sectionHead}><SectionHeader title={t('workoutTab.aiInsights')} /></View>
@@ -518,10 +522,135 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight }: 
   );
 }
 
+// progress toward a body-composition target for the metrics the user set
+function TargetCard({ target, latest, oldest, theme, t, onEdit }: {
+  target: { weight?: number; bodyFat?: number; skeletalMuscle?: number } | null;
+  latest: any; oldest: any; theme: any; t: any; onEdit: () => void;
+}) {
+  const rows = [
+    { key: 'weight', label: t('workoutTab.metricWeight'), unit: 'kg', dir: 'either' as const },
+    { key: 'bodyFat', label: t('workoutTab.metricBodyFat'), unit: '%', dir: 'down' as const },
+    { key: 'skeletalMuscle', label: t('workoutTab.metricSkeletalMuscle'), unit: 'kg', dir: 'up' as const },
+  ].filter((r) => target && (target as any)[r.key] != null);
+
+  if (!rows.length) {
+    return (
+      <Pressable onPress={onEdit} style={({ pressed }) => [s.setTargetCard, { backgroundColor: theme.card, borderColor: Colors.electric + '44', opacity: pressed ? 0.9 : 1 }]}>
+        <Ionicons name="flag-outline" size={20} color={Colors.electric} />
+        <View style={{ flex: 1 }}>
+          <Text style={[s.setTargetTitle, { color: theme.text }]}>{t('inbody.setTarget', { defaultValue: 'Set a target' })}</Text>
+          <Text style={[s.setTargetSub, { color: theme.textMuted }]}>{t('inbody.setTargetSub', { defaultValue: 'Track progress toward your goal weight, body fat or muscle' })}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={[s.targetCard, { backgroundColor: theme.card }]}>
+      <View style={s.targetHeader}>
+        <Ionicons name="flag" size={16} color={Colors.electric} />
+        <Text style={[s.targetHeaderTitle, { color: theme.text, flex: 1 }]}>{t('inbody.targetProgress', { defaultValue: 'Target progress' })}</Text>
+        <Pressable onPress={onEdit} hitSlop={8} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: pressed ? 0.6 : 1 }]}>
+          <Ionicons name="create-outline" size={15} color={theme.textMuted} />
+          <Text style={[s.targetEdit, { color: theme.textMuted }]}>{t('profile.edit', { defaultValue: 'Edit' })}</Text>
+        </Pressable>
+      </View>
+      {rows.map((r) => {
+        const cur = Number(latest?.[r.key]);
+        const tgt = Number((target as any)[r.key]);
+        const start = oldest && oldest !== latest ? Number(oldest[r.key]) : NaN;
+        const reached = r.dir === 'down' ? cur <= tgt : r.dir === 'up' ? cur >= tgt : Math.abs(cur - tgt) <= 0.5;
+        let progress = reached ? 1 : NaN;
+        if (!reached && Number.isFinite(start) && start !== tgt) {
+          progress = tgt < start ? (start - cur) / (start - tgt) : (cur - start) / (tgt - start);
+          progress = Math.max(0, Math.min(1, progress));
+        }
+        const gap = Math.round((cur - tgt) * 10) / 10;
+        return (
+          <View key={r.key} style={s.targetRow}>
+            <View style={s.targetRowTop}>
+              <Text style={[s.targetLabel, { color: theme.textSecondary }]}>{r.label}</Text>
+              <Text style={[s.targetVals, { color: theme.text }]}>
+                {Number.isFinite(cur) ? cur : '—'}{r.unit} <Text style={{ color: theme.textMuted }}>→ {tgt}{r.unit}</Text>
+              </Text>
+            </View>
+            <View style={[s.targetTrack, { backgroundColor: theme.cardAlt }]}>
+              <View style={[s.targetFill, { width: `${Math.round((Number.isFinite(progress) ? progress : 0) * 100)}%`, backgroundColor: reached ? Colors.electric : Colors.ring.blue }]} />
+            </View>
+            <Text style={[s.targetGap, { color: reached ? Colors.electric : theme.textMuted }]}>
+              {reached ? t('inbody.targetReached', { defaultValue: 'Target reached 🎯' }) : t('inbody.targetGap', { defaultValue: '{{n}}{{u}} to go', n: Math.abs(gap), u: r.unit })}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function InBodyTargetModal({ visible, initial, onClose, onSave }: {
+  visible: boolean; initial: { weight?: number; bodyFat?: number; skeletalMuscle?: number } | null;
+  onClose: () => void; onSave: (t: { weight?: number; bodyFat?: number; skeletalMuscle?: number }) => void;
+}) {
+  const { t } = useTranslation();
+  const { isDark } = useApp();
+  const theme = isDark ? Colors.dark : Colors.light;
+  const [weight, setWeight] = useState('');
+  const [bodyFat, setBodyFat] = useState('');
+  const [skeletalMuscle, setSkeletalMuscle] = useState('');
+  React.useEffect(() => {
+    if (visible) {
+      setWeight(initial?.weight != null ? String(initial.weight) : '');
+      setBodyFat(initial?.bodyFat != null ? String(initial.bodyFat) : '');
+      setSkeletalMuscle(initial?.skeletalMuscle != null ? String(initial.skeletalMuscle) : '');
+    }
+  }, [visible, initial]);
+
+  const fields = [
+    { label: t('workoutTab.fieldWeightKg', { defaultValue: 'Weight (kg)' }), value: weight, set: setWeight },
+    { label: t('workoutTab.fieldBodyFatPct', { defaultValue: 'Body fat (%)' }), value: bodyFat, set: setBodyFat },
+    { label: t('workoutTab.fieldSkeletalMusclePct', { defaultValue: 'Skeletal muscle (kg)' }), value: skeletalMuscle, set: setSkeletalMuscle },
+  ];
+  const save = () => {
+    const num = (s: string) => { const n = parseFloat(s); return Number.isFinite(n) ? n : undefined; };
+    onSave({ weight: num(weight), bodyFat: num(bodyFat), skeletalMuscle: num(skeletalMuscle) });
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={s.modalOverlay}>
+        <View style={[s.modalContent, { backgroundColor: theme.background }]}>
+          <View style={s.modalHandle}><View style={[s.handleBar, { backgroundColor: theme.border }]} /></View>
+          <View style={s.modalHeader}>
+            <Text style={[s.modalTitle, { color: theme.text }]}>{t('inbody.setTargetTitle', { defaultValue: 'Set your target' })}</Text>
+            <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={24} color={theme.text} /></Pressable>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12, paddingBottom: 32 }}>
+            <Text style={[s.setTargetSub, { color: theme.textMuted, marginBottom: 4 }]}>{t('inbody.setTargetHint', { defaultValue: 'Fill only the metrics you want to track. Leave the rest blank.' })}</Text>
+            {fields.map((f) => (
+              <View key={f.label}>
+                <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{f.label}</Text>
+                <TextInput
+                  style={[s.fieldInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                  value={f.value} onChangeText={f.set} keyboardType="numeric" placeholder="—" placeholderTextColor={theme.textMuted}
+                />
+              </View>
+            ))}
+            <Button variant="solid" label={t('inbody.saveTarget', { defaultValue: 'Save target' })} icon="checkmark-circle" onPress={save} style={{ marginTop: 4 }} />
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function InBodySection() {
   const { isDark, inBodyTests, addInBodyTest, user } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const [showInBodyModal, setShowInBodyModal] = useState(false);
+  const [showTarget, setShowTarget] = useState(false);
+  const [target, setTarget] = useState<{ weight?: number; bodyFat?: number; skeletalMuscle?: number } | null>(null);
+  React.useEffect(() => { nutritionApi.inbodyTarget().then(setTarget).catch(() => {}); }, []);
 
   const latestInBody = inBodyTests.length > 0 ? inBodyTests[0] : null;
 
@@ -529,6 +658,12 @@ export default function InBodySection() {
     addInBodyTest(data);
     setShowInBodyModal(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+  const handleSaveTarget = (t: { weight?: number; bodyFat?: number; skeletalMuscle?: number }) => {
+    setTarget(t);
+    setShowTarget(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    nutritionApi.setInbodyTarget(t).catch(() => {}); // optimistic + sync
   };
 
   return (
@@ -538,9 +673,12 @@ export default function InBodySection() {
         latestInBody={latestInBody}
         theme={theme}
         userHeight={user?.height}
+        target={target}
+        onEditTarget={() => { setShowTarget(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
         onAddTest={() => { setShowInBodyModal(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
       />
       <InBodyUploadModal visible={showInBodyModal} onClose={() => setShowInBodyModal(false)} onSave={handleSaveInBody} />
+      <InBodyTargetModal visible={showTarget} initial={target} onClose={() => setShowTarget(false)} onSave={handleSaveTarget} />
     </View>
   );
 }
@@ -569,6 +707,20 @@ const s = StyleSheet.create({
   inbodyGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, gap: 10 },
   inbodyStatWrap: { width: (SW - 50) / 2 },
   inbodyDate: { fontSize: 12, fontFamily: Fonts.regular, textAlign: 'center', marginTop: 8, paddingHorizontal: 20 },
+  setTargetCard: { marginHorizontal: 20, borderRadius: 16, borderWidth: 1, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  setTargetTitle: { fontSize: 15, fontFamily: Fonts.semibold },
+  setTargetSub: { fontSize: 12, fontFamily: Fonts.regular, marginTop: 2, lineHeight: 17 },
+  targetCard: { marginHorizontal: 20, borderRadius: 16, padding: 16, gap: 14 },
+  targetHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  targetHeaderTitle: { fontSize: 15, fontFamily: Fonts.semibold },
+  targetEdit: { fontSize: 13, fontFamily: Fonts.medium },
+  targetRow: { gap: 6 },
+  targetRowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  targetLabel: { fontSize: 13, fontFamily: Fonts.medium },
+  targetVals: { fontSize: 14, fontFamily: Fonts.semibold },
+  targetTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
+  targetFill: { height: 8, borderRadius: 4 },
+  targetGap: { fontSize: 11.5, fontFamily: Fonts.medium },
   inbodyHistDate: { fontSize: 13, fontFamily: Fonts.semibold },
   deltaRow: {
     flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start',
