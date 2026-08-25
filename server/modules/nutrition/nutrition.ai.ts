@@ -44,3 +44,26 @@ export async function parseInBody(file: { mimeType: string; data: string }): Pro
     maxOutputTokens: 1024,
   });
 }
+
+// A short coach opinion + suggestions on a new InBody result, using the athlete's
+// previous results and target for context. Shown in the review card before saving.
+const INSIGHT_SCHEMA = {
+  type: "object",
+  properties: {
+    summary: { type: "string" },
+    suggestions: { type: "array", items: { type: "string" } },
+  },
+  required: ["summary"],
+} as const;
+
+const INSIGHT_SYSTEM = `You are a supportive, expert body-composition coach. Given a new InBody result, the athlete's previous results (newest first) and their target, write:
+- summary: 2-3 short sentences on what changed vs last time and how they're tracking toward their target (specific numbers, encouraging, plain language).
+- suggestions: 2-3 concrete, actionable tips (training and/or nutrition) tuned to the trend.
+No medical diagnosis or health claims. If a value looks implausible, note it gently. Reply in the athlete's language if evident from context, else English.`;
+
+export type InBodyInsight = { summary: string; suggestions?: string[] };
+
+export async function inbodyInsight(input: { metrics: any; previous: any[]; target: any }): Promise<InBodyInsight> {
+  const parts = [{ text: `NEW result: ${JSON.stringify(input.metrics)}\nPREVIOUS results (newest first): ${JSON.stringify((input.previous || []).slice(0, 5))}\nTARGET: ${JSON.stringify(input.target || {})}` }];
+  return geminiJSON<InBodyInsight>({ system: INSIGHT_SYSTEM, parts, schema: INSIGHT_SCHEMA as any, maxOutputTokens: 600 });
+}

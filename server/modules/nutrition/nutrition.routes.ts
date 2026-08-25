@@ -6,7 +6,7 @@ import { validate } from "../../middleware/validate";
 import { qstr } from "../../core/http";
 import { nutritionService } from "./nutrition.service";
 import { FoodSchema, AddItemSchema, TargetsSchema, InBodyInputSchema, InBodyParseInputSchema, InBodyTargetSchema } from "./nutrition.schema";
-import { parseInBody } from "./nutrition.ai";
+import { parseInBody, inbodyInsight } from "./nutrition.ai";
 import { geminiConfigured } from "../../core/gemini";
 
 export const nutritionRouter = Router();
@@ -73,6 +73,22 @@ nutritionRouter.post("/inbody/parse", validate({ body: InBodyParseInputSchema })
     const parsed = await parseInBody(req.body.file);
     if (!parsed?.isInbody) return res.status(422).json({ code: "NOT_INBODY", message: "That file doesn't look like an InBody / body-composition sheet." });
     res.json(parsed);
+  } catch (e: any) {
+    res.status(502).json({ code: "AI_ERROR", message: String(e?.message ?? e) });
+  }
+});
+
+// AI coach opinion + suggestions on a (reviewed, not-yet-saved) InBody result
+registry.registerPath({ method: "post", path: "/api/inbody/insight", tags: ["Nutrition"], summary: "AI opinion + suggestions on an InBody result (Gemini)", security: sec,
+  request: { body: { content: { "application/json": { schema: InBodyInputSchema } } } }, responses: { 200: json(z.any()) } });
+nutritionRouter.post("/inbody/insight", validate({ body: InBodyInputSchema }), async (req, res) => {
+  if (!geminiConfigured()) return res.status(503).json({ code: "AI_UNAVAILABLE", message: "AI is not configured." });
+  try {
+    const [previous, target] = await Promise.all([
+      nutritionService.listInBody(req.user!.sub),
+      nutritionService.getInBodyTarget(req.user!.sub),
+    ]);
+    res.json(await inbodyInsight({ metrics: req.body, previous, target }));
   } catch (e: any) {
     res.status(502).json({ code: "AI_ERROR", message: String(e?.message ?? e) });
   }

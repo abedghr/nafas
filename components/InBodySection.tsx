@@ -74,8 +74,19 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
   const [previewUri, setPreviewUri] = useState<string | undefined>();
   const [date, setDate] = useState('');
   const [vals, setVals] = useState<Record<string, string>>({});
+  const [insight, setInsight] = useState<{ summary: string; suggestions?: string[] } | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
 
-  const reset = () => { setStage('upload'); setError(''); setPreviewUri(undefined); setDate(''); setVals({}); };
+  const reset = () => { setStage('upload'); setError(''); setPreviewUri(undefined); setDate(''); setVals({}); setInsight(null); setInsightLoading(false); };
+
+  // AI coach opinion on the parsed result (async; hidden if AI unavailable)
+  const loadInsight = (metrics: Record<string, unknown>) => {
+    setInsight(null); setInsightLoading(true);
+    nutritionApi.inbodyInsight(metrics)
+      .then((r) => setInsight(r && r.summary ? r : null))
+      .catch(() => setInsight(null))
+      .finally(() => setInsightLoading(false));
+  };
   const close = () => { reset(); onClose(); };
 
   const runParse = async (file: { mimeType: string; data: string }, preview?: string) => {
@@ -86,9 +97,14 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
       const v: Record<string, string> = {};
       for (const f of REVIEW_FIELDS) if (r[f.key] != null) v[f.key] = String(r[f.key]);
       setVals(v);
-      setDate(r.date || new Date().toISOString().split('T')[0]);
+      const testDate = r.date || new Date().toISOString().split('T')[0];
+      setDate(testDate);
       setStage('review');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // fetch the coach's opinion on the detected values (async, non-blocking)
+      const metrics: Record<string, unknown> = { date: testDate };
+      for (const f of REVIEW_FIELDS) if (r[f.key] != null) metrics[f.key] = Number(r[f.key]);
+      loadInsight(metrics);
     } catch (e: any) {
       const raw = String(e?.message ?? e);
       setError(
@@ -187,6 +203,28 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
                 </Text>
               </View>
               {!!previewUri && <Image source={{ uri: previewUri }} style={s.reviewThumb} resizeMode="cover" />}
+
+              {(insightLoading || insight) && (
+                <View style={[s.coachCard, { backgroundColor: Colors.electric + '0F', borderColor: Colors.electric + '33' }]}>
+                  <View style={s.coachHead}>
+                    <Ionicons name="sparkles" size={15} color={Colors.electric} />
+                    <Text style={[s.coachTitle, { color: theme.text }]}>{t('inbody.coachTake', { defaultValue: "Coach's take" })}</Text>
+                  </View>
+                  {insightLoading ? (
+                    <View style={s.coachLoading}><ActivityIndicator size="small" color={Colors.electric} /><Text style={[s.coachLoadingText, { color: theme.textMuted }]}>{t('inbody.coachThinking', { defaultValue: 'Reading your result…' })}</Text></View>
+                  ) : insight ? (
+                    <>
+                      <Text style={[s.coachSummary, { color: theme.textSecondary }]}>{insight.summary}</Text>
+                      {(insight.suggestions || []).map((sug, i) => (
+                        <View key={i} style={s.coachSugRow}>
+                          <Ionicons name="checkmark-circle" size={14} color={Colors.electric} />
+                          <Text style={[s.coachSug, { color: theme.textSecondary }]}>{sug}</Text>
+                        </View>
+                      ))}
+                    </>
+                  ) : null}
+                </View>
+              )}
 
               <View>
                 <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{t('inbody.testDate', { defaultValue: 'Test date' })}</Text>
@@ -778,6 +816,14 @@ const s = StyleSheet.create({
   reviewBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, padding: 12 },
   reviewBannerText: { flex: 1, fontSize: 13, fontFamily: Fonts.medium, lineHeight: 18 },
   reviewThumb: { width: '100%', height: 160, borderRadius: 12, backgroundColor: '#fff' },
+  coachCard: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 8 },
+  coachHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  coachTitle: { fontSize: 14, fontFamily: Fonts.semibold },
+  coachLoading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  coachLoadingText: { fontSize: 13, fontFamily: Fonts.regular, fontStyle: 'italic' },
+  coachSummary: { fontSize: 13.5, fontFamily: Fonts.regular, lineHeight: 20 },
+  coachSugRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  coachSug: { flex: 1, fontSize: 13, fontFamily: Fonts.regular, lineHeight: 18 },
   reuploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   reuploadText: { fontSize: 13, fontFamily: Fonts.medium },
 });

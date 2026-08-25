@@ -31,6 +31,7 @@ export const extraEn = {
     setTargetSub: "Track progress toward your goal weight, body fat or muscle",
     targetProgress: "Target progress", targetGap: "{{n}}{{u}} to go", targetReached: "Target reached 🎯",
     setTargetTitle: "Set your target", setTargetHint: "Fill only the metrics you want to track. Leave the rest blank.", saveTarget: "Save target",
+    coachTake: "Coach's take", coachThinking: "Reading your result…",
   },
   mealTypeTag: {
     breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack",
@@ -252,6 +253,7 @@ export const extraAr = {
     setTargetSub: "تابع تقدّمك نحو وزنك أو نسبة دهونك أو عضلاتك المستهدفة",
     targetProgress: "تقدّم الهدف", targetGap: "يتبقّى {{n}}{{u}}", targetReached: "تحقّق الهدف 🎯",
     setTargetTitle: "حدّد هدفك", setTargetHint: "املأ المقاييس التي تريد متابعتها فقط. اترك الباقي فارغاً.", saveTarget: "حفظ الهدف",
+    coachTake: "رأي المدرّب", coachThinking: "نقرأ نتيجتك…",
   },
   mealTypeTag: {
     breakfast: "فطور", lunch: "غداء", dinner: "عشاء", snack: "وجبة خفيفة",

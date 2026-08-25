@@ -41,7 +41,7 @@ function AICoachFab({ onPress, bottom, label }: { onPress: () => void; bottom: n
       <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} hitSlop={8} style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.94 : 1 }] }]}>
         <Animated.View style={coreStyle}>
           <LinearGradient colors={[Colors.electric, '#48CAE4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.aiFabCore}>
-            <Ionicons name="sparkles" size={26} color="#04120B" />
+            <Ionicons name="sparkles" size={20} color="#04120B" />
           </LinearGradient>
         </Animated.View>
       </Pressable>
@@ -554,15 +554,15 @@ export default function CoachScreen() {
       </ScrollView>
 
       {/* AI Coach — icon-only, breathing glow signals it's a live/interactive AI */}
-      <AICoachFab onPress={openAiCoach} bottom={insets.bottom + 78 + 54 + 16} label={t('aiCoach.title', { defaultValue: 'AI Coach' })} />
+      <AICoachFab onPress={openAiCoach} bottom={insets.bottom + 74 + 44 + 12} label={t('aiCoach.title', { defaultValue: 'AI Coach' })} />
 
       {/* fixed start-workout FAB */}
       <Pressable
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowStart(true); }}
-        style={({ pressed }) => [s.fab, { bottom: insets.bottom + 78, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+        style={({ pressed }) => [s.fab, { bottom: insets.bottom + 74, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
         accessibilityLabel={t('workoutTab.startWorkout')}
       >
-        <Ionicons name="play" size={22} color="#04120B" />
+        <Ionicons name="play" size={18} color="#04120B" />
         <Text style={s.fabText}>{t('workoutTab.startWorkout')}</Text>
       </Pressable>
 
@@ -789,18 +789,18 @@ const s = StyleSheet.create({
   totalProgressValue: { fontSize: 20, fontFamily: 'Rubik_700Bold' },
   totalProgressDivider: { width: 1, height: 32 },
   noProgramCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 16 },
-  aiFab: { position: 'absolute', right: 24, width: 60, height: 60, alignItems: 'center', justifyContent: 'center' },
-  aiFabGlow: { position: 'absolute', width: 60, height: 60, borderRadius: 30, backgroundColor: Colors.electric },
+  aiFab: { position: 'absolute', right: 26, width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
+  aiFabGlow: { position: 'absolute', width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.electric },
   aiFabCore: {
-    width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center',
-    shadowColor: Colors.electric, shadowOpacity: 0.5, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 8,
+    width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center',
+    shadowColor: Colors.electric, shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
   },
   fab: {
-    position: 'absolute', right: 20, flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: Colors.electric, paddingLeft: 18, paddingRight: 22, height: 54, borderRadius: 27,
+    position: 'absolute', right: 20, flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: Colors.electric, paddingLeft: 14, paddingRight: 18, height: 44, borderRadius: 22,
     shadowColor: Colors.electric, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
   },
-  fabText: { color: '#04120B', fontSize: 15, fontFamily: 'Rubik_700Bold', fontWeight: '800' },
+  fabText: { color: '#04120B', fontSize: 13.5, fontFamily: 'Rubik_700Bold', fontWeight: '800' },
   startOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   startSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 36, gap: 12 },
   startHandle: { alignItems: 'center', paddingBottom: 6 },
