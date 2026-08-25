@@ -5,7 +5,9 @@ import { requireAuth } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { qstr } from "../../core/http";
 import { nutritionService } from "./nutrition.service";
-import { FoodSchema, AddItemSchema, TargetsSchema, InBodyInputSchema } from "./nutrition.schema";
+import { FoodSchema, AddItemSchema, TargetsSchema, InBodyInputSchema, InBodyParseInputSchema, InBodyTargetSchema } from "./nutrition.schema";
+import { parseInBody } from "./nutrition.ai";
+import { geminiConfigured } from "../../core/gemini";
 
 export const nutritionRouter = Router();
 nutritionRouter.use(requireAuth);
@@ -61,3 +63,25 @@ nutritionRouter.delete("/inbody/:id", validate({ params: z.object({ id: z.string
   await nutritionService.deleteInBody(req.user!.sub, String(req.params.id));
   res.status(204).end();
 });
+
+// parse an uploaded InBody photo/PDF → metrics (NOT saved; client reviews first)
+registry.registerPath({ method: "post", path: "/api/inbody/parse", tags: ["Nutrition"], summary: "Parse an InBody sheet (Gemini) — returns metrics, does not save", security: sec,
+  request: { body: { content: { "application/json": { schema: InBodyParseInputSchema } } } }, responses: { 200: json(z.any()) } });
+nutritionRouter.post("/inbody/parse", validate({ body: InBodyParseInputSchema }), async (req, res) => {
+  if (!geminiConfigured()) return res.status(503).json({ code: "AI_UNAVAILABLE", message: "AI is not configured (GEMINI_API_KEY missing)." });
+  try {
+    const parsed = await parseInBody(req.body.file);
+    if (!parsed?.isInbody) return res.status(422).json({ code: "NOT_INBODY", message: "That file doesn't look like an InBody / body-composition sheet." });
+    res.json(parsed);
+  } catch (e: any) {
+    res.status(502).json({ code: "AI_ERROR", message: String(e?.message ?? e) });
+  }
+});
+
+// body-composition target
+registry.registerPath({ method: "get", path: "/api/inbody/target", tags: ["Nutrition"], summary: "Get body-composition target", security: sec, responses: { 200: json(z.any()) } });
+nutritionRouter.get("/inbody/target", async (req, res) => res.json({ data: await nutritionService.getInBodyTarget(req.user!.sub) }));
+
+registry.registerPath({ method: "put", path: "/api/inbody/target", tags: ["Nutrition"], summary: "Set body-composition target", security: sec,
+  request: { body: { content: { "application/json": { schema: InBodyTargetSchema } } } }, responses: { 200: json(z.any()) } });
+nutritionRouter.put("/inbody/target", validate({ body: InBodyTargetSchema }), async (req, res) => res.json(await nutritionService.setInBodyTarget(req.user!.sub, req.body)));

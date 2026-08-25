@@ -34,4 +34,8 @@ export const nutritionApi = {
   inbody: () => apiFetch<{ data: any[] }>("/inbody", { auth: true }).then((r) => r.data),
   addInbody: (body: Record<string, unknown>) => apiFetch<any>("/inbody", { method: "POST", auth: true, body }),
   deleteInbody: (id: string) => apiFetch<void>(`/inbody/${id}`, { method: "DELETE", auth: true }),
+  // upload a photo/PDF of an InBody sheet → parsed metrics (not saved; user reviews first)
+  parseInbody: (file: { mimeType: string; data: string }) => apiFetch<any>("/inbody/parse", { method: "POST", auth: true, body: { file } }),
+  inbodyTarget: () => apiFetch<{ data: { weight?: number; bodyFat?: number; skeletalMuscle?: number } | null }>("/inbody/target", { auth: true }).then((r) => r.data),
+  setInbodyTarget: (body: { weight?: number; bodyFat?: number; skeletalMuscle?: number }) => apiFetch<any>("/inbody/target", { method: "PUT", auth: true, body }),
 };

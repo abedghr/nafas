@@ -59,3 +59,12 @@ export const inbodyTests = pgTable("inbody_tests", {
   skeletalMuscle: doublePrecision("skeletal_muscle"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => ({ userDateIdx: index("inbody_user_date_idx").on(t.userId, t.date) }));
+
+// one body-composition target per user (weight / body-fat% / skeletal muscle)
+export const inbodyTargets = pgTable("inbody_targets", {
+  userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  weight: doublePrecision("weight"),
+  bodyFat: doublePrecision("body_fat"),
+  skeletalMuscle: doublePrecision("skeletal_muscle"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

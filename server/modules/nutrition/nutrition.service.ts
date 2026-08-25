@@ -1,10 +1,10 @@
 import { and, eq, ilike, isNull, or, desc, sql, inArray } from "drizzle-orm";
 import crypto from "node:crypto";
 import { db } from "../../core/db";
-import { foods, foodTranslations, nutritionDays, nutritionTargets, inbodyTests } from "./nutrition.db";
+import { foods, foodTranslations, nutritionDays, nutritionTargets, inbodyTests, inbodyTargets } from "./nutrition.db";
 import { users } from "../identity/identity.db";
 import { ApiError } from "../../middleware/error";
-import type { AddItem, Targets, InBodyInput, AdminFoodInput } from "./nutrition.schema";
+import type { AddItem, Targets, InBodyInput, InBodyTarget, AdminFoodInput } from "./nutrition.schema";
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snacks"] as const;
 const emptyMeals = () => MEAL_TYPES.map((type) => ({ type, items: [] as any[] }));
@@ -121,6 +121,15 @@ export const nutritionService = {
   },
   async deleteInBody(userId: string, id: string) {
     await db.delete(inbodyTests).where(and(eq(inbodyTests.id, id), eq(inbodyTests.userId, userId)));
+  },
+  async getInBodyTarget(userId: string) {
+    const [row] = await db.select().from(inbodyTargets).where(eq(inbodyTargets.userId, userId));
+    return row ? { weight: row.weight ?? undefined, bodyFat: row.bodyFat ?? undefined, skeletalMuscle: row.skeletalMuscle ?? undefined } : null;
+  },
+  async setInBodyTarget(userId: string, t: InBodyTarget) {
+    await db.insert(inbodyTargets).values({ userId, ...t, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: inbodyTargets.userId, set: { ...t, updatedAt: new Date() } });
+    return t;
   },
 
   // ── admin foods ──────────────────────────────────────────────────────────────

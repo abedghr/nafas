@@ -41,6 +41,18 @@ export const InBodyInputSchema = z.object({
   visceralFat: z.number().optional(), skeletalMuscle: z.number().optional(),
 }).openapi("InBodyInput");
 
+// upload a photo/PDF of an InBody sheet → parse (no save; user reviews first)
+export const InBodyParseInputSchema = z.object({
+  file: z.object({ mimeType: z.string(), data: z.string() }),
+}).openapi("InBodyParseInput");
+
+// body-composition target (all optional; user sets whichever they track)
+export const InBodyTargetSchema = z.object({
+  weight: z.number().optional(),
+  bodyFat: z.number().optional(),
+  skeletalMuscle: z.number().optional(),
+}).openapi("InBodyTarget");
+
 // admin
 export const AdminFoodInputSchema = z.object({
   name: z.string().min(1),
@@ -52,5 +64,6 @@ export const AdminFoodInputSchema = z.object({
 export type AddItem = z.infer<typeof AddItemSchema>;
 export type Targets = z.infer<typeof TargetsSchema>;
 export type InBodyInput = z.infer<typeof InBodyInputSchema>;
+export type InBodyTarget = z.infer<typeof InBodyTargetSchema>;
 export type AdminFoodInput = z.infer<typeof AdminFoodInputSchema>;
 export { MealSchema };
