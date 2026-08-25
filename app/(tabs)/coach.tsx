@@ -554,7 +554,7 @@ export default function CoachScreen() {
       </ScrollView>
 
       {/* AI Coach — icon-only, breathing glow signals it's a live/interactive AI */}
-      <AICoachFab onPress={openAiCoach} bottom={insets.bottom + 74 + 44 + 12} label={t('aiCoach.title', { defaultValue: 'AI Coach' })} />
+      <AICoachFab onPress={openAiCoach} bottom={insets.bottom + 74 + 44 + 12} label={t('aiCoach.title', { defaultValue: 'AI Assistant' })} />
 
       {/* fixed start-workout FAB */}
       <Pressable

@@ -217,6 +217,31 @@ const WORKOUT_SCHEMA = {
 const PROPOSE_TOOL = { name: "propose_program", description: "Propose a complete MULTI-WEEK training program (ordered days across one or more weeks) for the athlete to review and save.", parameters: PROGRAM_SCHEMA as any };
 const PROPOSE_WORKOUT_TOOL = { name: "propose_workout", description: "Propose a SINGLE workout session (one list of exercises with sets) for the athlete to review and save as a reusable workout.", parameters: WORKOUT_SCHEMA as any };
 
+// Real post-workout insight: compares the just-finished session to the athlete's
+// previous sessions of the same workout + recent activity. Returns 2-3 sentences.
+const LOG_INSIGHT_SYSTEM = `You are the Nafas training assistant. Given a just-finished workout and the athlete's previous sessions of the SAME workout (newest first) plus their recent activity, write a short, specific insight (2-3 sentences): how this session compares to last time (volume, reps, sets, or key lifts), any real progress or personal best, and ONE concrete suggestion for next time. Use actual numbers. Be encouraging and honest — if it was lighter than last time, say so kindly. No medical claims. Reply in the athlete's language if evident, else English.`;
+
+export async function workoutInsight(userId: string, log: { name?: string; date?: string; durationMinutes?: number; totalVolumeKg?: number; totalSets?: number; completedSets?: number; totalReps?: number; exercises?: any[] }): Promise<string> {
+  const name = log.name || "";
+  const sameName = name
+    ? await db.select().from(workoutLogs).where(and(eq(workoutLogs.userId, userId), eq(workoutLogs.name, name))).orderBy(desc(workoutLogs.date)).limit(6)
+    : [];
+  const recent = await db.select().from(workoutLogs).where(eq(workoutLogs.userId, userId)).orderBy(desc(workoutLogs.date)).limit(12);
+  const slim = (l: any) => ({ date: String(l.date).split("T")[0], volumeKg: Math.round(Number(l.totalVolumeKg) || 0), sets: `${l.completedSets}/${l.totalSets}`, reps: Number(l.totalReps) || 0, min: Number(l.durationMinutes) || 0, exercises: (l.exercises || []).slice(0, 12).map((e: any) => e.name) });
+  const ctx = {
+    justFinished: { name, date: log.date, min: log.durationMinutes, volumeKg: Math.round(log.totalVolumeKg || 0), sets: `${log.completedSets}/${log.totalSets}`, reps: log.totalReps, exercises: (log.exercises || []).slice(0, 12).map((e: any) => e.name) },
+    previousSameWorkout: sameName.slice(0, 5).map(slim),
+    recentActivity: `${recent.length} sessions logged recently; last workouts: ${[...new Set(recent.map((l) => l.name))].slice(0, 6).join(", ") || "none"}`,
+  };
+  const r = await geminiJSON<{ insight: string }>({
+    system: LOG_INSIGHT_SYSTEM,
+    parts: [{ text: JSON.stringify(ctx) }],
+    schema: { type: "object", properties: { insight: { type: "string" } }, required: ["insight"] } as any,
+    maxOutputTokens: 400,
+  });
+  return r.insight;
+}
+
 export async function chat(userId: string, input: { messages: { role: "user" | "model"; text: string }[]; files?: { mimeType: string; data: string }[] }) {
   const { lib } = await exerciseLib();
   const ctx = await userContext(userId);

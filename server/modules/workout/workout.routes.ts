@@ -5,7 +5,7 @@ import { requireAuth } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { qstr } from "../../core/http";
 import { workoutService } from "./workout.service";
-import { generateProgram, chat as aiChat } from "./workout.ai";
+import { generateProgram, chat as aiChat, workoutInsight } from "./workout.ai";
 import { geminiConfigured } from "../../core/gemini";
 import {
   ExerciseSchema, WorkoutTypeSchema, TemplateCreateSchema, LogCreateSchema, ActiveSessionSchema,
@@ -127,6 +127,21 @@ workoutRouter.post("/workout/ai/chat", validate({ body: AiChatSchema }), async (
   if (!geminiConfigured()) return res.status(503).json({ code: "AI_UNAVAILABLE", message: "AI is not configured (GEMINI_API_KEY missing)." });
   try {
     res.json(await aiChat(req.user!.sub, req.body));
+  } catch (e: any) {
+    res.status(502).json({ code: "AI_ERROR", message: String(e?.message ?? e) });
+  }
+});
+
+const LogInsightSchema = z.object({
+  name: z.string().optional(), date: z.string().optional(), durationMinutes: z.number().optional(),
+  totalVolumeKg: z.number().optional(), totalSets: z.number().optional(), completedSets: z.number().optional(),
+  totalReps: z.number().optional(), exercises: z.array(z.any()).optional(),
+});
+registry.registerPath({ method: "post", path: "/api/workout/ai/log-insight", tags: ["Workout: AI"], summary: "Real post-workout insight from history (Gemini)", security: sec, request: { body: body(LogInsightSchema) }, responses: { 200: json(z.object({ insight: z.string() })) } });
+workoutRouter.post("/workout/ai/log-insight", validate({ body: LogInsightSchema }), async (req, res) => {
+  if (!geminiConfigured()) return res.status(503).json({ code: "AI_UNAVAILABLE", message: "AI is not configured." });
+  try {
+    res.json({ insight: await workoutInsight(req.user!.sub, req.body) });
   } catch (e: any) {
     res.status(502).json({ code: "AI_ERROR", message: String(e?.message ?? e) });
   }

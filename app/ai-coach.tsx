@@ -151,7 +151,7 @@ export default function AICoachScreen() {
         <Button variant="icon" icon="arrow-back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/coach' as any))} />
         <View style={s.headerTitleWrap}>
           <View style={[s.headerBadge, { backgroundColor: Colors.electric + '22' }]}><Ionicons name="sparkles" size={15} color={Colors.electric} /></View>
-          <Text style={[s.headerTitle, { color: theme.text }]}>{t('aiCoach.title', { defaultValue: 'AI Coach' })}</Text>
+          <Text style={[s.headerTitle, { color: theme.text }]}>{t('aiCoach.title', { defaultValue: 'AI Assistant' })}</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>

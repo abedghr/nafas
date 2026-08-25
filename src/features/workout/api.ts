@@ -77,6 +77,7 @@ export const workoutApi = {
       | { type: "proposal"; message: string; program: any }
       | { type: "workout"; message: string; workout: any }
     >("/workout/ai/chat", { method: "POST", auth: true, body }),
+  aiLogInsight: (log: Record<string, unknown>) => apiFetch<{ insight: string }>("/workout/ai/log-insight", { method: "POST", auth: true, body: log }),
   insights: () => apiFetch<{ insights: string[] }>("/workout/insights", { auth: true }),
   recommendations: (goal?: string) => apiFetch<{ recommendations: string[] }>(`/workout/recommendations${goal ? `?goal=${goal}` : ""}`, { auth: true }),
   weeklyPlan: (goal?: string) => apiFetch<{ plan: { day: string; focus: string }[] }>(`/workout/weekly-plan${goal ? `?goal=${goal}` : ""}`, { auth: true }),

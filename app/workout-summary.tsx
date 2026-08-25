@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
+import { workoutApi } from '@/src/features/workout/api';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -73,6 +75,24 @@ export default function WorkoutSummaryScreen() {
   const currentLog = useMemo(() => {
     return workoutLogs.find((l) => l.id === logId) || null;
   }, [workoutLogs, logId]);
+
+  // Real AI insight from history — replaces the instant rule-based one once loaded.
+  const [aiInsight, setAiInsight] = useState('');
+  const [insightLoading, setInsightLoading] = useState(false);
+  useEffect(() => {
+    if (!currentLog) return;
+    setInsightLoading(true);
+    workoutApi.aiLogInsight({
+      name: currentLog.name, date: currentLog.date,
+      durationMinutes: Number(currentLog.durationMinutes) || 0, totalVolumeKg: Number(currentLog.totalVolumeKg) || 0,
+      totalSets: Number(currentLog.totalSets) || 0, completedSets: Number(currentLog.completedSets) || 0,
+      totalReps: Number(currentLog.totalReps) || 0, exercises: currentLog.exercises,
+    })
+      .then((r) => { if (r?.insight) setAiInsight(r.insight); })
+      .catch(() => {})
+      .finally(() => setInsightLoading(false));
+  }, [currentLog?.id]);
+  const shownInsight = aiInsight || currentLog?.aiInsight || '';
 
   const previousLog = useMemo(() => {
     if (!currentLog) return null;
@@ -384,7 +404,7 @@ export default function WorkoutSummaryScreen() {
           )}
         </Animated.View>
 
-        {currentLog.aiInsight ? (
+        {(shownInsight || insightLoading) ? (
           <Animated.View entering={FadeInDown.delay(550).duration(600)}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('workoutSession.aiInsight')}</Text>
             <LinearGradient
@@ -402,9 +422,16 @@ export default function WorkoutSummaryScreen() {
                   <Text style={styles.badgeText}>{t('workoutSession.aiCoach')}</Text>
                 </LinearGradient>
               </View>
-              <Text style={[styles.insightText, { color: theme.textSecondary }]}>
-                {currentLog.aiInsight}
-              </Text>
+              {insightLoading && !aiInsight ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <ActivityIndicator size="small" color={Colors.electric} />
+                  <Text style={[styles.insightText, { color: theme.textMuted, fontStyle: 'italic' }]}>{t('workoutSession.aiThinking', { defaultValue: 'Reading your history…' })}</Text>
+                </View>
+              ) : (
+                <Text style={[styles.insightText, { color: theme.textSecondary }]}>
+                  {shownInsight}
+                </Text>
+              )}
             </LinearGradient>
           </Animated.View>
         ) : null}

@@ -6,7 +6,7 @@ const en = {
   nav: {
     communities: 'Communities',
     social: 'Social',
-    ai_coach: 'AI Coach',
+    ai_coach: 'AI Assistant',
     workout: 'Workout',
     nutrition: 'Nutrition',
     profile: 'Profile',
@@ -64,7 +64,7 @@ const en = {
     posts: 'Posts',
   },
   coach: {
-    title: 'AI Coach',
+    title: 'AI Assistant',
     dashboard: 'Dashboard',
     today_workout: "Today's Workout",
     start_workout: 'Start Workout',
