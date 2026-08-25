@@ -2793,12 +2793,13 @@ const styles = StyleSheet.create({
   restBannerLabel: { color: '#fff', fontSize: 12, fontWeight: '500' as const, opacity: 0.9 },
   restBannerTime: { color: '#fff', fontSize: 28, fontWeight: '800' as const, fontVariant: ['tabular-nums' as const] },
   skipRestBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, borderRadius: 14, minHeight: 44, // ≥44pt touch target
   },
   skipRestText: { color: '#fff', fontSize: 14, fontWeight: '600' as const },
   restAdjustBtn: {
-    backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, borderRadius: 10,
+    minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', // ≥44pt touch target
   },
   restAdjustText: { color: '#fff', fontSize: 13, fontWeight: '700' as const, fontVariant: ['tabular-nums' as const] },
   restProgressTrack: { height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', marginTop: 12, overflow: 'hidden' },
