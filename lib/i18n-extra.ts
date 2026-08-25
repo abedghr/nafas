@@ -220,7 +220,7 @@ export const extraEn = {
     setsValue: "{{n}} sets", topLift: "Top Lift: {{name}} — {{weight}} kg", volumeVsLastSession: "Volume {{arrow}} {{pct}}% vs last session", firstTime: "First time!",
     comingSoon: "Coming soon", postToCommunitySoon: "Post to Community feature will be available soon!", imageSaved: "Image saved!",
     imageSavedMessage: "Your workout card has been saved to your gallery.", cardStyle: "Card Style",
-    cardStyleOption: { dark: "Dark", gradient: "Gradient", light: "Light" }, postToCommunity: "Post to Community", saveToGallery: "Save to Gallery",
+    cardStyleOption: { dark: "Dark", gradient: "Gradient", light: "Light", transparent: "Transparent" }, postToCommunity: "Post to Community", saveToGallery: "Save to Gallery",
   },
 };
 
@@ -445,6 +445,6 @@ export const extraAr = {
     setsValue: "{{n}} مجموعة", topLift: "أعلى رفعة: {{name}} — {{weight}} كغ", volumeVsLastSession: "الحجم {{arrow}} {{pct}}٪ مقابل الجلسة السابقة", firstTime: "أول مرة!",
     comingSoon: "قريبًا", postToCommunitySoon: "ميزة النشر في المجتمع ستتوفر قريبًا!", imageSaved: "تم حفظ الصورة!",
     imageSavedMessage: "تم حفظ بطاقة تمرينك في معرض الصور.", cardStyle: "نمط البطاقة",
-    cardStyleOption: { dark: "داكن", gradient: "متدرّج", light: "فاتح" }, postToCommunity: "النشر في المجتمع", saveToGallery: "حفظ في المعرض",
+    cardStyleOption: { dark: "داكن", gradient: "متدرّج", light: "فاتح", transparent: "شفاف" }, postToCommunity: "النشر في المجتمع", saveToGallery: "حفظ في المعرض",
   },
 };
