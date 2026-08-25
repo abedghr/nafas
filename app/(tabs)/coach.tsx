@@ -275,7 +275,7 @@ export default function CoachScreen() {
 
   return (
     <View style={[s.container, { backgroundColor: theme.background }]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 200 }}>
         <View style={{ paddingTop: topPad }}>
           <AppHeader
             style={s.header}
@@ -354,15 +354,28 @@ export default function CoachScreen() {
                 </Animated.View>
               )}
 
-              <Animated.View entering={FadeInDown.duration(500)} style={{ paddingHorizontal: 20 }}>
-                <Button
-                  variant="ghost"
-                  icon="library-outline"
-                  label={t('workoutTab.myWorkouts')}
-                  onPress={() => router.push('/saved-workouts' as any)}
-                />
+              <Animated.View entering={FadeInDown.duration(500)} style={s.quickRow}>
+                <Pressable
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/programs' as any); }}
+                  style={({ pressed }) => [s.quickTile, { backgroundColor: theme.card, opacity: pressed ? 0.85 : 1 }]}
+                  accessibilityLabel={t('programs.programsCardTitle')}
+                >
+                  <View style={[s.quickTileIcon, { backgroundColor: Colors.primary + '15' }]}><Ionicons name="calendar-outline" size={20} color={Colors.primary} /></View>
+                  <Text style={[s.quickTileTitle, { color: theme.text }]} numberOfLines={1}>{t('programs.programsCardTitle')}</Text>
+                  <Text style={[s.quickTileSub, { color: theme.textMuted }]} numberOfLines={1}>{t('programs.programsCardSub')}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saved-workouts' as any); }}
+                  style={({ pressed }) => [s.quickTile, { backgroundColor: theme.card, opacity: pressed ? 0.85 : 1 }]}
+                  accessibilityLabel={t('workoutTab.myWorkouts')}
+                >
+                  <View style={[s.quickTileIcon, { backgroundColor: Colors.electric + '15' }]}><Ionicons name="library-outline" size={20} color={Colors.electric} /></View>
+                  <Text style={[s.quickTileTitle, { color: theme.text }]} numberOfLines={1}>{t('workoutTab.myWorkouts')}</Text>
+                  <Text style={[s.quickTileSub, { color: theme.textMuted }]} numberOfLines={1}>{t('workoutTab.myWorkoutsSub', { defaultValue: 'Saved & history' })}</Text>
+                </Pressable>
               </Animated.View>
 
+              <Text style={[s.sectionTitle, { color: theme.text, marginTop: 4 }]}>{t('workoutTab.thisWeek', { defaultValue: 'This week' })}</Text>
               <Animated.View entering={FadeInDown.duration(500).delay(120)}>
                 <View style={[s.ringsCard, { backgroundColor: theme.card }]}>
                   <ActivityRings
@@ -388,20 +401,6 @@ export default function CoachScreen() {
                   </View>
                 </View>
               </Animated.View>
-
-              <Pressable
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/programs' as any); }}
-                style={({ pressed }) => [s.programsCard, { backgroundColor: theme.card, opacity: pressed ? 0.85 : 1 }]}
-              >
-                <View style={[s.programsCardIcon, { backgroundColor: Colors.primary + '15' }]}>
-                  <Ionicons name="calendar-outline" size={20} color={Colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.programsCardTitle, { color: theme.text }]}>{t('programs.programsCardTitle')}</Text>
-                  <Text style={[s.programsCardSub, { color: theme.textMuted }]}>{t('programs.programsCardSub')}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
-              </Pressable>
 
               {prs.length > 0 && (
                 <>
@@ -652,6 +651,11 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
   },
   programsCardIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  quickRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 20 },
+  quickTile: { flex: 1, borderRadius: 16, padding: 14, gap: 8, minHeight: 92, justifyContent: 'center' },
+  quickTileIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  quickTileTitle: { fontSize: 15, fontFamily: 'Rubik_600SemiBold' },
+  quickTileSub: { fontSize: 12, fontFamily: 'Rubik_400Regular' },
   programsCardTitle: { fontSize: 15, fontFamily: 'Rubik_600SemiBold' },
   programsCardSub: { fontSize: 12, fontFamily: 'Rubik_400Regular', marginTop: 2 },
   prCard: { marginHorizontal: 20, borderRadius: 16, paddingHorizontal: 14 },
