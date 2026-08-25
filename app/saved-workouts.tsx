@@ -137,6 +137,8 @@ export default function SavedWorkoutsScreen() {
                 icon="bookmark-outline"
                 title={t('workoutSession.noTemplatesYet')}
                 subtitle={t('workoutSession.noTemplatesSubtext')}
+                actionLabel={t('workoutSession.buildWorkout', { defaultValue: 'Build a workout' })}
+                onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/prepare-workout' as any); }}
               />
             </Animated.View>
           ) : (
@@ -217,6 +219,8 @@ export default function SavedWorkoutsScreen() {
                 icon="fitness-outline"
                 title={t('workoutSession.noWorkoutsYet')}
                 subtitle={t('workoutSession.noWorkoutsSubtext')}
+                actionLabel={t('workoutSession.startWorkout', { defaultValue: 'Start a workout' })}
+                onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/prepare-workout' as any); }}
               />
             </Animated.View>
           ) : (
