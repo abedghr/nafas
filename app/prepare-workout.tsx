@@ -900,31 +900,16 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
             theme={theme}
           />
 
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              onCreateCustom();
-            }}
-            style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1, marginBottom: 10 }]}
-          >
-            <LinearGradient
-              colors={[Colors.accent, Colors.accentLight]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={s.createCustomBtn}
-            >
-              <Ionicons name="create-outline" size={18} color="#fff" />
-              <Text style={s.createCustomText}>{t('workoutPrep.createCustomExercise')}</Text>
-            </LinearGradient>
-          </Pressable>
-
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 120 }}>
-            {filtered.length === 0 && (
-              <Text style={{ color: theme.textMuted, textAlign: 'center', marginTop: 24, fontSize: 14 }}>
-                {t('workoutPrep.noExercisesFound', { defaultValue: 'No exercises found' })}
-              </Text>
-            )}
-            {sections.map((sec) => (
+            {filtered.length === 0 ? (
+              <View style={s.pickerEmpty}>
+                <View style={[s.pickerEmptyIcon, { backgroundColor: theme.card }]}>
+                  <Ionicons name="search-outline" size={30} color={theme.textMuted} />
+                </View>
+                <Text style={[s.pickerEmptyTitle, { color: theme.text }]}>{t('workoutPrep.noExercisesFound', { defaultValue: 'No exercises found' })}</Text>
+                <Text style={[s.pickerEmptySub, { color: theme.textMuted }]}>{t('workoutPrep.noExercisesHint', { defaultValue: 'Try a different search or filter — or create your own below.' })}</Text>
+              </View>
+            ) : sections.map((sec) => (
               <View key={sec.title || 'flat'}>
                 {sec.title && (
                   <View style={s.sectionHeaderRow}>
@@ -947,6 +932,14 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
                 ))}
               </View>
             ))}
+
+            <Pressable
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onCreateCustom(); }}
+              style={({ pressed }) => [s.createCustomGhost, { borderColor: Colors.accent + '66', opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Ionicons name="add" size={18} color={Colors.accent} />
+              <Text style={[s.createCustomGhostText, { color: Colors.accent }]}>{t('workoutPrep.createCustomExercise')}</Text>
+            </Pressable>
           </ScrollView>
         </View>
       </View>
@@ -2364,6 +2357,15 @@ const s = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
+  createCustomGhost: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    height: 46, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed', marginTop: 8,
+  },
+  createCustomGhostText: { fontSize: 14, fontWeight: '700' },
+  pickerEmpty: { alignItems: 'center', gap: 10, paddingTop: 40, paddingHorizontal: 24 },
+  pickerEmptyIcon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  pickerEmptyTitle: { fontSize: 16, fontFamily: 'Rubik_600SemiBold' },
+  pickerEmptySub: { fontSize: 13, fontFamily: 'Rubik_400Regular', textAlign: 'center', lineHeight: 19 },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
