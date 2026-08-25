@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Crypto from 'expo-crypto';
-import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInRight, useSharedValue, useAnimatedStyle, withRepeat, withTiming, useReducedMotion } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import ProgramTodayCard from '@/components/ProgramTodayCard';
@@ -23,6 +23,31 @@ import { workoutApi } from '@/src/features/workout/api';
 import { CompleteProfileBanner } from '@/components/CompleteProfileBanner';
 
 const { width: SW } = Dimensions.get('window');
+
+// Icon-only AI FAB with a slow "breathing" glow ring — signals a live, interactive
+// AI. Static (no pulse) when the user prefers reduced motion.
+function AICoachFab({ onPress, bottom, label }: { onPress: () => void; bottom: number; label: string }) {
+  const reduce = useReducedMotion();
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    if (reduce) { pulse.value = 0.4; return; }
+    pulse.value = withRepeat(withTiming(1, { duration: 1600 }), -1, true);
+  }, [reduce]);
+  const glowStyle = useAnimatedStyle(() => ({ opacity: 0.25 + pulse.value * 0.4, transform: [{ scale: 1 + pulse.value * 0.35 }] }));
+  const coreStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + pulse.value * 0.04 }] }));
+  return (
+    <View style={[s.aiFab, { bottom }]} pointerEvents="box-none">
+      <Animated.View style={[s.aiFabGlow, glowStyle]} pointerEvents="none" />
+      <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} hitSlop={8} style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.94 : 1 }] }]}>
+        <Animated.View style={coreStyle}>
+          <LinearGradient colors={[Colors.electric, '#48CAE4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.aiFabCore}>
+            <Ionicons name="sparkles" size={26} color="#04120B" />
+          </LinearGradient>
+        </Animated.View>
+      </Pressable>
+    </View>
+  );
+}
 
 function generateInsights(workouts: any[], streak: number, weeklyWorkouts: number, t: (key: string, opts?: any) => string) {
   const insights: { icon: string; color: string; title: string; text: string; type: 'positive' | 'warning' | 'info' }[] = [];
@@ -528,17 +553,8 @@ export default function CoachScreen() {
         </View>
       </ScrollView>
 
-      {/* AI Coach FAB — sits just above Start Workout */}
-      <Pressable
-        onPress={openAiCoach}
-        style={({ pressed }) => [s.aiFab, { bottom: insets.bottom + 78 + 54 + 12, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
-        accessibilityLabel={t('aiCoach.title', { defaultValue: 'AI Coach' })}
-      >
-        <LinearGradient colors={[Colors.electric, '#48CAE4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.aiFabGrad}>
-          <Ionicons name="sparkles" size={18} color="#04120B" />
-          <Text style={s.aiFabText}>{t('aiCoach.fab', { defaultValue: 'AI Coach' })}</Text>
-        </LinearGradient>
-      </Pressable>
+      {/* AI Coach — icon-only, breathing glow signals it's a live/interactive AI */}
+      <AICoachFab onPress={openAiCoach} bottom={insets.bottom + 78 + 54 + 16} label={t('aiCoach.title', { defaultValue: 'AI Coach' })} />
 
       {/* fixed start-workout FAB */}
       <Pressable
@@ -773,12 +789,12 @@ const s = StyleSheet.create({
   totalProgressValue: { fontSize: 20, fontFamily: 'Rubik_700Bold' },
   totalProgressDivider: { width: 1, height: 32 },
   noProgramCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 16 },
-  aiFab: {
-    position: 'absolute', right: 20, borderRadius: 24,
-    shadowColor: Colors.electric, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 7,
+  aiFab: { position: 'absolute', right: 24, width: 60, height: 60, alignItems: 'center', justifyContent: 'center' },
+  aiFabGlow: { position: 'absolute', width: 60, height: 60, borderRadius: 30, backgroundColor: Colors.electric },
+  aiFabCore: {
+    width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center',
+    shadowColor: Colors.electric, shadowOpacity: 0.5, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 8,
   },
-  aiFabGrad: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 16, paddingRight: 20, height: 48, borderRadius: 24 },
-  aiFabText: { color: '#04120B', fontSize: 14, fontFamily: 'Rubik_700Bold', fontWeight: '800' },
   fab: {
     position: 'absolute', right: 20, flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: Colors.electric, paddingLeft: 18, paddingRight: 22, height: 54, borderRadius: 27,
