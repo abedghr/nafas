@@ -1,18 +1,36 @@
 import React, { useState } from 'react';
 import {
-  View, Text, Pressable, StyleSheet, ScrollView, Modal, TextInput, Alert, Dimensions,
+  View, Text, Pressable, StyleSheet, ScrollView, Modal, TextInput, Dimensions, Platform, Image, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
+import { nutritionApi } from '@/src/features/nutrition/api';
 import Colors from '@/constants/colors';
 import { Fonts, Type } from '@/constants/typography';
 import { StatTile, SectionHeader, Button } from '@/components/ui';
 
 const { width: SW } = Dimensions.get('window');
+
+// read a file uri as base64, cross-platform (web blob, native file-system legacy)
+async function uriToBase64(uri: string): Promise<string> {
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(uri)).blob();
+    return await new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => res(String(fr.result).split(',')[1] || '');
+      fr.onerror = rej;
+      fr.readAsDataURL(blob);
+    });
+  }
+  const FS = require('expo-file-system/legacy');
+  return FS.readAsStringAsync(uri, { encoding: 'base64' });
+}
 
 function getTimeDiffLabel(dateStr: string, t: (key: string, opts?: any) => string) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -30,77 +48,177 @@ function calcDelta(current: number, previous: number) {
   return { diff: Math.round(diff * 10) / 10, pct: Math.round(pct * 10) / 10 };
 }
 
-function InBodyModal({ visible, onClose, onSave }: { visible: boolean; onClose: () => void; onSave: (data: any) => void }) {
+// numeric field keys shown in the review card (date handled separately)
+const REVIEW_FIELDS: { key: string; labelKey: string; unit: string }[] = [
+  { key: 'weight', labelKey: 'workoutTab.fieldWeightKg', unit: 'kg' },
+  { key: 'skeletalMuscle', labelKey: 'workoutTab.fieldSkeletalMusclePct', unit: '' },
+  { key: 'muscleMass', labelKey: 'workoutTab.fieldMuscleMassKg', unit: 'kg' },
+  { key: 'bodyFat', labelKey: 'workoutTab.fieldBodyFatPct', unit: '%' },
+  { key: 'bodyWater', labelKey: 'workoutTab.fieldBodyWaterPct', unit: '' },
+  { key: 'bmi', labelKey: 'workoutTab.fieldBmi', unit: '' },
+  { key: 'bmr', labelKey: 'workoutTab.fieldBmrKcal', unit: 'kcal' },
+  { key: 'visceralFat', labelKey: 'workoutTab.fieldVisceralFat', unit: '' },
+];
+
+// Upload a photo/PDF of an InBody sheet → AI reads it → the user reviews EVERY
+// detected value ("what we'll save"), fixes any mistakes, then Commits. There is
+// no blank manual form: correcting the parsed result is the only entry path.
+function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onClose: () => void; onSave: (data: any) => void }) {
   const { t } = useTranslation();
   const { isDark } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
-  const [weight, setWeight] = useState('');
-  const [muscleMass, setMuscleMass] = useState('');
-  const [bodyFat, setBodyFat] = useState('');
-  const [bodyWater, setBodyWater] = useState('');
-  const [bmi, setBmi] = useState('');
-  const [bmr, setBmr] = useState('');
-  const [visceralFat, setVisceralFat] = useState('');
-  const [skeletalMuscle, setSkeletalMuscle] = useState('');
 
-  const fields = [
-    { label: t('workoutTab.fieldWeightKg'), value: weight, set: setWeight },
-    { label: t('workoutTab.fieldMuscleMassKg'), value: muscleMass, set: setMuscleMass },
-    { label: t('workoutTab.fieldBodyFatPct'), value: bodyFat, set: setBodyFat },
-    { label: t('workoutTab.fieldBodyWaterPct'), value: bodyWater, set: setBodyWater },
-    { label: t('workoutTab.fieldBmi'), value: bmi, set: setBmi },
-    { label: t('workoutTab.fieldBmrKcal'), value: bmr, set: setBmr },
-    { label: t('workoutTab.fieldVisceralFat'), value: visceralFat, set: setVisceralFat },
-    { label: t('workoutTab.fieldSkeletalMusclePct'), value: skeletalMuscle, set: setSkeletalMuscle },
-  ];
+  type Stage = 'upload' | 'parsing' | 'review';
+  const [stage, setStage] = useState<Stage>('upload');
+  const [error, setError] = useState('');
+  const [previewUri, setPreviewUri] = useState<string | undefined>();
+  const [date, setDate] = useState('');
+  const [vals, setVals] = useState<Record<string, string>>({});
 
-  const handleSave = () => {
-    if (!weight || !bodyFat) {
-      Alert.alert(t('workoutTab.alertRequiredTitle'), t('workoutTab.alertRequiredMessage'));
-      return;
+  const reset = () => { setStage('upload'); setError(''); setPreviewUri(undefined); setDate(''); setVals({}); };
+  const close = () => { reset(); onClose(); };
+
+  const runParse = async (file: { mimeType: string; data: string }, preview?: string) => {
+    setPreviewUri(preview); setError(''); setStage('parsing');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const r = await nutritionApi.parseInbody(file);
+      const v: Record<string, string> = {};
+      for (const f of REVIEW_FIELDS) if (r[f.key] != null) v[f.key] = String(r[f.key]);
+      setVals(v);
+      setDate(r.date || new Date().toISOString().split('T')[0]);
+      setStage('review');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      const raw = String(e?.message ?? e);
+      setError(
+        /NOT_INBODY|doesn't look/i.test(raw) ? t('inbody.notInbody', { defaultValue: "That doesn't look like an InBody sheet. Try a clearer photo or the full PDF." })
+        : /AI_UNAVAILABLE|not configured/i.test(raw) ? t('aiCreate.unavailable', { defaultValue: 'AI is not set up yet.' })
+        : /Load failed|Network|tim</i.test(raw) ? t('aiCoach.netError', { defaultValue: 'That took too long or the connection dropped. Try again.' })
+        : raw,
+      );
+      setStage('upload');
     }
-    onSave({
-      date: new Date().toISOString().split('T')[0],
-      weight: parseFloat(weight) || 0,
-      muscleMass: parseFloat(muscleMass) || 0,
-      bodyFat: parseFloat(bodyFat) || 0,
-      bodyWater: parseFloat(bodyWater) || 0,
-      bmi: parseFloat(bmi) || 0,
-      bmr: parseFloat(bmr) || 0,
-      visceralFat: parseFloat(visceralFat) || 0,
-      skeletalMuscle: parseFloat(skeletalMuscle) || 0,
-    });
-    setWeight(''); setMuscleMass(''); setBodyFat(''); setBodyWater('');
-    setBmi(''); setBmr(''); setVisceralFat(''); setSkeletalMuscle('');
   };
 
+  const pickImage = async () => {
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.7 });
+    if (res.canceled || !res.assets?.[0]) return;
+    const a = res.assets[0];
+    runParse({ mimeType: a.mimeType || 'image/jpeg', data: a.base64 || '' }, a.uri);
+  };
+  const pickFile = async () => {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'], copyToCacheDirectory: true, multiple: false });
+      if (res.canceled || !res.assets?.[0]) return;
+      const a = res.assets[0];
+      const data = await uriToBase64(a.uri);
+      if (!data) throw new Error('read failed');
+      runParse({ mimeType: a.mimeType || 'application/pdf', data }, a.mimeType?.startsWith('image') ? a.uri : undefined);
+    } catch {
+      setError(t('aiCreate.fileFailed', { defaultValue: 'Could not read that file. PDF or a clear photo works best.' }));
+    }
+  };
+
+  const commit = () => {
+    const num = (k: string) => { const n = parseFloat(vals[k]); return Number.isFinite(n) ? n : 0; };
+    onSave({
+      date: date || new Date().toISOString().split('T')[0],
+      weight: num('weight'), muscleMass: num('muscleMass'), bodyFat: num('bodyFat'), bodyWater: num('bodyWater'),
+      bmi: num('bmi'), bmr: num('bmr'), visceralFat: num('visceralFat'), skeletalMuscle: num('skeletalMuscle'),
+    });
+    reset();
+  };
+
+  const detectedCount = REVIEW_FIELDS.filter((f) => vals[f.key]).length;
+
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={close}>
       <View style={s.modalOverlay}>
         <View style={[s.modalContent, { backgroundColor: theme.background }]}>
           <View style={s.modalHandle}><View style={[s.handleBar, { backgroundColor: theme.border }]} /></View>
           <View style={s.modalHeader}>
-            <Text style={[s.modalTitle, { color: theme.text }]}>{t('workoutTab.addInBodyTest')}</Text>
-            <Pressable onPress={onClose} hitSlop={8}>
-              <Ionicons name="close" size={24} color={theme.text} />
-            </Pressable>
+            <Text style={[s.modalTitle, { color: theme.text }]}>
+              {stage === 'review' ? t('inbody.reviewTitle', { defaultValue: 'Review & save' }) : t('inbody.uploadTitle', { defaultValue: 'Upload InBody test' })}
+            </Text>
+            <Pressable onPress={close} hitSlop={8}><Ionicons name="close" size={24} color={theme.text} /></Pressable>
           </View>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 32 }}>
-            {fields.map(f => (
-              <View key={f.label}>
-                <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{f.label}</Text>
+
+          {stage !== 'review' && (
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 32 }}>
+              <View style={[s.uploadHero, { backgroundColor: Colors.electric + '12', borderColor: Colors.electric + '33' }]}>
+                <Ionicons name="cloud-upload-outline" size={26} color={Colors.electric} />
+                <Text style={[s.uploadHeroText, { color: theme.textSecondary }]}>
+                  {t('inbody.uploadBlurb', { defaultValue: "Upload a photo or PDF of your InBody result. We'll read it and show you every value to confirm before saving." })}
+                </Text>
+              </View>
+              {!!error && (
+                <View style={[s.errorRow, { backgroundColor: Colors.semantic.danger + '15' }]}>
+                  <Ionicons name="alert-circle" size={16} color={Colors.semantic.danger} />
+                  <Text style={[s.errorText, { color: Colors.semantic.danger }]}>{error}</Text>
+                </View>
+              )}
+              {stage === 'parsing' ? (
+                <View style={s.parsingBox}>
+                  <ActivityIndicator color={Colors.electric} />
+                  <Text style={[s.parsingText, { color: theme.textSecondary }]}>{t('inbody.reading', { defaultValue: 'Reading your InBody sheet…' })}</Text>
+                </View>
+              ) : (
+                <View style={{ gap: 10 }}>
+                  <Pressable onPress={pickImage} style={({ pressed }) => [s.uploadBtn, { borderColor: Colors.electric + '55', opacity: pressed ? 0.85 : 1 }]}>
+                    <Ionicons name="image-outline" size={20} color={Colors.electric} />
+                    <Text style={[s.uploadBtnText, { color: Colors.electric }]}>{t('inbody.uploadPhoto', { defaultValue: 'Upload a photo' })}</Text>
+                  </Pressable>
+                  <Pressable onPress={pickFile} style={({ pressed }) => [s.uploadBtn, { borderColor: Colors.electric + '55', opacity: pressed ? 0.85 : 1 }]}>
+                    <Ionicons name="document-attach-outline" size={20} color={Colors.electric} />
+                    <Text style={[s.uploadBtnText, { color: Colors.electric }]}>{t('inbody.uploadPdf', { defaultValue: 'Upload a PDF / file' })}</Text>
+                  </Pressable>
+                </View>
+              )}
+            </ScrollView>
+          )}
+
+          {stage === 'review' && (
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12, paddingBottom: 32 }}>
+              <View style={[s.reviewBanner, { backgroundColor: Colors.electric + '12' }]}>
+                <Ionicons name="sparkles" size={15} color={Colors.electric} />
+                <Text style={[s.reviewBannerText, { color: theme.textSecondary }]}>
+                  {t('inbody.detectedSummary', { defaultValue: 'Read {{n}} values. Check them and fix anything, then Save.', n: detectedCount })}
+                </Text>
+              </View>
+              {!!previewUri && <Image source={{ uri: previewUri }} style={s.reviewThumb} resizeMode="cover" />}
+
+              <View>
+                <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{t('inbody.testDate', { defaultValue: 'Test date' })}</Text>
                 <TextInput
                   style={[s.fieldInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                  value={f.value}
-                  onChangeText={f.set}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  placeholderTextColor={theme.textMuted}
+                  value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor={theme.textMuted}
                 />
               </View>
-            ))}
-            <Button variant="solid" label={t('workoutTab.saveTestResults')} icon="checkmark-circle" onPress={handleSave} style={{ marginTop: 8 }} />
-          </ScrollView>
+              {REVIEW_FIELDS.map((f) => {
+                const detected = !!vals[f.key];
+                return (
+                  <View key={f.key}>
+                    <View style={s.fieldLabelRow}>
+                      <Text style={[s.fieldLabel, { color: theme.textSecondary, marginBottom: 0 }]}>{t(f.labelKey)}</Text>
+                      {!detected && <Text style={[s.notDetected, { color: theme.textMuted }]}>{t('inbody.notDetected', { defaultValue: 'not detected — add if you have it' })}</Text>}
+                    </View>
+                    <TextInput
+                      style={[s.fieldInput, { backgroundColor: theme.card, color: theme.text, borderColor: detected ? Colors.electric + '55' : theme.border }]}
+                      value={vals[f.key] ?? ''}
+                      onChangeText={(v) => setVals((p) => ({ ...p, [f.key]: v }))}
+                      keyboardType="numeric" placeholder="—" placeholderTextColor={theme.textMuted}
+                    />
+                  </View>
+                );
+              })}
+              <Button variant="solid" label={t('inbody.commit', { defaultValue: 'Save this test' })} icon="checkmark-circle" onPress={commit} style={{ marginTop: 4 }} />
+              <Pressable onPress={() => setStage('upload')} style={s.reuploadBtn}>
+                <Ionicons name="refresh" size={15} color={theme.textMuted} />
+                <Text style={[s.reuploadText, { color: theme.textMuted }]}>{t('inbody.reupload', { defaultValue: 'Upload a different file' })}</Text>
+              </Pressable>
+            </ScrollView>
+          )}
         </View>
       </View>
     </Modal>
@@ -422,7 +540,7 @@ export default function InBodySection() {
         userHeight={user?.height}
         onAddTest={() => { setShowInBodyModal(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
       />
-      <InBodyModal visible={showInBodyModal} onClose={() => setShowInBodyModal(false)} onSave={handleSaveInBody} />
+      <InBodyUploadModal visible={showInBodyModal} onClose={() => setShowInBodyModal(false)} onSave={handleSaveInBody} />
     </View>
   );
 }
@@ -491,8 +609,23 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
   modalTitle: { fontSize: 20, fontFamily: Fonts.bold },
   fieldLabel: { fontSize: 13, fontFamily: Fonts.medium, marginBottom: 6 },
+  fieldLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  notDetected: { fontSize: 11, fontFamily: Fonts.regular, fontStyle: 'italic' },
   fieldInput: {
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
     fontSize: 16, fontFamily: Fonts.medium, borderWidth: 1,
   },
+  uploadHero: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: 1, padding: 14 },
+  uploadHeroText: { flex: 1, fontSize: 13.5, fontFamily: Fonts.regular, lineHeight: 19 },
+  uploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, height: 52, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed' },
+  uploadBtnText: { fontSize: 15, fontFamily: Fonts.semibold },
+  parsingBox: { alignItems: 'center', gap: 12, paddingVertical: 36 },
+  parsingText: { fontSize: 14, fontFamily: Fonts.medium },
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, padding: 12 },
+  errorText: { flex: 1, fontSize: 13, fontFamily: Fonts.medium, lineHeight: 18 },
+  reviewBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, padding: 12 },
+  reviewBannerText: { flex: 1, fontSize: 13, fontFamily: Fonts.medium, lineHeight: 18 },
+  reviewThumb: { width: '100%', height: 160, borderRadius: 12, backgroundColor: '#fff' },
+  reuploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
+  reuploadText: { fontSize: 13, fontFamily: Fonts.medium },
 });
