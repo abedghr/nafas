@@ -148,6 +148,27 @@ function mapWorkout(draft: WorkoutDraft, lib: { name: string; tok: string[] }[])
   return { name: draft.name || "AI Workout", exercises: mapExercises(draft.exercises, 0, makeMatcher(lib)) };
 }
 
+// draft → a startable live-session shape: sets carry a `done` flag + a start offset,
+// so the client can launch a running, resumable workout (some sets already completed).
+type StartSet = DraftSet & { done?: boolean };
+type StartExercise = { name: string; sets?: StartSet[] };
+type StartDraft = { name?: string; startMinutesAgo?: number; exercises?: StartExercise[] };
+function mapStart(draft: StartDraft, lib: { name: string; tok: string[] }[]) {
+  const match = makeMatcher(lib);
+  const exercises = (draft.exercises || []).map((e, j) => {
+    const matched = match(e.name);
+    const sets = (e.sets || []).map((s) => {
+      const isHold = s.durationSeconds != null && s.reps == null;
+      const base = isHold
+        ? { type: "hold", measure: "time", durationSeconds: s.durationSeconds, ...(s.weightKg != null ? { weight: s.weightKg } : {}) }
+        : { type: "reps", ...(s.reps != null ? { reps: s.reps } : {}), ...(s.weightKg != null ? { weight: s.weightKg } : {}) };
+      return { ...base, done: !!s.done };
+    });
+    return { exerciseId: `ai-${j}-${(matched || e.name).replace(/\s+/g, "-").toLowerCase()}`, name: matched || e.name, muscleGroup: "Full Body", restSeconds: 90, sets: sets.length ? sets : [{ type: "reps", reps: 10, done: false }] };
+  });
+  return { name: draft.name || "Workout", startMinutesAgo: Math.max(0, Number(draft.startMinutesAgo) || 0), exercises };
+}
+
 // one-shot generate (kept for the simple Create-with-AI path)
 export async function generateProgram(input: { text?: string; file?: { mimeType: string; data: string } }) {
   const { lib } = await exerciseLib();
@@ -211,6 +232,7 @@ WHAT YOU CAN DO (pick per request):
 1. ANSWER / ADVISE in plain text — use the ATHLETE CONTEXT to answer PERSONALLY about their training, personal records, programs, targets, and body composition (InBody weight / body fat / muscle and its trend): e.g. "how is my bench trending", "am I losing fat or muscle", "will I hit my body-fat target", "what should I train next". Also technique/form cues, exercise selection, progression, and reading an attached photo/PDF (identify equipment/exercise, critique form). Do this whenever the athlete asks a question or wants feedback rather than a plan to save — do NOT force a workout/program on them.
 2. Build a SINGLE WORKOUT — call "propose_workout" for a one-off session ("give me a push day", "a 30-min dumbbell workout", "turn this photo into a workout", "today's legs"). Saved as a reusable workout.
 3. Build a MULTI-WEEK PROGRAM — call "propose_program" for an ongoing plan ("a 4-week program", "a weekly split", "a plan to follow day by day", or transcribing a multi-day/multi-week program file).
+4. START a live workout NOW — call "start_workout" when the athlete wants to BEGIN or LOG a session they are doing now or already started ("start a workout with these exercises", "I began 15 minutes ago", "log this workout I'm doing"). Capture each exercise + set; mark sets that are already completed (a checkmark ✓ next to them) with done=true; set startMinutesAgo from what they say (e.g. "started 15 minutes ago" → 15, otherwise 0). This launches a RUNNING, resumable session — do NOT save it as a template.
 
 RULES FOR BOTH TOOLS:
 - If you're missing essentials (goal, experience, days/week, session length, equipment/location, injuries) ask at most 1-3 questions first, offering concrete options; then build.
@@ -264,8 +286,40 @@ const WORKOUT_SCHEMA = {
   required: ["name", "exercises"],
 } as const;
 
+const START_SCHEMA = {
+  type: "object",
+  properties: {
+    name: { type: "string" },
+    startMinutesAgo: { type: "integer" }, // e.g. "I started 15 min ago" -> 15
+    exercises: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          sets: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                reps: { type: "integer" },
+                weightKg: { type: "number" },
+                durationSeconds: { type: "integer" },
+                done: { type: "boolean" }, // this set is already completed (e.g. a checkmark)
+              },
+            },
+          },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  required: ["name", "exercises"],
+} as const;
+
 const PROPOSE_TOOL = { name: "propose_program", description: "Propose a complete MULTI-WEEK training program (ordered days across one or more weeks) for the athlete to review and save.", parameters: PROGRAM_SCHEMA as any };
 const PROPOSE_WORKOUT_TOOL = { name: "propose_workout", description: "Propose a SINGLE workout session (one list of exercises with sets) for the athlete to review and save as a reusable workout.", parameters: WORKOUT_SCHEMA as any };
+const START_WORKOUT_TOOL = { name: "start_workout", description: "START a live, resumable workout session NOW with the given exercises/sets. Use when the athlete wants to begin/log a workout they are doing now or already started — capture which sets are already DONE and how many minutes ago it started (startMinutesAgo). The app launches the running session; nothing is saved as a template.", parameters: START_SCHEMA as any };
 
 // Real post-workout insight: compares the just-finished session to the athlete's
 // previous sessions of the same workout + recent activity. Returns 2-3 sentences.
@@ -301,7 +355,10 @@ export async function chat(userId: string, input: { messages: { role: "user" | "
     const last = contents[contents.length - 1];
     for (const f of input.files) last.parts.unshift({ inline_data: { mime_type: f.mimeType, data: f.data } });
   }
-  const r = await geminiChat({ system: CHAT_SYSTEM(ctx), contents, tools: [PROPOSE_TOOL, PROPOSE_WORKOUT_TOOL] });
+  const r = await geminiChat({ system: CHAT_SYSTEM(ctx), contents, tools: [PROPOSE_TOOL, PROPOSE_WORKOUT_TOOL, START_WORKOUT_TOOL] });
+  if (r.call?.name === "start_workout") {
+    return { type: "start" as const, message: r.text || "Ready to start — review and begin.", session: mapStart(r.call.args as StartDraft, lib) };
+  }
   if (r.call?.name === "propose_program") {
     return { type: "proposal" as const, message: r.text || "Here's a program I put together — review it and save when you're happy.", program: mapDraft(r.call.args as Draft, lib) };
   }

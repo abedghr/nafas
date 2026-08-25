@@ -36,7 +36,7 @@ async function uriToBase64(uri: string): Promise<string> {
   return FS.readAsStringAsync(uri, { encoding: 'base64' });
 }
 
-type Msg = { role: 'user' | 'model'; text: string; local?: boolean; program?: any; workout?: any; previewUri?: string; fileLabel?: string };
+type Msg = { role: 'user' | 'model'; text: string; local?: boolean; program?: any; workout?: any; session?: any; previewUri?: string; fileLabel?: string };
 type Att = { mimeType: string; data: string; label: string; previewUri?: string };
 
 // one bouncing dot of the typing indicator
@@ -50,7 +50,7 @@ function Dot({ delay, color }: { delay: number; color: string }) {
 export default function AICoachScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { isDark, addProgram, addWorkoutTemplate } = useApp();
+  const { isDark, addProgram, addWorkoutTemplate, setActiveSession } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
@@ -119,6 +119,7 @@ export default function AICoachScreen() {
       const reply: Msg =
         r.type === 'proposal' ? { role: 'model', text: r.message, program: r.program }
         : r.type === 'workout' ? { role: 'model', text: r.message, workout: r.workout }
+        : r.type === 'start' ? { role: 'model', text: r.message, session: r.session }
         : { role: 'model', text: r.message };
       setMessages((cur) => [...cur, reply]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -143,6 +144,20 @@ export default function AICoachScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     addWorkoutTemplate({ name: workout.name, exercises: workout.exercises } as any); // persists + syncs to server
     router.replace('/saved-workouts' as any); // saved → appears in My Workouts
+  };
+  // Launch a live, resumable session from an AI 'start' action (sets already done + a start offset).
+  const startSession = (session: any) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const startTs = Date.now() - Math.max(0, Number(session.startMinutesAgo) || 0) * 60000;
+    const exercises = (session.exercises || []).map((e: any) => ({
+      exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup || 'Full Body', restSeconds: e.restSeconds || 90,
+      sets: (e.sets || []).map((s: any) => {
+        const cfg = { type: s.type || 'reps', ...(s.reps != null ? { reps: s.reps } : {}), ...(s.durationSeconds != null ? { durationSeconds: s.durationSeconds, measure: 'time' } : {}), ...(s.weight != null ? { weight: s.weight } : {}) };
+        return { config: cfg, actual: { ...cfg }, status: s.done ? 'done' : 'pending' };
+      }),
+    }));
+    setActiveSession({ workoutName: session.name || 'Workout', startTimestamp: startTs, preWorkout: false, exercises } as any);
+    router.replace('/live-workout' as any); // running session — resumable anytime
   };
 
   return (
@@ -172,6 +187,7 @@ export default function AICoachScreen() {
               </View>
               {m.program && <ProposalCard program={m.program} theme={theme} t={t} onSave={() => saveProgram(m.program)} />}
               {m.workout && <WorkoutCard workout={m.workout} theme={theme} t={t} onSave={() => saveWorkout(m.workout)} />}
+              {m.session && <StartCard session={m.session} theme={theme} t={t} onStart={() => startSession(m.session)} />}
             </View>
           </Animated.View>
         ))}
@@ -302,6 +318,40 @@ function ProposalCard({ program, theme, t, onSave }: { program: any; theme: any;
       <Text style={[s.approveHint, { color: theme.textMuted }]}>
         {empty ? t('aiCoach.emptyHint', { defaultValue: 'Ask me to add exercises first.' }) : t('aiCoach.approveHint', { defaultValue: 'Review the days above. Nothing is saved until you tap Save. Or tell me what to change.' })}
       </Text>
+    </View>
+  );
+}
+
+function StartCard({ session, theme, t, onStart }: { session: any; theme: any; t: any; onStart: () => void }) {
+  const exs = session.exercises || [];
+  const totalSets = exs.reduce((a: number, e: any) => a + (e.sets?.length || 0), 0);
+  const doneSets = exs.reduce((a: number, e: any) => a + (e.sets || []).filter((s: any) => s.done).length, 0);
+  const started = Math.max(0, Number(session.startMinutesAgo) || 0);
+  const empty = totalSets === 0;
+  return (
+    <View style={[s.proposal, { backgroundColor: theme.card, borderColor: Colors.electric + '44' }]}>
+      <View style={s.proposalHead}>
+        <View style={[s.headerBadge, { backgroundColor: '#FF6B3522' }]}><Ionicons name="play" size={15} color="#FF6B35" /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={[s.proposalName, { color: theme.text }]} numberOfLines={2}>{session.name}</Text>
+          <Text style={[s.proposalMeta, { color: theme.textMuted }]}>
+            {t('aiCoach.startMeta', { defaultValue: '{{n}} exercises · {{done}}/{{total}} sets done', n: exs.length, done: doneSets, total: totalSets })}{started > 0 ? ` · ${t('aiCoach.startedAgo', { defaultValue: 'started {{m}} min ago', m: started })}` : ''}
+          </Text>
+        </View>
+      </View>
+      {exs.map((e: any, i: number) => (
+        <View key={i} style={s.proposalExRow}>
+          <Text style={[s.proposalExName, { color: theme.textSecondary }]} numberOfLines={1}>{e.name}</Text>
+          <Text style={[s.proposalExSets, { color: theme.textMuted }]}>
+            {setLabel(e.sets)}{(e.sets || []).some((x: any) => x.done) ? '  ✓' : ''}
+          </Text>
+        </View>
+      ))}
+      <Pressable onPress={empty ? undefined : onStart} disabled={empty} style={({ pressed }) => [s.approveBtn, { backgroundColor: empty ? theme.cardAlt : '#FF6B35', opacity: !empty && pressed ? 0.9 : 1 }]}>
+        <Ionicons name={empty ? 'alert-circle-outline' : 'play'} size={18} color={empty ? theme.textMuted : '#fff'} />
+        <Text style={[s.approveText, { color: empty ? theme.textMuted : '#fff' }]}>{empty ? t('aiCoach.emptyNoSave', { defaultValue: 'Nothing to start' }) : t('aiCoach.startNow', { defaultValue: 'Start this workout' })}</Text>
+      </Pressable>
+      <Text style={[s.approveHint, { color: theme.textMuted }]}>{t('aiCoach.startHint', { defaultValue: 'Opens a running session you can resume anytime.' })}</Text>
     </View>
   );
 }

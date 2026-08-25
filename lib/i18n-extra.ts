@@ -18,6 +18,8 @@ export const extraEn = {
     approveHint: "Review the days above. Nothing is saved until you tap Save. Or tell me what to change.",
     approveHintWorkout: "Nothing is saved until you tap Save. Or tell me what to change.",
     emptyPlan: "That plan is empty — ask me to try again.",
+    startMeta: "{{n}} exercises · {{done}}/{{total}} sets done", startedAgo: "started {{m}} min ago",
+    startNow: "Start this workout", startHint: "Opens a running session you can resume anytime.",
   },
   inbody: {
     uploadTitle: "Upload InBody test", reviewTitle: "Review & save",
@@ -240,6 +242,8 @@ export const extraAr = {
     approveHint: "راجع الأيام أعلاه. لا يُحفظ شيء حتى تضغط حفظ. أو أخبرني بما تريد تغييره.",
     approveHintWorkout: "لا يُحفظ شيء حتى تضغط حفظ. أو أخبرني بما تريد تغييره.",
     emptyPlan: "هذه الخطة فارغة — اطلب مني المحاولة مجدداً.",
+    startMeta: "{{n}} تمارين · {{done}}/{{total}} مجموعات مكتملة", startedAgo: "بدأت قبل {{m}} دقيقة",
+    startNow: "ابدأ هذا التمرين", startHint: "يفتح جلسة قيد التشغيل يمكنك استئنافها في أي وقت.",
   },
   inbody: {
     uploadTitle: "رفع فحص إنبادي", reviewTitle: "مراجعة وحفظ",
