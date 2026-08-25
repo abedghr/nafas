@@ -7,6 +7,8 @@ import { db } from "../../core/db";
 import { exercises as exercisesTable, workoutLogs } from "./workout.db";
 import { users } from "../identity/identity.db";
 import { programEnrollments, programs } from "../programs/programs.db";
+import { inbodyTests, inbodyTargets } from "../nutrition/nutrition.db";
+import { workoutService } from "./workout.service";
 import { geminiJSON, geminiChat, type ChatContent, type GeminiPart } from "../../core/gemini";
 
 // ── name matching (shared with the media import scripts) ──
@@ -123,20 +125,46 @@ export async function generateProgram(input: { text?: string; file?: { mimeType:
 const ONESHOT_SYSTEM = `You are a strength & conditioning coach for the Nafas app. Output a COMPLETE program as ordered days (Day 1..N; rest days allowed). Every training day lists real exercises, and every exercise has concrete sets: reps (plus weightKg if weighted) for lifts, or durationSeconds for holds/cardio. Use clear standard English exercise names (e.g. "Barbell Bench Press", "Pull-Up"). When a program file is attached, transcribe it FAITHFULLY and IN FULL — capture every exercise, every set and rep, and any rounds/ladders/AMRAP/circuit structure exactly (put each round or rung in its own set, use the set note for context). If it spans multiple weeks, output EVERY week and EVERY day in order (a 4-week plan = ~28 day entries, rest days included); never stop after week 1. Never simplify or drop items.`;
 
 // ── context-aware chat ──
+// Compact, token-bounded snapshot of the athlete so the coach can answer about
+// their training, records, programs, body composition and targets — personally.
 async function userContext(userId: string): Promise<string> {
   const [u] = await db.select({ goal: users.goal, name: users.name }).from(users).where(eq(users.id, userId));
   const logs = await db.select().from(workoutLogs).where(eq(workoutLogs.userId, userId)).orderBy(desc(workoutLogs.date)).limit(12);
   const [enr] = await db.select().from(programEnrollments).where(and(eq(programEnrollments.userId, userId), eq(programEnrollments.status, "active")));
   let activeName = "none";
   if (enr) { const [p] = await db.select({ name: programs.name }).from(programs).where(eq(programs.id, enr.programId)); activeName = p?.name ?? "one"; }
+  const progRows = await db.select({ name: programs.name }).from(programs).where(eq(programs.userId, userId)).limit(6);
+  const [ibTarget] = await db.select().from(inbodyTargets).where(eq(inbodyTargets.userId, userId));
+  const ib = await db.select().from(inbodyTests).where(eq(inbodyTests.userId, userId)).orderBy(desc(inbodyTests.date)).limit(3);
+
+  const lines: string[] = [];
+  lines.push(`Athlete goal: ${u?.goal || "unspecified"}.`);
   const recentNames = [...new Set(logs.map((l) => l.name))].slice(0, 8).join(", ") || "no workouts logged yet";
   const vol = logs.reduce((a, l) => a + (Number(l.totalVolumeKg) || 0), 0);
-  return [
-    `Athlete goal: ${u?.goal || "unspecified"}.`,
-    `Sessions logged recently: ${logs.length}. Recent workouts: ${recentNames}.`,
-    `Approx recent total volume: ${Math.round(vol)} kg.`,
-    `Active program: ${activeName}.`,
-  ].join(" ");
+  lines.push(`Recent training: ${logs.length} sessions logged; workouts: ${recentNames}; ~${Math.round(vol)} kg total volume.`);
+
+  // personal records (top lifts by heaviest done set)
+  try {
+    const prs = await workoutService.prs(userId, 5);
+    if (prs.length) lines.push(`Personal records: ${prs.map((p) => `${p.name} ${p.weight}kg×${p.reps}`).join("; ")}.`);
+  } catch { /* prs optional */ }
+
+  // programs
+  const progNames = progRows.map((p) => p.name).filter(Boolean);
+  lines.push(`Programs: ${progNames.length ? progNames.join(", ") : "none"}. Active program: ${activeName}.`);
+
+  // body composition (InBody) — latest + trend + target
+  if (ib.length) {
+    const l = ib[0], prev = ib[1];
+    const d = (cur?: number | null, p?: number | null) => (cur != null && p != null ? ` (${cur - p >= 0 ? "+" : ""}${Math.round((cur - p) * 10) / 10} vs prev)` : "");
+    lines.push(`Body composition (InBody, ${l.date}): weight ${l.weight ?? "?"}kg${d(l.weight, prev?.weight)}, body fat ${l.bodyFat ?? "?"}%${d(l.bodyFat, prev?.bodyFat)}, skeletal muscle ${l.skeletalMuscle ?? "?"}kg${d(l.skeletalMuscle, prev?.skeletalMuscle)}. ${ib.length} tests on record.`);
+  } else {
+    lines.push(`Body composition: no InBody tests uploaded yet.`);
+  }
+  if (ibTarget && (ibTarget.weight != null || ibTarget.bodyFat != null || ibTarget.skeletalMuscle != null)) {
+    lines.push(`Body target: ${[ibTarget.weight != null ? `weight ${ibTarget.weight}kg` : "", ibTarget.bodyFat != null ? `body fat ${ibTarget.bodyFat}%` : "", ibTarget.skeletalMuscle != null ? `skeletal muscle ${ibTarget.skeletalMuscle}kg` : ""].filter(Boolean).join(", ")}.`);
+  }
+  return lines.join(" ");
 }
 
 const CHAT_SYSTEM = (ctx: string) => `You are the Nafas AI training coach — friendly, expert, concise. You help with ANYTHING in the workout section and choose the right action for what the athlete actually asked.
@@ -144,7 +172,7 @@ const CHAT_SYSTEM = (ctx: string) => `You are the Nafas AI training coach — fr
 ATHLETE CONTEXT: ${ctx}
 
 WHAT YOU CAN DO (pick per request):
-1. ANSWER / ADVISE in plain text — technique and form cues, exercise selection, how to progress, or reading an attached photo/PDF (identify the equipment or exercise, critique form, describe what it shows). Do this whenever the athlete asks a question or wants feedback rather than a plan to save. Do NOT force a workout/program on them.
+1. ANSWER / ADVISE in plain text — use the ATHLETE CONTEXT to answer PERSONALLY about their training, personal records, programs, targets, and body composition (InBody weight / body fat / muscle and its trend): e.g. "how is my bench trending", "am I losing fat or muscle", "will I hit my body-fat target", "what should I train next". Also technique/form cues, exercise selection, progression, and reading an attached photo/PDF (identify equipment/exercise, critique form). Do this whenever the athlete asks a question or wants feedback rather than a plan to save — do NOT force a workout/program on them.
 2. Build a SINGLE WORKOUT — call "propose_workout" for a one-off session ("give me a push day", "a 30-min dumbbell workout", "turn this photo into a workout", "today's legs"). Saved as a reusable workout.
 3. Build a MULTI-WEEK PROGRAM — call "propose_program" for an ongoing plan ("a 4-week program", "a weekly split", "a plan to follow day by day", or transcribing a multi-day/multi-week program file).
 
