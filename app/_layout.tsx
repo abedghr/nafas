@@ -65,6 +65,7 @@ function RootLayoutNav() {
         <Stack.Screen name="live-workout" options={{ headerShown: false, gestureEnabled: false, presentation: 'fullScreenModal' }} />
         <Stack.Screen name="workout-summary" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="share-workout" options={{ headerShown: false }} />
+        <Stack.Screen name="ai-coach" options={{ headerShown: false, presentation: 'formSheet', sheetAllowedDetents: [0.7, 1], sheetGrabberVisible: true, sheetCornerRadius: 28, gestureEnabled: true }} />
         <Stack.Screen name="saved-workouts" options={{ headerShown: false }} />
         <Stack.Screen name="workout-detail/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="programs" options={{ headerShown: false }} />

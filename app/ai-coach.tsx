@@ -52,7 +52,7 @@ export default function AICoachScreen() {
   const insets = useSafeAreaInsets();
   const { isDark, addProgram, addWorkoutTemplate, setActiveSession } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
-  const topPad = Platform.OS === 'web' ? 67 : insets.top;
+  const topPad = Platform.OS === 'web' ? 16 : 12; // presented as a bottom sheet — no status-bar inset needed
 
   const SUGGESTIONS = [
     t('aiCoach.sug1', { defaultValue: 'Build me a program for my goal' }),
@@ -162,13 +162,12 @@ export default function AICoachScreen() {
 
   return (
     <KeyboardAvoidingView style={[s.container, { backgroundColor: theme.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
-      <View style={[s.header, { paddingTop: topPad + 8 }]}>
-        <Button variant="icon" icon="arrow-back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/coach' as any))} />
+      <View style={[s.header, { paddingTop: topPad }]}>
         <View style={s.headerTitleWrap}>
           <View style={[s.headerBadge, { backgroundColor: Colors.electric + '22' }]}><Ionicons name="sparkles" size={15} color={Colors.electric} /></View>
           <Text style={[s.headerTitle, { color: theme.text }]}>{t('aiCoach.title', { defaultValue: 'AI Assistant' })}</Text>
         </View>
-        <View style={{ width: 40 }} />
+        <Button variant="icon" icon="close" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/coach' as any))} />
       </View>
 
       <ScrollView ref={scrollRef} contentContainerStyle={{ padding: 16, paddingBottom: 24, gap: 14 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} onContentSizeChange={scrollDown}>
@@ -400,7 +399,7 @@ function WorkoutCard({ workout, theme, t, onSave }: { workout: any; theme: any; 
 const s = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 8, gap: 8 },
-  headerTitleWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  headerTitleWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 8 },
   headerBadge: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { ...Type.h1 },
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
