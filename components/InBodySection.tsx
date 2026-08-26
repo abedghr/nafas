@@ -1033,7 +1033,13 @@ export default function InBodySection() {
   const [viewer, setViewer] = useState<{ b64: string; mime?: string } | null>(null); // full-screen sheet image
   React.useEffect(() => { nutritionApi.inbodyTarget().then(setTarget).catch(() => {}); }, []);
 
-  const latestInBody = inBodyTests.length > 0 ? inBodyTests[0] : null;
+  // order by the TEST date (newest first), not by upload order — a back-dated test
+  // must still slot into the right place in the timeline. Ties broken by createdAt.
+  const sortedTests = React.useMemo(() => [...inBodyTests].sort((a, b) => {
+    const d = String(b.date).localeCompare(String(a.date));
+    return d !== 0 ? d : String((b as any).createdAt ?? '').localeCompare(String((a as any).createdAt ?? ''));
+  }), [inBodyTests]);
+  const latestInBody = sortedTests.length > 0 ? sortedTests[0] : null;
 
   const handleSaveInBody = (data: any) => {
     addInBodyTest(data);
@@ -1050,7 +1056,7 @@ export default function InBodySection() {
   return (
     <View>
       <InBodyTab
-        inBodyTests={inBodyTests}
+        inBodyTests={sortedTests}
         latestInBody={latestInBody}
         theme={theme}
         userHeight={user?.height}
