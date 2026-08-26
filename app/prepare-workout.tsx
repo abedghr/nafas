@@ -1317,7 +1317,6 @@ export default function PrepareWorkoutScreen() {
   const [showIntervalBuilder, setShowIntervalBuilder] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
-  const [preWorkout, setPreWorkout] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [typePickerOpen, setTypePickerOpen] = useState(false);
@@ -1518,7 +1517,7 @@ export default function PrepareWorkoutScreen() {
     alertDialog(t('workoutPrep.savedTitle'), t('workoutPrep.savedToMyWorkouts', { name }));
   };
 
-  const handleStartWorkout = () => {
+  const handleStartWorkout = async () => {
     if (!resolvedName) {
       alertDialog(t('workoutPrep.nameRequiredTitle'), workoutType === 'Custom' ? t('workoutPrep.nameRequiredCustom') : t('workoutPrep.nameRequiredSelectOrEnter'));
       return;
@@ -1527,12 +1526,19 @@ export default function PrepareWorkoutScreen() {
       alertDialog(t('workoutPrep.noExercisesTitle'), t('workoutPrep.noExercisesStartMsg'));
       return;
     }
+    // ask about pre-workout at the moment of starting (moved off the build screen)
+    const tookPre = await confirmDialog({
+      title: t('workoutPrep.preWorkoutQTitle', { defaultValue: 'Pre-workout' }),
+      message: t('workoutPrep.preWorkoutQ', { defaultValue: 'Did you take a pre-workout before this session?' }),
+      confirmText: t('workoutPrep.yes', { defaultValue: 'Yes' }),
+      cancelText: t('workoutPrep.no', { defaultValue: 'No' }),
+    });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setActiveSession({
       workoutName: resolvedName,
       workoutType: workoutType || undefined,
       startTimestamp: Date.now(),
-      preWorkout,
+      preWorkout: tookPre,
       exercises: exercises.map(e => {
         if (e.kind === 'intervals') {
           // Live interval execution is a later phase; carry the block through as-is.
@@ -1604,7 +1610,8 @@ export default function PrepareWorkoutScreen() {
     }));
     const existing = (prog.days ?? []).find(x => x.weekIndex === w && x.dayIndex === d);
     const rest = (prog.days ?? []).filter(x => !(x.weekIndex === w && x.dayIndex === d));
-    const day = { weekIndex: w, dayIndex: d, restDay: false, templateId: null, name: resolvedName || (existing?.name ?? ''), exercises: mapped as any, label: existing?.label ?? '', notes: existing?.notes ?? '' };
+    // the day's label IS the training type (resolvedName) — no separate label field needed
+    const day = { weekIndex: w, dayIndex: d, restDay: false, templateId: null, name: resolvedName || (existing?.name ?? ''), exercises: mapped as any, label: resolvedName || existing?.label || '', notes: existing?.notes ?? '' };
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     updateProgram(programId, { name: prog.name, startDate: prog.startDate ?? null, weeks: prog.weeks, notes: prog.notes ?? '', days: [...rest, day] });
     alertDialog(t('programs.saveToProgram', { defaultValue: 'Saved to program' }), '');
@@ -1809,22 +1816,6 @@ export default function PrepareWorkoutScreen() {
           colors={['transparent', fadeMid, fadeSolid]}
           style={StyleSheet.absoluteFill}
         />
-        <Pressable
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPreWorkout(p => !p); }}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Ionicons name="flash-outline" size={17} color={Colors.primary} />
-            <Text style={{ color: theme.text, fontSize: 13.5, fontWeight: '500' }}>{t('workoutPrep.preWorkoutTaken')}</Text>
-          </View>
-          <Switch
-            value={preWorkout}
-            onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPreWorkout(v); }}
-            trackColor={{ false: theme.border, true: Colors.primary }}
-            thumbColor="#fff"
-          />
-        </Pressable>
-
         <View style={s.bottomRow}>
           {/* running a program day → Start live (no save). authoring a day → Save to Program.
               normal workout → Save template + Start. */}
