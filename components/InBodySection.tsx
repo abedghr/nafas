@@ -37,8 +37,10 @@ async function uriToBase64(uri: string): Promise<string> {
 // downscale + re-encode any image (incl. HEIC) to a compact JPEG. Used for BOTH the
 // AI parse (Gemini reads JPEG, not HEIC) and for storing a viewable copy of the sheet.
 async function compressToJpeg(uri: string): Promise<{ uri: string; base64: string }> {
-  const r = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: 1400 } }], {
-    compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true,
+  // 1200px @ 0.55 keeps the dense sheet legible (verified: all segmental numbers parse)
+  // while cutting the upload to ~200KB — smaller payload, faster round-trip.
+  const r = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: 1200 } }], {
+    compress: 0.55, format: ImageManipulator.SaveFormat.JPEG, base64: true,
   });
   return { uri: r.uri, base64: r.base64 || '' };
 }

@@ -77,6 +77,9 @@ export async function parseInBody(file: { mimeType: string; data: string }): Pro
       { text: "Extract the InBody metrics from this sheet." },
     ],
     schema: INBODY_SCHEMA as any,
+    // default (3.6-flash) is reliable on dense sheets (~5s); lite models are ~2s but misread
+    // small segmental numbers, so keep the default. GEMINI_PARSE_MODEL can override without a deploy.
+    model: process.env.GEMINI_PARSE_MODEL,
     maxOutputTokens: 8192, // rich schema + low thinking can exceed 2k and truncate the JSON
   });
   try {
