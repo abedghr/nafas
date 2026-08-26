@@ -70,15 +70,22 @@ export type InBodyParsed = {
 };
 
 export async function parseInBody(file: { mimeType: string; data: string }): Promise<InBodyParsed> {
-  return geminiJSON<InBodyParsed>({
+  const run = () => geminiJSON<InBodyParsed>({
     system: SYSTEM,
     parts: [
       { inline_data: { mime_type: file.mimeType, data: file.data } },
       { text: "Extract the InBody metrics from this sheet." },
     ],
     schema: INBODY_SCHEMA as any,
-    maxOutputTokens: 2048,
+    maxOutputTokens: 8192, // rich schema + low thinking can exceed 2k and truncate the JSON
   });
+  try {
+    return await run();
+  } catch (e: any) {
+    // one retry for the transient "not valid JSON" / truncation case
+    if (/not valid JSON|token limit|empty response/i.test(String(e?.message))) return await run();
+    throw e;
+  }
 }
 
 // A short coach opinion + suggestions on a new InBody result, using the athlete's

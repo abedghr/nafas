@@ -183,15 +183,17 @@ function DetailGrid({ details, theme, t }: { details: any; theme: any; t: any })
 }
 
 // numeric field keys shown in the review card (date handled separately)
+// SMM (skeletal muscle mass, kg) IS the muscle figure — there is no separate "Muscle Mass"
+// row on a standard InBody sheet, so it's not listed here (that field only caused a
+// confusing "not detected"). muscleMass stays in the model for the rare sheet that prints it.
 const REVIEW_FIELDS: { key: string; labelKey: string; unit: string }[] = [
-  { key: 'weight', labelKey: 'workoutTab.fieldWeightKg', unit: 'kg' },
-  { key: 'skeletalMuscle', labelKey: 'workoutTab.fieldSkeletalMusclePct', unit: '' },
-  { key: 'muscleMass', labelKey: 'workoutTab.fieldMuscleMassKg', unit: 'kg' },
-  { key: 'bodyFat', labelKey: 'workoutTab.fieldBodyFatPct', unit: '%' },
-  { key: 'bodyWater', labelKey: 'workoutTab.fieldBodyWaterPct', unit: '' },
-  { key: 'bmi', labelKey: 'workoutTab.fieldBmi', unit: '' },
-  { key: 'bmr', labelKey: 'workoutTab.fieldBmrKcal', unit: 'kcal' },
-  { key: 'visceralFat', labelKey: 'workoutTab.fieldVisceralFat', unit: '' },
+  { key: 'weight', labelKey: 'inbody.fWeight', unit: 'kg' },
+  { key: 'skeletalMuscle', labelKey: 'inbody.fSMM', unit: 'kg' },
+  { key: 'bodyFat', labelKey: 'inbody.fBodyFat', unit: '%' },
+  { key: 'bodyWater', labelKey: 'inbody.fBodyWater', unit: 'L' },
+  { key: 'bmi', labelKey: 'inbody.fBmi', unit: '' },
+  { key: 'bmr', labelKey: 'inbody.fBmr', unit: 'kcal' },
+  { key: 'visceralFat', labelKey: 'inbody.fVisceral', unit: '' },
 ];
 
 // Upload a photo/PDF of an InBody sheet → AI reads it → the user reviews EVERY

@@ -938,18 +938,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const streak = useMemo(() => {
     if (workouts.length === 0 && workoutLogs.length === 0) return 0;
+    // normalize to LOCAL Y-M-D on both sides — log dates may be full ISO timestamps,
+    // and UTC (toISOString) shifts the day for non-UTC users → mismatched keys, streak 0.
+    const key = (x: any) => { const d = new Date(x); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+    const days = new Set<string>([...workouts.map(w => w.date), ...workoutLogs.map(l => l.date)].map(key));
     let count = 0;
     const today = new Date();
-    const allDates = [
-      ...workouts.map(w => w.date),
-      ...workoutLogs.map(l => l.date),
-    ];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 365; i++) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      if (allDates.includes(dateStr)) count++;
-      else if (i > 0) break;
+      if (days.has(key(d))) count++;
+      else if (i > 0) break; // allow "no workout yet today" without breaking the streak
     }
     return count;
   }, [workouts, workoutLogs]);

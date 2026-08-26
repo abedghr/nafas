@@ -72,9 +72,20 @@ export async function geminiJSON<T = any>(opts: {
   const json = await callGemini(model, body);
   const cand = json?.candidates?.[0];
   if (!cand) throw new Error(`Gemini: no candidate (${json?.promptFeedback?.blockReason ?? "unknown"})`);
-  const text = (cand.content?.parts ?? []).map((p: any) => p.text).filter(Boolean).join("");
-  if (!text) throw new Error("Gemini: empty response");
-  try { return JSON.parse(text) as T; } catch { throw new Error("Gemini: response was not valid JSON"); }
+  let text = (cand.content?.parts ?? []).map((p: any) => p.text).filter(Boolean).join("");
+  if (!text) {
+    // MAX_TOKENS with thinking enabled can yield an empty text part — say so, don't just "empty response"
+    if (cand.finishReason === "MAX_TOKENS") throw new Error("Gemini: response hit the token limit before any output");
+    throw new Error(`Gemini: empty response (${cand.finishReason ?? "unknown"})`);
+  }
+  // strip a ```json … ``` fence if the model added one despite responseMimeType
+  text = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  try { return JSON.parse(text) as T; } catch {}
+  // salvage: parse the outermost { … } (handles a trailing note or minor truncation slack)
+  const s = text.indexOf("{"), e = text.lastIndexOf("}");
+  if (s >= 0 && e > s) { try { return JSON.parse(text.slice(s, e + 1)) as T; } catch {} }
+  const trunc = cand.finishReason === "MAX_TOKENS" ? " (truncated at token limit)" : "";
+  throw new Error(`Gemini: response was not valid JSON${trunc}`);
 }
 
 export type ChatContent = { role: "user" | "model"; parts: GeminiPart[] };

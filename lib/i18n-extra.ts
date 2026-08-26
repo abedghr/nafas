@@ -46,6 +46,8 @@ export const extraEn = {
     viewSheet: "View sheet", allTests: "All tests", tapToOpen: "Tap to view full result", testDetail: "Test result",
     moreDetected: "More detected values",
     deleteTest: "Delete this test", deleteTestConfirm: "Delete the InBody test from {{date}}? This removes it from your stats and history.",
+    fWeight: "Weight (kg)", fSMM: "Skeletal Muscle Mass (kg)", fBodyFat: "Body Fat (%)", fBodyWater: "Body Water (L)",
+    fBmi: "BMI", fBmr: "BMR (kcal)", fVisceral: "Visceral Fat",
   },
   mealTypeTag: {
     breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack",
@@ -284,6 +286,8 @@ export const extraAr = {
     viewSheet: "عرض الورقة", allTests: "جميع الفحوصات", tapToOpen: "اضغط لعرض النتيجة كاملة", testDetail: "نتيجة الفحص",
     moreDetected: "قيم إضافية مكتشفة",
     deleteTest: "حذف هذا الفحص", deleteTestConfirm: "حذف فحص إنبادي بتاريخ {{date}}؟ سيُزال من إحصاءاتك وسجلّك.",
+    fWeight: "الوزن (كغم)", fSMM: "كتلة العضلات الهيكلية (كغم)", fBodyFat: "نسبة الدهون (%)", fBodyWater: "ماء الجسم (لتر)",
+    fBmi: "مؤشر كتلة الجسم", fBmr: "معدل الأيض (سعرة)", fVisceral: "الدهون الحشوية",
   },
   mealTypeTag: {
     breakfast: "فطور", lunch: "غداء", dinner: "عشاء", snack: "وجبة خفيفة",
