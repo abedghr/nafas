@@ -1,5 +1,5 @@
 import {
-  pgTable, uuid, varchar, text, integer, boolean, timestamp, pgEnum, jsonb, doublePrecision,
+  pgTable, uuid, varchar, text, integer, boolean, timestamp, pgEnum, jsonb, doublePrecision, date,
 } from "drizzle-orm/pg-core";
 import { countries } from "../countries/countries.db";
 
@@ -26,7 +26,8 @@ export const users = pgTable("users", {
   avatarUrl: text("avatar_url"),
   height: integer("height"),
   weight: integer("weight"),
-  age: integer("age"),
+  age: integer("age"),                       // legacy/derived — canonical source is birthDate
+  birthDate: date("birth_date", { mode: "string" }),
   gender: varchar("gender", { length: 16 }),
   goal: varchar("goal", { length: 32 }),
   interests: jsonb("interests").$type<string[]>().notNull().default([]),

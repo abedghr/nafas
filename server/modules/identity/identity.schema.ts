@@ -23,6 +23,7 @@ export const MeSchema = UserPublicSchema.extend({
   height: z.number().nullable(),
   weight: z.number().nullable(),
   age: z.number().nullable(),
+  birthDate: z.string().nullable(),
   gender: z.string().nullable(),
   goal: z.string().nullable(),
   interests: z.array(z.string()),
@@ -41,6 +42,7 @@ export const UpdateMeSchema = z
     height: z.number().int().optional(),
     weight: z.number().int().optional(),
     age: z.number().int().optional(),
+    birthDate: z.string().optional(),  // YYYY-MM-DD; age is derived from it
     gender: z.string().optional(),
     goal: z.string().optional(),
     interests: z.array(z.string()).optional(),

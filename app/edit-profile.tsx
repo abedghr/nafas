@@ -13,6 +13,8 @@ import Colors from '@/constants/colors';
 import { sportInterests, goals } from '@/lib/mock-data';
 import { authApi } from '@/src/features/auth/api';
 import { mapMeToProfile } from '@/src/features/auth/session';
+import DateTimeField from '@/components/DateTimeField';
+import { ageFromISO } from '@/lib/age';
 
 // Hoisted so it is not remounted every render (inline components steal focus per keystroke).
 function Field({ label, value, onChange, unit, keyboard, theme, autoCapitalize, autoCorrect, prefix }: any) {
@@ -47,7 +49,7 @@ export default function EditProfileScreen() {
   const [email, setEmail] = useState(user?.email || '');
   const [height, setHeight] = useState(user?.height ? String(user.height) : '');
   const [weight, setWeight] = useState(user?.weight ? String(user.weight) : '');
-  const [age, setAge] = useState(user?.age ? String(user.age) : '');
+  const [birthDate, setBirthDate] = useState<string | null>(user?.birthDate ?? null);
   const [gender, setGender] = useState(user?.gender || 'male');
   const [goal, setGoal] = useState(user?.goal || 'build_muscle');
   const [interests, setInterests] = useState<string[]>(user?.interests || []);
@@ -72,7 +74,8 @@ export default function EditProfileScreen() {
       name: name.trim() || user?.name,
       height: parseInt(height) || undefined,
       weight: parseInt(weight) || undefined,
-      age: parseInt(age) || undefined,
+      birthDate: birthDate ? birthDate.split('T')[0] : undefined,
+      age: (birthDate ? ageFromISO(birthDate) : undefined) ?? undefined,
       gender, goal, interests, bio: bio.trim(),
       profileComplete: true,
     };
@@ -120,7 +123,14 @@ export default function EditProfileScreen() {
             <View style={{ flex: 1 }}><Field label={t('onboarding.height')} value={height} onChange={setHeight} unit="cm" keyboard="numeric" theme={theme} /></View>
             <View style={{ flex: 1 }}><Field label={t('onboarding.weight')} value={weight} onChange={setWeight} unit="kg" keyboard="numeric" theme={theme} /></View>
           </View>
-          <Field label={t('onboarding.age')} value={age} onChange={setAge} unit="yrs" keyboard="numeric" theme={theme} />
+          <DateTimeField
+            label={t('onboarding.dateOfBirth', { defaultValue: 'Date of birth' }) + (birthDate ? ` · ${ageFromISO(birthDate)} ${t('onboarding.yearsOld', { defaultValue: 'yrs' })}` : '')}
+            value={birthDate}
+            onChange={setBirthDate}
+            dateOnly
+            maxDate={new Date()}
+            theme={theme}
+          />
 
           <Text style={[styles.label, { color: theme.textSecondary }]}>{t('onboarding.gender')}</Text>
           <View style={styles.row}>

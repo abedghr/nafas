@@ -14,6 +14,7 @@ export function mapMeToProfile(me: Me): UserProfile {
     height: me.height ?? 0,
     weight: me.weight ?? 0,
     age: me.age ?? 0,
+    birthDate: me.birthDate ?? null,
     gender: me.gender ?? "",
     interests: me.interests ?? [],
     goal: me.goal ?? "",

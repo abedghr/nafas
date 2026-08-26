@@ -8,18 +8,22 @@ import { Fonts } from '@/constants/typography';
 
 // Lightweight date + time picker — pure JS calendar grid + time steppers, no
 // native module (works on web + dev build without a rebuild). value/onChange = ISO string.
-export default function DateTimeField({ label, value, onChange, theme, minDate, optional }: {
+export default function DateTimeField({ label, value, onChange, theme, minDate, maxDate, optional, dateOnly }: {
   label: string;
   value: string | null;
   onChange: (iso: string | null) => void;
   theme: typeof Colors.dark;
   minDate?: Date;
+  maxDate?: Date;         // no day after this is selectable (e.g. today, for a birth date)
   optional?: boolean;
+  dateOnly?: boolean;     // hide the time row + show date-only display (e.g. birth date)
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const initial = value ? new Date(value) : null;
-  const [view, setView] = useState(() => initial || new Date());
+  // for a date-only picker with a max (birth date), start ~20 years back so the user
+  // isn't paging from this month back through decades
+  const [view, setView] = useState(() => initial || (dateOnly && maxDate ? new Date(maxDate.getFullYear() - 20, 0, 1) : new Date()));
   const [day, setDay] = useState<number | null>(initial ? initial.getDate() : null);
   const [hour, setHour] = useState(initial ? initial.getHours() : 18);
   const [minute, setMinute] = useState(initial ? initial.getMinutes() : 0);
@@ -32,23 +36,27 @@ export default function DateTimeField({ label, value, onChange, theme, minDate, 
   const cells: (number | null)[] = [...Array(firstWeekday).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
   const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-  const display = value ? new Date(value).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+  const display = value ? new Date(value).toLocaleDateString(undefined, dateOnly
+    ? { day: 'numeric', month: 'long', year: 'numeric' }
+    : { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) + (dateOnly ? '' : ', ' + new Date(value).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })) : '';
   const pad = (n: number) => String(n).padStart(2, '0');
 
   const shiftMonth = (d: number) => { Haptics.selectionAsync(); setView(new Date(year, month + d, 1)); };
+  const shiftYear = (d: number) => { Haptics.selectionAsync(); setView(new Date(year + d, month, 1)); };
   const stepHour = (d: number) => { Haptics.selectionAsync(); setHour((h) => (h + d + 24) % 24); };
   const stepMin = (d: number) => { Haptics.selectionAsync(); setMinute((m) => (m + d + 60) % 60); };
 
   const isPast = (dnum: number) => {
-    if (!minDate) return false;
-    const cand = new Date(year, month, dnum, 23, 59);
-    return cand < minDate;
+    if (!minDate && !maxDate) return false;
+    if (minDate && new Date(year, month, dnum, 23, 59) < minDate) return true;
+    if (maxDate && new Date(year, month, dnum, 0, 0) > maxDate) return true;
+    return false;
   };
 
   const confirm = () => {
     if (day == null) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onChange(new Date(year, month, day, hour, minute).toISOString());
+    onChange(new Date(year, month, day, dateOnly ? 12 : hour, dateOnly ? 0 : minute).toISOString());
     setOpen(false);
   };
 
@@ -69,9 +77,15 @@ export default function DateTimeField({ label, value, onChange, theme, minDate, 
           <View style={[styles.card, { backgroundColor: theme.background }]}>
             {/* month nav */}
             <View style={styles.monthRow}>
-              <Pressable onPress={() => shiftMonth(-1)} hitSlop={10} style={styles.navBtn}><Ionicons name="chevron-back" size={20} color={theme.text} /></Pressable>
+              <View style={{ flexDirection: 'row' }}>
+                <Pressable onPress={() => shiftYear(-1)} hitSlop={8} style={styles.navBtn}><Ionicons name="play-back" size={16} color={theme.textSecondary} /></Pressable>
+                <Pressable onPress={() => shiftMonth(-1)} hitSlop={8} style={styles.navBtn}><Ionicons name="chevron-back" size={20} color={theme.text} /></Pressable>
+              </View>
               <Text style={[styles.monthText, { color: theme.text }]}>{monthLabel}</Text>
-              <Pressable onPress={() => shiftMonth(1)} hitSlop={10} style={styles.navBtn}><Ionicons name="chevron-forward" size={20} color={theme.text} /></Pressable>
+              <View style={{ flexDirection: 'row' }}>
+                <Pressable onPress={() => shiftMonth(1)} hitSlop={8} style={styles.navBtn}><Ionicons name="chevron-forward" size={20} color={theme.text} /></Pressable>
+                <Pressable onPress={() => shiftYear(1)} hitSlop={8} style={styles.navBtn}><Ionicons name="play-forward" size={16} color={theme.textSecondary} /></Pressable>
+              </View>
             </View>
 
             {/* weekdays */}
@@ -95,14 +109,14 @@ export default function DateTimeField({ label, value, onChange, theme, minDate, 
             </View>
 
             {/* time */}
-            <View style={styles.timeRow}>
+            {!dateOnly && <View style={styles.timeRow}>
               <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>{t('discover.time')}</Text>
               <View style={styles.timeCtrl}>
                 <TimeStepper value={pad(hour)} onUp={() => stepHour(1)} onDown={() => stepHour(-1)} theme={theme} />
                 <Text style={[styles.colon, { color: theme.text }]}>:</Text>
                 <TimeStepper value={pad(minute)} onUp={() => stepMin(5)} onDown={() => stepMin(-5)} theme={theme} />
               </View>
-            </View>
+            </View>}
 
             <Pressable onPress={confirm} disabled={day == null} style={[styles.confirm, { backgroundColor: day == null ? theme.border : Colors.electric }]}>
               <Text style={[styles.confirmText, { color: day == null ? theme.textMuted : '#04120B' }]}>{t('workoutSession.done')}</Text>

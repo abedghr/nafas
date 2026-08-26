@@ -76,6 +76,7 @@ export interface UserProfile {
   height: number;
   weight: number;
   age: number;
+  birthDate?: string | null;
   gender: string;
   interests: string[];
   goal: string;

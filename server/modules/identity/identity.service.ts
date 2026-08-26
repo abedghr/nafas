@@ -12,12 +12,27 @@ export function toPublic(u: User) {
   };
 }
 
+// whole years between a birth date (YYYY-MM-DD) and today
+export function ageFromBirthDate(iso?: string | null): number | null {
+  if (!iso) return null;
+  const b = new Date(iso);
+  if (isNaN(b.getTime())) return null;
+  const now = new Date();
+  let a = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) a--;
+  return a >= 0 && a < 130 ? a : null;
+}
+
 export function toMe(u: User) {
   return {
     ...toPublic(u),
     email: u.email, phone: u.phone, countryId: u.countryId,
     language: u.language, theme: u.theme,
-    height: u.height, weight: u.weight, age: u.age, gender: u.gender, goal: u.goal,
+    height: u.height, weight: u.weight,
+    birthDate: u.birthDate ?? null,
+    age: ageFromBirthDate(u.birthDate) ?? u.age, // birthDate is canonical; fall back to stored age
+    gender: u.gender, goal: u.goal,
     interests: u.interests ?? [],
     profileComplete: u.profileComplete, status: u.status,
   };

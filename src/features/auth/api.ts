@@ -15,6 +15,7 @@ export interface Me {
   height: number | null;
   weight: number | null;
   age: number | null;
+  birthDate: string | null;
   gender: string | null;
   goal: string | null;
   interests: string[];

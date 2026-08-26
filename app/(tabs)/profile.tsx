@@ -17,6 +17,7 @@ import { Display } from '@/components/ui';
 import { Type } from '@/constants/typography';
 import { ranks, sportInterests } from '@/lib/mock-data';
 import { toDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
+import { ageFromISO } from '@/lib/age';
 import { gymsApi } from '@/src/features/gyms/api';
 import { eventsApi } from '@/src/features/events/api';
 import { CompleteProfileBanner } from '@/components/CompleteProfileBanner';
@@ -178,7 +179,7 @@ export default function ProfileScreen() {
             <View style={styles.physRow}>
               <PhysStat label={t('onboarding.height')} value={user?.height ? `${user.height} cm` : '—'} theme={theme} />
               <PhysStat label={t('onboarding.weight')} value={user?.weight ? `${toDisplayWeight(user.weight, weightUnit)} ${unitLabel(weightUnit)}` : '—'} theme={theme} />
-              <PhysStat label={t('onboarding.age')} value={user?.age ? String(user.age) : '—'} theme={theme} />
+              <PhysStat label={t('onboarding.age')} value={(() => { const a = user?.birthDate ? ageFromISO(user.birthDate) : user?.age; return a ? String(a) : '—'; })()} theme={theme} />
             </View>
             <View style={[styles.goalCard, { backgroundColor: Colors.electric + '12', borderColor: Colors.electric + '2E' }]}>
               <View style={[styles.goalIcon, { backgroundColor: Colors.electric + '22' }]}>
