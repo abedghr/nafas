@@ -1761,9 +1761,9 @@ export default function LiveWorkoutScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
-  const theme = Colors.dark;
 
-  const { activeSession, setActiveSession, addWorkoutLog, customExercises, user, weightUnit, language, setEnrollmentDay, setEnrollmentDayEdit } = useApp();
+  const { activeSession, setActiveSession, addWorkoutLog, customExercises, user, weightUnit, language, setEnrollmentDay, setEnrollmentDayEdit, isDark } = useApp();
+  const theme = isDark ? Colors.dark : Colors.light;
   const [session, setSession] = useState<ActiveSession | null>(activeSession);
   // Per-exercise weight unit (falls back to the profile default). Weights are stored
   // canonically in kg, so stats/history convert to the profile default on read.

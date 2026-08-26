@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ScrollView, Platform, Modal,
   TextInput, Dimensions, KeyboardAvoidingView, Switch,
@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Crypto from 'expo-crypto';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -811,10 +811,12 @@ function ExerciseCard({ exercise, index, onUpdate, onRemove, onMoveUp, onMoveDow
   );
 }
 
-function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCreateCustom, theme }: {
+function ExercisePickerModal({ visible, onClose, onSelect, onInfo, highlightName, customExercises, onCreateCustom, theme }: {
   visible: boolean;
   onClose: () => void;
   onSelect: (ex: { id: string; name: string; muscleGroup: string; defaultSetType: string; isCustom?: boolean }) => void;
+  onInfo: (name: string) => void;      // parent handles nav + reopening this picker on return
+  highlightName?: string | null;       // exercise whose info was last opened → highlight its button
   customExercises: any[];
   onCreateCustom: () => void;
   theme: typeof Colors.dark;
@@ -922,7 +924,8 @@ function ExercisePickerModal({ visible, onClose, onSelect, customExercises, onCr
                     key={ex.id + i}
                     ex={ex}
                     theme={theme}
-                    onInfo={(name) => { onClose(); router.push(`/exercise-progress?name=${encodeURIComponent(name)}` as any); }}
+                    highlighted={!!highlightName && ex.name === highlightName}
+                    onInfo={(name) => onInfo(name)}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       onSelect(ex);
@@ -1266,15 +1269,29 @@ export default function PrepareWorkoutScreen() {
   const isRunning = !!run; // running a program day (start live) vs authoring a program day (save only)
   const {
     workoutTemplates, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, setActiveSession,
-    customExercises, addCustomExercise, user, workoutTypes, programs, updateProgram, activeEnrollment,
+    customExercises, addCustomExercise, user, workoutTypes, programs, updateProgram, activeEnrollment, isDark,
   } = useApp();
-  const theme = Colors.dark;
+  const theme = isDark ? Colors.dark : Colors.light;
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [workoutName, setWorkoutName] = useState('');
   const [workoutType, setWorkoutType] = useState<WorkoutType | null>(null);
   const [exercises, setExercises] = useState<PrepExercise[]>([]);
   const [showPicker, setShowPicker] = useState(false);
+  // exercise-info nav: RN <Modal> floats above pushed screens, so the picker must close
+  // to show the info screen — remember to reopen it (with the viewed exercise highlighted)
+  // when we return.
+  const [infoHighlight, setInfoHighlight] = useState<string | null>(null);
+  const reopenPicker = useRef(false);
+  useFocusEffect(useCallback(() => {
+    if (reopenPicker.current) { reopenPicker.current = false; setShowPicker(true); }
+  }, []));
+  const openExerciseInfo = useCallback((name: string) => {
+    setInfoHighlight(name);
+    reopenPicker.current = true;
+    setShowPicker(false);
+    router.push(`/exercise-progress?name=${encodeURIComponent(name)}` as any);
+  }, []);
   const [showComboBuilder, setShowComboBuilder] = useState(false);
   const [showIntervalBuilder, setShowIntervalBuilder] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
@@ -1876,6 +1893,8 @@ export default function PrepareWorkoutScreen() {
         visible={showPicker}
         onClose={() => setShowPicker(false)}
         onSelect={handleAddExercise}
+        onInfo={openExerciseInfo}
+        highlightName={infoHighlight}
         customExercises={customExercises}
         onCreateCustom={() => {
           setShowPicker(false);

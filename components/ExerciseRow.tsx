@@ -12,7 +12,7 @@ import { muscleLabel } from '@/lib/exercise-i18n';
 // trailing progress-arrow (opens the exercise's progression chart). Shows the
 // exercise photo when available (open-licensed free-exercise-db), else a
 // Nafas-brand gradient squircle + exercise-type glyph.
-export default function ExerciseRow({ ex, onPress, theme, trailing, divider = true, onInfo }: {
+export default function ExerciseRow({ ex, onPress, theme, trailing, divider = true, onInfo, highlighted }: {
   ex: any;
   onPress: () => void;
   theme: typeof Colors.dark;
@@ -21,6 +21,8 @@ export default function ExerciseRow({ ex, onPress, theme, trailing, divider = tr
   // when the picker is inside a RN <Modal>, pass this so the info-arrow can close
   // the modal before navigating (else exercise-progress renders behind the modal)
   onInfo?: (name: string) => void;
+  // tint the info button for the exercise whose info was last opened
+  highlighted?: boolean;
 }) {
   const { language } = useApp();
   const isAr = language === 'ar';
@@ -70,9 +72,9 @@ export default function ExerciseRow({ ex, onPress, theme, trailing, divider = tr
             if (onInfo) onInfo(ex.name);
             else router.push(`/exercise-progress?name=${encodeURIComponent(ex.name)}` as any);
           }}
-          style={({ pressed }) => [s.progressBtn, { borderColor: theme.border, opacity: pressed ? 0.6 : 1 }]}
+          style={({ pressed }) => [s.progressBtn, { borderColor: highlighted ? Colors.electric : theme.border, backgroundColor: highlighted ? Colors.electric + '1A' : 'transparent', opacity: pressed ? 0.6 : 1 }]}
         >
-          <Ionicons name="trending-up" size={16} color={theme.textSecondary} />
+          <Ionicons name="trending-up" size={16} color={highlighted ? Colors.electric : theme.textSecondary} />
         </Pressable>
       )}
     </Pressable>

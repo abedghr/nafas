@@ -80,7 +80,7 @@ export default function ExerciseProgressScreen() {
           {/* hero: branded tile + headline + primary-muscle / equipment chips */}
           <View style={s.hero}>
             {(ex?.gifUrl || ex?.imageUrl) && !imgErr ? (
-              <Image source={{ uri: ex.gifUrl || ex.imageUrl }} style={s.heroImg} resizeMode="cover" onError={() => setImgErr(true)} />
+              <Image source={{ uri: ex.gifUrl || ex.imageUrl }} style={s.heroImg} resizeMode="contain" onError={() => setImgErr(true)} />
             ) : (
               <LinearGradient colors={[Colors.electric + '2E', Colors.electric + '0A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.heroTile}>
                 <Ionicons name="body-outline" size={40} color={Colors.electric} />
@@ -216,8 +216,9 @@ const s = StyleSheet.create({
   stepNum: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   stepNumText: { fontSize: 12, fontFamily: 'Rubik_700Bold' },
   hero: { alignItems: 'center', gap: 14, marginTop: 8, marginBottom: 4 },
-  heroTile: { width: 80, height: 80, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.electric + '26' },
-  heroImg: { width: 120, height: 120, borderRadius: 24, backgroundColor: '#fff' },
+  heroTile: { width: '100%', aspectRatio: 4 / 3, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.electric + '26' },
+  // full-width media so the movement is clearly visible (photo or animated GIF)
+  heroImg: { width: '100%', aspectRatio: 4 / 3, borderRadius: 20, backgroundColor: '#fff' },
   heroName: { textAlign: 'center', marginTop: 2 },
   chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
   card: { borderRadius: 16, padding: 16 },
