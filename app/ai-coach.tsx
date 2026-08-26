@@ -427,7 +427,7 @@ function WorkoutCard({ workout, theme, t, onSave }: { workout: any; theme: any; 
 const s = StyleSheet.create({
   container: { flex: 1 },
   root: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'transparent' },
-  sheet: { height: '92%', borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' },
+  sheet: { height: '70%', borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' },
   grabberWrap: { alignItems: 'center', paddingTop: 8, paddingBottom: 2 },
   grabber: { width: 40, height: 4, borderRadius: 2 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 8, gap: 8 },
