@@ -403,6 +403,7 @@ interface AppContextValue {
   weeklyWorkouts: number;
   inBodyTests: InBodyTest[];
   addInBodyTest: (test: Omit<InBodyTest, 'id'>) => void;
+  deleteInBodyTest: (id: string) => void;
   workoutTemplates: WorkoutTemplate[];
   addWorkoutTemplate: (t: Omit<WorkoutTemplate, 'id'>) => void;
   updateWorkoutTemplate: (id: string, t: Omit<WorkoutTemplate, 'id'>) => void;
@@ -701,6 +702,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, []);
 
+  // remove a test; InBody stats (latest/trend/target/history) derive from this list, so they recompute
+  const deleteInBodyTest = useCallback((id: string) => {
+    setInBodyTests(prev => {
+      const updated = prev.filter(t => t.id !== id);
+      AsyncStorage.setItem(STORAGE_KEYS.INBODY, JSON.stringify(updated));
+      return updated;
+    });
+    nutritionApi.deleteInbody(id).catch(() => {});
+  }, []);
+
   const addWorkoutTemplate = useCallback((t: Omit<WorkoutTemplate, 'id'>) => {
     // dedup by content signature (name+type+exercises) so the same workout can't be
     // saved twice — covers both the prepare screen and the post-workout summary.
@@ -958,7 +969,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     language, setLanguage, isDark, toggleTheme, weightUnit, setWeightUnit,
     enrollments, activeEnrollment, refreshEnrollments, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, setEnrollmentDayEdit,
     likedPosts, toggleLike, streak, weeklyWorkouts,
-    inBodyTests, addInBodyTest,
+    inBodyTests, addInBodyTest, deleteInBodyTest,
     workoutTemplates, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate,
     programs, addProgram, updateProgram, deleteProgram, refreshPrograms,
     workoutLogs, addWorkoutLog, deleteWorkoutLog,
@@ -966,7 +977,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     exerciseLibrary, workoutTypes: workoutTypesData, muscleGroups: WORKOUT_MUSCLE_GROUPS,
     activeSession, setActiveSession,
     logout, deleteAccount,
-  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, weightUnit, setWeightUnit, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, programs, addProgram, updateProgram, deleteProgram, refreshPrograms, enrollments, activeEnrollment, refreshEnrollments, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, setEnrollmentDayEdit, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
+  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, weightUnit, setWeightUnit, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, deleteInBodyTest, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, programs, addProgram, updateProgram, deleteProgram, refreshPrograms, enrollments, activeEnrollment, refreshEnrollments, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, setEnrollmentDayEdit, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
 
   if (!loaded) return null;
 

@@ -45,6 +45,7 @@ export const extraEn = {
     targetWeight: "Target weight", fatControl: "Fat control", muscleControl: "Muscle control",
     viewSheet: "View sheet", allTests: "All tests", tapToOpen: "Tap to view full result", testDetail: "Test result",
     moreDetected: "More detected values",
+    deleteTest: "Delete this test", deleteTestConfirm: "Delete the InBody test from {{date}}? This removes it from your stats and history.",
   },
   mealTypeTag: {
     breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack",
@@ -282,6 +283,7 @@ export const extraAr = {
     targetWeight: "الوزن المستهدف", fatControl: "التحكم بالدهون", muscleControl: "التحكم بالعضلات",
     viewSheet: "عرض الورقة", allTests: "جميع الفحوصات", tapToOpen: "اضغط لعرض النتيجة كاملة", testDetail: "نتيجة الفحص",
     moreDetected: "قيم إضافية مكتشفة",
+    deleteTest: "حذف هذا الفحص", deleteTestConfirm: "حذف فحص إنبادي بتاريخ {{date}}؟ سيُزال من إحصاءاتك وسجلّك.",
   },
   mealTypeTag: {
     breakfast: "فطور", lunch: "غداء", dinner: "عشاء", snack: "وجبة خفيفة",

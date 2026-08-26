@@ -11,6 +11,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
+import { confirmDialog } from '@/lib/dialog';
 import { nutritionApi } from '@/src/features/nutrition/api';
 import Colors from '@/constants/colors';
 import { Fonts, Type } from '@/constants/typography';
@@ -971,7 +972,7 @@ function ImageViewer({ visible, b64, mime, onClose }: { visible: boolean; b64: s
 }
 
 // read-only full detail of a single saved test — numbers, charts, and the scan image
-function TestDetailModal({ test, theme, t, onClose, onViewImage }: { test: any | null; theme: any; t: any; onClose: () => void; onViewImage: (b64: string, mime?: string) => void }) {
+function TestDetailModal({ test, theme, t, onClose, onViewImage, onDelete }: { test: any | null; theme: any; t: any; onClose: () => void; onViewImage: (b64: string, mime?: string) => void; onDelete: (test: any) => void }) {
   return (
     <Modal visible={!!test} animationType="slide" transparent onRequestClose={onClose}>
       <View style={s.modalOverlay}>
@@ -1002,6 +1003,10 @@ function TestDetailModal({ test, theme, t, onClose, onViewImage }: { test: any |
               <SegmentalBars seg={test.details?.segmentalLean} theme={theme} t={t} title={t('inbody.segmentalLean', { defaultValue: 'Segmental lean (kg)' })} />
               <SegmentalBars seg={test.details?.segmentalFat} theme={theme} t={t} title={t('inbody.segmentalFat', { defaultValue: 'Segmental fat (kg)' })} />
               <DetailGrid details={test.details} theme={theme} t={t} />
+              <Pressable onPress={() => onDelete(test)} style={({ pressed }) => [s.deleteTestBtn, { borderColor: Colors.semantic.danger + '55', backgroundColor: Colors.semantic.danger + (pressed ? '22' : '10') }]}>
+                <Ionicons name="trash-outline" size={17} color={Colors.semantic.danger} />
+                <Text style={[s.deleteTestText, { color: Colors.semantic.danger }]}>{t('inbody.deleteTest', { defaultValue: 'Delete this test' })}</Text>
+              </Pressable>
             </ScrollView>
           )}
         </View>
@@ -1012,7 +1017,7 @@ function TestDetailModal({ test, theme, t, onClose, onViewImage }: { test: any |
 
 export default function InBodySection() {
   const { t } = useTranslation();
-  const { isDark, inBodyTests, addInBodyTest, user } = useApp();
+  const { isDark, inBodyTests, addInBodyTest, deleteInBodyTest, user } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const [showInBodyModal, setShowInBodyModal] = useState(false);
   const [showTarget, setShowTarget] = useState(false);
@@ -1050,7 +1055,24 @@ export default function InBodySection() {
       />
       <InBodyUploadModal visible={showInBodyModal} onClose={() => setShowInBodyModal(false)} onSave={handleSaveInBody} />
       <InBodyTargetModal visible={showTarget} initial={target} onClose={() => setShowTarget(false)} onSave={handleSaveTarget} />
-      <TestDetailModal test={openTest} theme={theme} t={t} onClose={() => setOpenTest(null)} onViewImage={(b64, mime) => setViewer({ b64, mime })} />
+      <TestDetailModal
+        test={openTest} theme={theme} t={t}
+        onClose={() => setOpenTest(null)}
+        onViewImage={(b64, mime) => setViewer({ b64, mime })}
+        onDelete={async (test) => {
+          const ok = await confirmDialog({
+            title: t('inbody.deleteTest', { defaultValue: 'Delete this test' }),
+            message: t('inbody.deleteTestConfirm', { defaultValue: 'Delete the InBody test from {{date}}? This removes it from your stats and history.', date: test.date }),
+            destructive: true,
+            confirmText: t('programs.delete', { defaultValue: 'Delete' }),
+            cancelText: t('workoutSession.cancel', { defaultValue: 'Cancel' }),
+          });
+          if (!ok) return;
+          deleteInBodyTest(test.id);
+          setOpenTest(null);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }}
+      />
       <ImageViewer visible={!!viewer} b64={viewer?.b64 || ''} mime={viewer?.mime} onClose={() => setViewer(null)} />
     </View>
   );
@@ -1203,4 +1225,6 @@ const s = StyleSheet.create({
   detailTile: { width: (SW - 40 - 16) / 3, borderRadius: 14, padding: 12, gap: 4, alignItems: 'flex-start' },
   detailTileVal: { fontSize: 16, fontFamily: Fonts.monoBold },
   detailTileLabel: { fontSize: 10.5, fontFamily: Fonts.regular },
+  deleteTestBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 50, borderRadius: 14, borderWidth: 1, marginTop: 4 },
+  deleteTestText: { fontSize: 15, fontFamily: Fonts.semibold },
 });
