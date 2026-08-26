@@ -18,9 +18,9 @@ export default function ExerciseRow({ ex, onPress, theme, trailing, divider = tr
   theme: typeof Colors.dark;
   trailing?: React.ReactNode;
   divider?: boolean;
-  // when the picker is inside a RN <Modal>, pass this so the info-arrow can close
-  // the modal before navigating (else exercise-progress renders behind the modal)
-  onInfo?: (name: string) => void;
+  // opens the exercise-info sheet (a Modal, floats above any host modal). Passed the
+  // full exercise object so the sheet needs no lookup/fetch.
+  onInfo?: (ex: any) => void;
   // tint the info button for the exercise whose info was last opened
   highlighted?: boolean;
 }) {
@@ -63,20 +63,23 @@ export default function ExerciseRow({ ex, onPress, theme, trailing, divider = tr
         </Text>
       </View>
 
-      {trailing !== undefined ? trailing : (
-        <Pressable
-          hitSlop={8}
-          onPress={(e) => {
-            e.stopPropagation();
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            if (onInfo) onInfo(ex.name);
-            else router.push(`/exercise-progress?name=${encodeURIComponent(ex.name)}` as any);
-          }}
-          style={({ pressed }) => [s.progressBtn, { borderColor: highlighted ? Colors.electric : theme.border, backgroundColor: highlighted ? Colors.electric + '1A' : 'transparent', opacity: pressed ? 0.6 : 1 }]}
-        >
-          <Ionicons name="trending-up" size={16} color={highlighted ? Colors.electric : theme.textSecondary} />
-        </Pressable>
-      )}
+      <View style={s.rightWrap}>
+        {(onInfo || trailing === undefined) && (
+          <Pressable
+            hitSlop={8}
+            onPress={(e) => {
+              e.stopPropagation();
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (onInfo) onInfo(ex);
+              else router.push(`/exercise-progress?name=${encodeURIComponent(ex.name)}` as any);
+            }}
+            style={({ pressed }) => [s.progressBtn, { borderColor: highlighted ? Colors.electric : theme.border, backgroundColor: highlighted ? Colors.electric + '1A' : 'transparent', opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Ionicons name="information-circle-outline" size={17} color={highlighted ? Colors.electric : theme.textSecondary} />
+          </Pressable>
+        )}
+        {trailing}
+      </View>
     </Pressable>
   );
 }
@@ -92,5 +95,6 @@ const s = StyleSheet.create({
   textCol: { flex: 1, minWidth: 0 },
   name: { fontSize: 15, fontWeight: '700', letterSpacing: 0.1 },
   subtitle: { fontSize: 12, fontWeight: '500', marginTop: 3 },
+  rightWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   progressBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 });

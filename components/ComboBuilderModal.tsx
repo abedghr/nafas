@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import ExerciseRow from '@/components/ExerciseRow';
+import ExerciseInfoSheet from '@/components/ExerciseInfoSheet';
 import ExerciseFilterBar from '@/components/ExerciseFilterBar';
 import { matchExercise } from '@/lib/exercise-search';
 import { useApp } from '@/lib/app-context';
@@ -80,6 +81,7 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
   const [mode, setMode] = useState<ComboMode>('circuit');
   const [intervalSeconds, setIntervalSeconds] = useState(60);
   const [timeCapSeconds, setTimeCapSeconds] = useState(600); // amrap: default 10:00
+  const [infoEx, setInfoEx] = useState<any | null>(null);
 
   const reset = () => { setSearch(''); setEquipment(null); setMuscle(null); setComponents([]); setRounds(1); setUnbroken(true); setMode('circuit'); setIntervalSeconds(60); setTimeCapSeconds(600); };
   const close = () => { reset(); onClose(); };
@@ -345,6 +347,7 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
                       ex={ex}
                       theme={theme}
                       onPress={() => addComponent(ex)}
+                      onInfo={setInfoEx}
                       trailing={<Ionicons name="add-circle-outline" size={22} color={Colors.accent} />}
                     />
                   ))}
@@ -361,6 +364,7 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
             </Pressable>
           </View>
       </View>
+      <ExerciseInfoSheet ex={infoEx} onClose={() => setInfoEx(null)} />
     </Modal>
   );
 }

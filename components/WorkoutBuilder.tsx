@@ -16,6 +16,7 @@ import Colors from '@/constants/colors';
 import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import { workoutApi, EQUIPMENT_OPTIONS, MUSCLE_CATEGORIES } from '@/src/features/workout/api';
 import ComboBuilderModal, { type ComboBuildResult, type ComboSetType } from '@/components/ComboBuilderModal';
+import ExerciseInfoSheet from '@/components/ExerciseInfoSheet';
 import IntervalBuilderModal, { formatDuration } from '@/components/IntervalBuilderModal';
 import ExerciseRow from '@/components/ExerciseRow';
 import ExerciseFilterBar from '@/components/ExerciseFilterBar';
@@ -829,8 +830,8 @@ function ExercisePickerModal({ visible, onClose, onSelect, onInfo, highlightName
   visible: boolean;
   onClose: () => void;
   onSelect: (ex: { id: string; name: string; muscleGroup: string; defaultSetType: string; isCustom?: boolean }) => void;
-  onInfo: (name: string) => void;      // parent handles nav + reopening this picker on return
-  highlightName?: string | null;       // exercise whose info was last opened → highlight its button
+  onInfo: (ex: any) => void;           // opens the info sheet (a Modal above the picker)
+  highlightName?: string | null;       // exercise whose info is open → highlight its button
   customExercises: any[];
   onCreateCustom: () => void;
   theme: typeof Colors.dark;
@@ -954,7 +955,7 @@ function ExercisePickerModal({ visible, onClose, onSelect, onInfo, highlightName
                     ex={ex}
                     theme={theme}
                     highlighted={isHi}
-                    onInfo={(name) => onInfo(name)}
+                    onInfo={(e) => onInfo(e)}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       onSelect(ex);
@@ -1176,20 +1177,8 @@ export default function WorkoutBuilder({
   const setName = onChangeName ?? setInternalName;
 
   const [showPicker, setShowPicker] = useState(false);
-  // exercise-info nav: RN <Modal> floats above pushed screens, so the picker must close
-  // to show the info screen — remember to reopen it (with the viewed exercise highlighted)
-  // when we return.
-  const [infoHighlight, setInfoHighlight] = useState<string | null>(null);
-  const reopenPicker = useRef(false);
-  useFocusEffect(useCallback(() => {
-    if (reopenPicker.current) { reopenPicker.current = false; setShowPicker(true); }
-  }, []));
-  const openExerciseInfo = useCallback((exName: string) => {
-    setInfoHighlight(exName);
-    reopenPicker.current = true;
-    setShowPicker(false);
-    router.push(`/exercise-progress?name=${encodeURIComponent(exName)}` as any);
-  }, []);
+  // exercise info shown as a Modal (floats above the picker + any host modal) — no navigation
+  const [infoEx, setInfoEx] = useState<any | null>(null);
   const [showComboBuilder, setShowComboBuilder] = useState(false);
   const [showIntervalBuilder, setShowIntervalBuilder] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
@@ -1508,8 +1497,8 @@ export default function WorkoutBuilder({
         visible={showPicker}
         onClose={() => setShowPicker(false)}
         onSelect={handleAddExercise}
-        onInfo={openExerciseInfo}
-        highlightName={infoHighlight}
+        onInfo={setInfoEx}
+        highlightName={infoEx?.name ?? null}
         customExercises={customExercises}
         onCreateCustom={() => {
           setShowPicker(false);
@@ -1517,6 +1506,8 @@ export default function WorkoutBuilder({
         }}
         theme={theme}
       />
+
+      <ExerciseInfoSheet ex={infoEx} onClose={() => setInfoEx(null)} />
 
       <ComboBuilderModal
         visible={showComboBuilder}
