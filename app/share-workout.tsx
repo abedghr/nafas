@@ -264,7 +264,12 @@ export default function ShareWorkoutScreen() {
   const shotRef = useRef<ViewShot>(null);
   const [busy, setBusy] = useState<'save' | 'share' | null>(null);
 
-  const capture = async () => captureRef(shotRef, { format: 'png', quality: 1, result: 'tmpfile' });
+  // Use the ViewShot instance .capture() (works on web + native; captureRef/findNodeHandle is native-only)
+  const capture = async (): Promise<string> => {
+    const vs: any = shotRef.current;
+    if (vs && typeof vs.capture === 'function') return await vs.capture();
+    return await captureRef(shotRef, { format: 'png', quality: 1, result: 'tmpfile' });
+  };
 
   const saveToGallery = async () => {
     if (busy) return;
@@ -272,7 +277,14 @@ export default function ShareWorkoutScreen() {
     setBusy('save');
     try {
       const uri = await capture();
-      if (Platform.OS === 'web') { alertDialog(t('workoutSession.webSaveHint', { defaultValue: 'Long-press the preview to save the image, or use the app to save to your gallery.' }), ''); return; }
+      if (Platform.OS === 'web') {
+        // browser download (no gallery API on web)
+        const a = document.createElement('a');
+        a.href = uri; a.download = `nafas-${(currentLog?.name || 'workout').replace(/\s+/g, '-').toLowerCase()}.png`;
+        document.body.appendChild(a); a.click(); a.remove();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        return;
+      }
       const MediaLibrary = require('expo-media-library');
       const perm = await MediaLibrary.requestPermissionsAsync();
       if (!perm.granted) { alertDialog(t('workoutSession.galleryPermission', { defaultValue: 'Allow photo access to save the image.' }), ''); return; }

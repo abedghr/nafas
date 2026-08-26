@@ -189,6 +189,7 @@ export const extraEn = {
     removeWeekConfirm: "Remove this week and its planned days?",
   },
   workoutSession: {
+    tooShortTitle: "Too short to finish", tooShortMsg: "This workout is under a minute — keep training, then finish. Your progress is safe.", saveToGalleryBtn: "Save to gallery", saveTransparentPng: "Save transparent PNG", savedToGallery: "Saved to your gallery", savedTransparent: "Transparent PNG — overlay it on any photo.", galleryPermission: "Allow photo access to save the image.", saveFailed: "Could not save the image", topExercises: "Top exercises",
     setOptions: "Set Options", skipSet: "Skip Set", skipSetConfirm: "Skip set {{n}}? It won't count toward your workout.", cancel: "Cancel", delete: "Delete", setN: "Set {{n}}", reps: "reps", kg: "kg",
     lastTimeHint: "Last: {{weight}} {{unit}} × {{reps}} · {{date}}",
     newPr: "New Personal Record!", newPrs: "{{count}} New Personal Records!", prevBest: "prev {{weight}} {{unit}}",
@@ -414,6 +415,7 @@ export const extraAr = {
     removeWeekConfirm: "حذف هذا الأسبوع وأيامه المخطّطة؟",
   },
   workoutSession: {
+    tooShortTitle: "قصير جداً للإنهاء", tooShortMsg: "هذا التمرين أقل من دقيقة — تابع التمرّن ثم أنهِه. تقدّمك محفوظ.", saveToGalleryBtn: "حفظ في المعرض", saveTransparentPng: "حفظ PNG شفاف", savedToGallery: "حُفظ في معرضك", savedTransparent: "PNG شفاف — ضعه فوق أي صورة.", galleryPermission: "اسمح بالوصول للصور لحفظ الصورة.", saveFailed: "تعذّر حفظ الصورة", topExercises: "أبرز التمارين",
     setOptions: "خيارات المجموعة", skipSet: "تخطّي المجموعة", skipSetConfirm: "تخطّي المجموعة {{n}}؟ لن تُحتسب ضمن تمرينك.", cancel: "إلغاء", delete: "حذف", setN: "المجموعة {{n}}", reps: "تكرارات", kg: "كغ",
     lastTimeHint: "آخر مرة: {{weight}} {{unit}} × {{reps}} · {{date}}",
     newPr: "رقم قياسي جديد!", newPrs: "{{count}} أرقام قياسية جديدة!", prevBest: "السابق {{weight}} {{unit}}",

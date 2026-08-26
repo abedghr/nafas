@@ -22,7 +22,7 @@ import ExerciseRow from '@/components/ExerciseRow';
 import ExerciseFilterBar from '@/components/ExerciseFilterBar';
 import { matchExercise } from '@/lib/exercise-search';
 import * as Crypto from 'expo-crypto';
-import { confirmDialog } from '@/lib/dialog';
+import { confirmDialog, alertDialog } from '@/lib/dialog';
 import type { SetConfig, ActiveSession, LogExercise, LogSetData } from '@/lib/app-context';
 
 const { width: SW } = Dimensions.get('window');
@@ -2110,6 +2110,18 @@ export default function LiveWorkoutScreen() {
   const handleFinish = useCallback(async () => {
     if (!session) return;
     const now = new Date();
+    // Block finishing an unrealistically short session (a 0-min log breaks stats/insights).
+    // This only blocks FINISH — the session keeps running and is never discarded here.
+    const elapsedSec = Math.floor((now.getTime() - session.startTimestamp) / 1000);
+    if (elapsedSec < 60) {
+      setShowFinishModal(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      alertDialog(
+        t('workoutSession.tooShortTitle', { defaultValue: 'Too short to finish' }),
+        t('workoutSession.tooShortMsg', { defaultValue: 'This workout is under a minute — keep training, then finish. Your progress is safe.' }),
+      );
+      return;
+    }
     const startDate = new Date(session.startTimestamp);
     const durationMinutes = Math.round((now.getTime() - session.startTimestamp) / 60000);
 
