@@ -7,12 +7,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import * as Crypto from 'expo-crypto';
 import { useTranslation } from 'react-i18next';
-import { useApp, type Program, type ProgramDay } from '@/lib/app-context';
+import { useApp, type Program, type ProgramDay, type WorkoutType } from '@/lib/app-context';
 import { workoutApi } from '@/src/features/workout/api';
 import { confirmDialog } from '@/lib/dialog';
 import DateTimeField from '@/components/DateTimeField';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
+import WorkoutBuilder, { type PrepExercise } from '@/components/WorkoutBuilder';
 import { programStats, positionToday, dayStatus, ordinalOf, dateForOrdinal, resolveDayExercises, programSequence } from '@/lib/program-schedule';
 import Colors from '@/constants/colors';
 import { Fonts } from '@/constants/typography';
@@ -62,7 +64,9 @@ export default function ProgramBuilderScreen() {
   const [editing, setEditing] = useState<{ week: number; day: number } | null>(null);
   const [dRest, setDRest] = useState(false);
   const [dTemplateId, setDTemplateId] = useState<string | null>(null);
-  const [dLabel, setDLabel] = useState('');
+  // the day's inline workout, edited via <WorkoutBuilder> right in the sheet
+  const [dType, setDType] = useState<WorkoutType | null>(null);
+  const [dExercises, setDExercises] = useState<PrepExercise[]>([]);
   const [dNotes, setDNotes] = useState('');
   const [search, setSearch] = useState('');
 
@@ -104,7 +108,9 @@ export default function ProgramBuilderScreen() {
     const day = findDay(week, dayIdx);
     setDRest(day?.restDay ?? false);
     setDTemplateId(day?.templateId ?? null);
-    setDLabel(day?.label ?? '');
+    // the day's training type is stored on name/label; seed the builder from it
+    setDType(((day?.name || day?.label) as WorkoutType) || null);
+    setDExercises((day?.exercises ?? []).map(e => ({ ...e, uid: Crypto.randomUUID() })));
     setDNotes(day?.notes ?? '');
     setSearch('');
     setEditing({ week, day: dayIdx });
@@ -113,18 +119,24 @@ export default function ProgramBuilderScreen() {
   const saveDay = () => {
     if (!editing) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // keep the day's inline workout unless it becomes a rest day or gets a template
-    const existing = findDay(editing.week, editing.day);
-    const keepInline = !dRest && !dTemplateId && !!existing?.exercises?.length;
-    upsertDay({
-      weekIndex: editing.week,
-      dayIndex: editing.day,
-      restDay: dRest,
-      templateId: dRest ? null : dTemplateId,
-      label: dLabel.trim(),
-      notes: dNotes.trim(),
-      ...(keepInline ? { name: existing!.name, exercises: existing!.exercises } : {}),
-    });
+    const built = !dRest && !dTemplateId && dExercises.length > 0;
+    const typeName = dType || '';
+    if (dRest) {
+      upsertDay({ weekIndex: editing.week, dayIndex: editing.day, restDay: true, templateId: null, label: '', notes: dNotes.trim() });
+    } else if (built) {
+      // inline workout → strip uid, carry combo/interval shapes through
+      const mapped = dExercises.map(e => ({
+        exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, restSeconds: e.restSeconds, sets: e.sets, isCustom: e.isCustom,
+        ...(e.combo ? { combo: true, unbroken: e.unbroken, components: e.components, comboRounds: e.comboRounds, mode: e.mode, intervalSeconds: e.intervalSeconds, timeCapSeconds: e.timeCapSeconds } : {}),
+        ...(e.kind === 'intervals' ? { kind: 'intervals' as const, intervals: e.intervals } : {}),
+      }));
+      // the day's label IS the training type — no separate label field
+      upsertDay({ weekIndex: editing.week, dayIndex: editing.day, restDay: false, templateId: null, name: typeName, exercises: mapped as any, label: typeName, notes: dNotes.trim() });
+    } else if (dTemplateId) {
+      upsertDay({ weekIndex: editing.week, dayIndex: editing.day, restDay: false, templateId: dTemplateId, label: '', notes: dNotes.trim() });
+    } else {
+      upsertDay({ weekIndex: editing.week, dayIndex: editing.day, restDay: false, templateId: null, label: '', notes: dNotes.trim() });
+    }
     setEditing(null);
   };
 
@@ -185,13 +197,6 @@ export default function ProgramBuilderScreen() {
     } else if (day.templateId) {
       router.push(('/prepare-workout?templateId=' + day.templateId + '&run=1') as any);
     }
-  };
-
-  const buildWorkout = (week: number, dayIdx: number) => {
-    if (!program) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setEditing(null);
-    router.push(('/prepare-workout?programId=' + program.id + '&weekIndex=' + week + '&dayIndex=' + dayIdx) as any);
   };
 
   // ── share (owner originals only) ──────────────────────────────────────────
@@ -658,82 +663,63 @@ export default function ProgramBuilderScreen() {
               </Pressable>
             </View>
 
-            {/* rest toggle */}
-            <View style={[s.restRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                <Ionicons name="moon-outline" size={18} color={Colors.accent} />
-                <Text style={{ color: theme.text, fontSize: 14, fontWeight: '500' }}>{t('programs.restDayToggle')}</Text>
+            {/* builder + rest/notes + template list scroll together; footer stays pinned */}
+            <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
+              {/* rest toggle */}
+              <View style={[s.restRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                  <Ionicons name="moon-outline" size={18} color={Colors.accent} />
+                  <Text style={{ color: theme.text, fontSize: 14, fontWeight: '500' }}>{t('programs.restDayToggle')}</Text>
+                </View>
+                <Switch
+                  value={dRest}
+                  onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDRest(v); }}
+                  trackColor={{ false: theme.border, true: Colors.primary }}
+                  thumbColor="#fff"
+                />
               </View>
-              <Switch
-                value={dRest}
-                onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDRest(v); }}
-                trackColor={{ false: theme.border, true: Colors.primary }}
-                thumbColor="#fff"
-              />
-            </View>
 
-            {!dRest && (
-              <>
-                <View style={s.inputsRow}>
-                  <View style={{ flex: 1, minWidth: 130 }}>
-                    <Text style={[s.miniLabel, { color: theme.textMuted }]}>{t('programs.labelOptional')}</Text>
-                    <TextInput
-                      style={[s.sheetInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                      value={dLabel}
-                      onChangeText={setDLabel}
-                      placeholder={t('programs.labelPlaceholder')}
-                      placeholderTextColor={theme.textMuted}
-                    />
-                  </View>
-                  <View style={{ flex: 1, minWidth: 130 }}>
-                    <Text style={[s.miniLabel, { color: theme.textMuted }]}>{t('programs.notesOptional')}</Text>
-                    <TextInput
-                      style={[s.sheetInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                      value={dNotes}
-                      onChangeText={setDNotes}
-                      placeholder={t('programs.dayNotesPlaceholder')}
-                      placeholderTextColor={theme.textMuted}
-                    />
-                  </View>
-                </View>
+              {/* day notes */}
+              <View style={{ marginBottom: 12 }}>
+                <Text style={[s.miniLabel, { color: theme.textMuted }]}>{t('programs.notesOptional')}</Text>
+                <TextInput
+                  style={[s.sheetInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                  value={dNotes}
+                  onChangeText={setDNotes}
+                  placeholder={t('programs.dayNotesPlaceholder')}
+                  placeholderTextColor={theme.textMuted}
+                />
+              </View>
 
-                {/* build a custom workout for this day (not a saved template) */}
-                {(() => {
-                  const curDay = editing ? findDay(editing.week, editing.day) : undefined;
-                  const inlineN = curDay?.exercises?.length ?? 0;
-                  return (
-                    <Pressable
-                      onPress={() => editing && buildWorkout(editing.week, editing.day)}
-                      style={({ pressed }) => [s.buildBtn, { borderColor: Colors.accent + '55', opacity: pressed ? 0.85 : 1 }]}
-                    >
-                      <Ionicons name="construct-outline" size={18} color={Colors.accent} />
-                      <Text style={[s.buildBtnText, { color: Colors.accent }]}>
-                        {inlineN > 0 ? `${t('programs.buildWorkout')} · ${t('programs.exercisesN', { n: inlineN })}` : t('programs.buildWorkout')}
-                      </Text>
-                      <Ionicons name="chevron-forward" size={16} color={Colors.accent} />
-                    </Pressable>
-                  );
-                })()}
-
-                <Text style={[s.miniLabel, { color: theme.textMuted, marginTop: 14 }]}>{t('programs.pickWorkout')}</Text>
-                <View style={[s.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                  <Ionicons name="search" size={16} color={theme.textMuted} />
-                  <TextInput
-                    style={[s.searchInput, { color: theme.text }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]}
-                    value={search}
-                    onChangeText={setSearch}
-                    placeholder={t('programs.searchWorkouts')}
-                    placeholderTextColor={theme.textMuted}
-                    autoCapitalize="none"
+              {!dRest && (
+                <>
+                  {/* build this day's workout inline (not a saved template) */}
+                  <WorkoutBuilder
+                    workoutType={dType}
+                    exercises={dExercises}
+                    onChangeType={setDType}
+                    onChangeExercises={(ex) => { setDExercises(ex); if (ex.length) setDTemplateId(null); }}
+                    theme={theme}
                   />
-                  {search.length > 0 && (
-                    <Pressable onPress={() => setSearch('')}>
-                      <Ionicons name="close-circle" size={16} color={theme.textMuted} />
-                    </Pressable>
-                  )}
-                </View>
 
-                <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                  <Text style={[s.miniLabel, { color: theme.textMuted, marginTop: 14 }]}>{t('programs.pickWorkout')}</Text>
+                  <View style={[s.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Ionicons name="search" size={16} color={theme.textMuted} />
+                    <TextInput
+                      style={[s.searchInput, { color: theme.text }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]}
+                      value={search}
+                      onChangeText={setSearch}
+                      placeholder={t('programs.searchWorkouts')}
+                      placeholderTextColor={theme.textMuted}
+                      autoCapitalize="none"
+                    />
+                    {search.length > 0 && (
+                      <Pressable onPress={() => setSearch('')}>
+                        <Ionicons name="close-circle" size={16} color={theme.textMuted} />
+                      </Pressable>
+                    )}
+                  </View>
+
                   {filteredTemplates.length === 0 && (
                     <Text style={{ color: theme.textMuted, textAlign: 'center', marginTop: 20, fontSize: 13 }}>
                       {workoutTemplates.length === 0 ? t('programs.noTemplates') : t('programs.noMatchingTemplates')}
@@ -746,7 +732,9 @@ export default function ProgramBuilderScreen() {
                         key={tmpl.id}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setDTemplateId(active ? null : tmpl.id);
+                          // template and inline build are mutually exclusive
+                          if (active) { setDTemplateId(null); }
+                          else { setDTemplateId(tmpl.id); setDExercises([]); }
                         }}
                         style={[s.tmplRow, { borderBottomColor: theme.border }]}
                       >
@@ -766,10 +754,9 @@ export default function ProgramBuilderScreen() {
                       </Pressable>
                     );
                   })}
-                </ScrollView>
-              </>
-            )}
-            {dRest && <View style={{ flex: 1 }} />}
+                </>
+              )}
+            </ScrollView>
 
             <View style={[s.sheetFooter, { paddingBottom: Platform.OS === 'web' ? 20 : insets.bottom + 12 }]}>
               <Pressable
