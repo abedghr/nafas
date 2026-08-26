@@ -605,6 +605,7 @@ export const ranks = [
   { id: 'active_athlete', name: 'Active Athlete', icon: 'medal-outline', color: '#4ECDC4', minWorkouts: 20 },
   { id: 'competitive_athlete', name: 'Competitive Athlete', icon: 'trophy-outline', color: '#FFD700', minWorkouts: 50 },
   { id: 'elite_athlete', name: 'Elite Athlete', icon: 'diamond-outline', color: '#00B4D8', minWorkouts: 100 },
+  { id: 'professional_athlete', name: 'Professional Athlete', icon: 'ribbon', color: '#7C5CFF', minWorkouts: 150 },
   { id: 'champion', name: 'Champion', icon: 'trophy', color: '#FF6B35', minWorkouts: 200 },
 ];
 

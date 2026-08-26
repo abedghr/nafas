@@ -64,7 +64,7 @@ function SettingsItem({ icon, label, right, onPress, isDark, destructive, last }
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { user, isDark, toggleTheme, language, setLanguage, weightUnit, setWeightUnit, workouts, streak, logout, deleteAccount } = useApp();
+  const { user, isDark, toggleTheme, language, setLanguage, weightUnit, setWeightUnit, workouts, workoutLogs, streak, logout, deleteAccount } = useApp();
   const [ownsGyms, setOwnsGyms] = useState(false);
   const [managesGyms, setManagesGyms] = useState(false);
   const [organizesEvents, setOrganizesEvents] = useState(false);
@@ -75,12 +75,17 @@ export default function ProfileScreen() {
   }, []);
   const theme = isDark ? Colors.dark : Colors.light;
 
-  const currentRank = ranks.find(r => {
-    const nextRank = ranks.find(nr => nr.minWorkouts > r.minWorkouts);
-    return workouts.length >= r.minWorkouts && (!nextRank || workouts.length < nextRank.minWorkouts);
-  }) || ranks[0];
+  // real training history = old local `workouts` + server `workoutLogs`
+  const totalWorkouts = workouts.length + workoutLogs.length;
+  const totalVolume = workouts.reduce((acc, w) => acc + (w.totalVolume || 0), 0)
+    + workoutLogs.reduce((acc, l) => acc + (l.totalVolumeKg || 0), 0);
 
-  const totalVolume = workouts.reduce((acc, w) => acc + w.totalVolume, 0);
+  // rank: the athlete's stored rank wins; otherwise derive from workout count
+  const countRank = ranks.find(r => {
+    const nextRank = ranks.find(nr => nr.minWorkouts > r.minWorkouts);
+    return totalWorkouts >= r.minWorkouts && (!nextRank || totalWorkouts < nextRank.minWorkouts);
+  }) || ranks[0];
+  const currentRank = ranks.find(r => r.id === user?.rank) || countRank;
 
   const toggleLanguage = () => {
     const newLang = language === 'en' ? 'ar' : 'en';
@@ -152,7 +157,7 @@ export default function ProfileScreen() {
         </LinearGradient>
 
         <View style={styles.statsRow}>
-          <ProfileStat label={t('profile.total_workouts')} value={workouts.length.toString()} isDark={isDark} />
+          <ProfileStat label={t('profile.total_workouts')} value={totalWorkouts.toString()} isDark={isDark} />
           <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
           <ProfileStat label={t('profile.total_volume')} value={totalVolume > 0 ? `${(totalVolume / 1000).toFixed(1)}K` : '0'} isDark={isDark} />
           <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
@@ -174,7 +179,15 @@ export default function ProfileScreen() {
               <PhysStat label={t('onboarding.height')} value={user?.height ? `${user.height} cm` : '—'} theme={theme} />
               <PhysStat label={t('onboarding.weight')} value={user?.weight ? `${toDisplayWeight(user.weight, weightUnit)} ${unitLabel(weightUnit)}` : '—'} theme={theme} />
               <PhysStat label={t('onboarding.age')} value={user?.age ? String(user.age) : '—'} theme={theme} />
-              <PhysStat label={t('onboarding.goals')} value={user?.goal ? t(`onboarding.${user.goal}`) : '—'} theme={theme} />
+            </View>
+            <View style={[styles.goalCard, { backgroundColor: Colors.electric + '12', borderColor: Colors.electric + '2E' }]}>
+              <View style={[styles.goalIcon, { backgroundColor: Colors.electric + '22' }]}>
+                <Ionicons name="flag" size={16} color={Colors.electric} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.goalLabel, { color: theme.textMuted }]}>{t('onboarding.goals')}</Text>
+                <Text style={[styles.goalValue, { color: theme.text }]} numberOfLines={2}>{user?.goal ? t(`onboarding.${user.goal}`) : '—'}</Text>
+              </View>
             </View>
           </View>
         </Animated.View>
@@ -265,6 +278,10 @@ const styles = StyleSheet.create({
   physRow: { flexDirection: 'row', gap: 8 },
   physStat: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: 'rgba(128,128,128,0.08)' },
   physValue: { fontSize: 15, fontFamily: 'Rubik_700Bold' },
+  goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8, padding: 14, borderRadius: 14, borderWidth: 1 },
+  goalIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  goalLabel: { fontSize: 11.5, fontFamily: 'Rubik_500Medium', marginBottom: 2 },
+  goalValue: { fontSize: 15, fontFamily: 'Rubik_600SemiBold', lineHeight: 20 },
   physLabel: { fontSize: 11, fontFamily: 'Rubik_400Regular', marginTop: 2 },
   sectionTitle: { fontSize: 12, fontFamily: 'Rubik_600SemiBold', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 },
   interestTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

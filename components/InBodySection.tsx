@@ -207,12 +207,37 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
   const [previewUri, setPreviewUri] = useState<string | undefined>();
   const [date, setDate] = useState('');
   const [vals, setVals] = useState<Record<string, string>>({});
-  const [details, setDetails] = useState<Record<string, any>>({});
+  const [details, setDetails] = useState<Record<string, any>>({}); // raw parsed detail object (for AI insight)
+  const [dvals, setDvals] = useState<Record<string, string>>({});   // editable detail values (metrics + segmental L_/F_ keys)
   const [imageB64, setImageB64] = useState<string>(''); // compact JPEG of the sheet, saved with the test
   const [insight, setInsight] = useState<{ summary: string; suggestions?: string[] } | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
 
-  const reset = () => { setStage('upload'); setError(''); setPreviewUri(undefined); setDate(''); setVals({}); setDetails({}); setImageB64(''); setInsight(null); setInsightLoading(false); };
+  const reset = () => { setStage('upload'); setError(''); setPreviewUri(undefined); setDate(''); setVals({}); setDetails({}); setDvals({}); setImageB64(''); setInsight(null); setInsightLoading(false); };
+
+  // flatten a parsed details object into editable string values (segmental → L_/F_ prefixed keys)
+  const seedDvals = (det: Record<string, any>) => {
+    const dv: Record<string, string> = {};
+    for (const m of DETAIL_METRICS) if (det[m.key] != null) dv[m.key] = String(det[m.key]);
+    for (const r of SEG_REGIONS) {
+      if (det.segmentalLean?.[r.key] != null) dv['L_' + r.key] = String(det.segmentalLean[r.key]);
+      if (det.segmentalFat?.[r.key] != null) dv['F_' + r.key] = String(det.segmentalFat[r.key]);
+    }
+    return dv;
+  };
+  // rebuild a details object from the edited string values
+  const buildDetails = (): Record<string, any> => {
+    const d: Record<string, any> = {};
+    for (const m of DETAIL_METRICS) { const n = parseFloat(dvals[m.key]); if (Number.isFinite(n)) d[m.key] = n; }
+    const lean: any = {}, fat: any = {};
+    for (const r of SEG_REGIONS) {
+      const l = parseFloat(dvals['L_' + r.key]); if (Number.isFinite(l)) lean[r.key] = l;
+      const f = parseFloat(dvals['F_' + r.key]); if (Number.isFinite(f)) fat[r.key] = f;
+    }
+    if (Object.keys(lean).length) d.segmentalLean = lean;
+    if (Object.keys(fat).length) d.segmentalFat = fat;
+    return d;
+  };
 
   // AI coach opinion on the parsed result (async; hidden if AI unavailable)
   const loadInsight = (metrics: Record<string, unknown>) => {
@@ -234,6 +259,7 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
       setVals(v);
       const det = pickDetails(r);
       setDetails(det);
+      setDvals(seedDvals(det));
       const testDate = r.date || new Date().toISOString().split('T')[0];
       setDate(testDate);
       setStage('review');
@@ -290,7 +316,7 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
 
   const commit = () => {
     const num = (k: string) => { const n = parseFloat(vals[k]); return Number.isFinite(n) ? n : 0; };
-    const fullDetails = { ...details, ...(imageB64 ? { image: imageB64, imageMime: 'image/jpeg' } : {}) };
+    const fullDetails = { ...buildDetails(), ...(imageB64 ? { image: imageB64, imageMime: 'image/jpeg' } : {}) };
     onSave({
       date: date || new Date().toISOString().split('T')[0],
       weight: num('weight'), muscleMass: num('muscleMass'), bodyFat: num('bodyFat'), bodyWater: num('bodyWater'),
@@ -381,20 +407,23 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
               )}
 
               {(() => {
+                // live charts reflect edits to both core fields and the detail values
+                const live = buildDetails();
                 const pt = {
                   weight: parseFloat(vals.weight), bodyFat: parseFloat(vals.bodyFat),
-                  muscleMass: parseFloat(vals.muscleMass), bodyWater: parseFloat(vals.bodyWater), details,
+                  skeletalMuscle: parseFloat(vals.skeletalMuscle), muscleMass: parseFloat(vals.muscleMass),
+                  bodyWater: parseFloat(vals.bodyWater), details: live,
                 };
                 return (
                   <>
                     <CompositionBar test={pt} theme={theme} t={t} />
-                    <SegmentalBars seg={details.segmentalLean} theme={theme} t={t} title={t('inbody.segmentalLean', { defaultValue: 'Segmental lean (kg)' })} />
-                    <DetailGrid details={details} theme={theme} t={t} />
+                    <SegmentalBars seg={live.segmentalLean} theme={theme} t={t} title={t('inbody.segmentalLean', { defaultValue: 'Segmental lean (kg)' })} />
+                    <SegmentalBars seg={live.segmentalFat} theme={theme} t={t} title={t('inbody.segmentalFat', { defaultValue: 'Segmental fat (kg)' })} />
                   </>
                 );
               })()}
 
-              <Text style={[s.editHint, { color: theme.textMuted }]}>{t('inbody.editHint', { defaultValue: 'Check the core values below and fix anything before saving.' })}</Text>
+              <Text style={[s.editHint, { color: theme.textMuted }]}>{t('inbody.editHint', { defaultValue: 'Every value the scan detected is editable — fix anything the AI misread, then save.' })}</Text>
               <View>
                 <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{t('inbody.testDate', { defaultValue: 'Test date' })}</Text>
                 <TextInput
@@ -419,6 +448,45 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
                   </View>
                 );
               })}
+
+              {/* full detected breakdown — all editable so OCR misses can be corrected */}
+              <Text style={[s.editSectionTitle, { color: theme.text }]}>{t('inbody.moreDetected', { defaultValue: 'More detected values' })}</Text>
+              {DETAIL_METRICS.map((m) => {
+                const detected = !!dvals[m.key];
+                return (
+                  <View key={m.key}>
+                    <View style={s.fieldLabelRow}>
+                      <Text style={[s.fieldLabel, { color: theme.textSecondary, marginBottom: 0 }]}>{t(m.labelKey, { defaultValue: m.label })}{m.unit ? ` (${m.unit})` : ''}</Text>
+                      {!detected && <Text style={[s.notDetected, { color: theme.textMuted }]}>{t('inbody.notDetected', { defaultValue: 'not detected — add if you have it' })}</Text>}
+                    </View>
+                    <TextInput
+                      style={[s.fieldInput, { backgroundColor: theme.card, color: theme.text, borderColor: detected ? Colors.electric + '55' : theme.border }]}
+                      value={dvals[m.key] ?? ''}
+                      onChangeText={(v) => setDvals((p) => ({ ...p, [m.key]: v }))}
+                      keyboardType="numeric" placeholder="—" placeholderTextColor={theme.textMuted}
+                    />
+                  </View>
+                );
+              })}
+              {(['L', 'F'] as const).map((side) => (
+                <View key={side}>
+                  <Text style={[s.editSubTitle, { color: theme.textSecondary }]}>{side === 'L' ? t('inbody.segmentalLean', { defaultValue: 'Segmental lean (kg)' }) : t('inbody.segmentalFat', { defaultValue: 'Segmental fat (kg)' })}</Text>
+                  <View style={s.segEditGrid}>
+                    {SEG_REGIONS.map((r) => (
+                      <View key={r.key} style={s.segEditItem}>
+                        <Text style={[s.segEditLabel, { color: theme.textMuted }]} numberOfLines={1}>{t(r.labelKey, { defaultValue: r.label })}</Text>
+                        <TextInput
+                          style={[s.segEditInput, { backgroundColor: theme.card, color: theme.text, borderColor: dvals[side + '_' + r.key] ? Colors.electric + '55' : theme.border }]}
+                          value={dvals[side + '_' + r.key] ?? ''}
+                          onChangeText={(v) => setDvals((p) => ({ ...p, [side + '_' + r.key]: v }))}
+                          keyboardType="numeric" placeholder="—" placeholderTextColor={theme.textMuted}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ))}
+
               <Button variant="solid" label={t('inbody.commit', { defaultValue: 'Save this test' })} icon="checkmark-circle" onPress={commit} style={{ marginTop: 4 }} />
               <Pressable onPress={() => setStage('upload')} style={s.reuploadBtn}>
                 <Ionicons name="refresh" size={15} color={theme.textMuted} />
@@ -1094,6 +1162,12 @@ const s = StyleSheet.create({
   reuploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   reuploadText: { fontSize: 13, fontFamily: Fonts.medium },
   editHint: { fontSize: 12, fontFamily: Fonts.regular, marginTop: 4, marginBottom: 2 },
+  editSectionTitle: { fontSize: 15, fontFamily: Fonts.semibold, marginTop: 12, marginBottom: 2 },
+  editSubTitle: { fontSize: 12.5, fontFamily: Fonts.medium, marginTop: 8, marginBottom: 6 },
+  segEditGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  segEditItem: { width: (SW - 40 - 16) / 3, gap: 4 },
+  segEditLabel: { fontSize: 11, fontFamily: Fonts.regular },
+  segEditInput: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 9, fontSize: 15, fontFamily: Fonts.medium, borderWidth: 1 },
   // charts (shared: review card + saved latest view)
   chartsWrap: { paddingHorizontal: 20, gap: 12, marginTop: 12 },
   chartCard: { borderRadius: 16, padding: 14, gap: 12 },
