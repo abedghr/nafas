@@ -150,6 +150,7 @@ export const extraEn = {
     bcAddMoreTests: "Add more tests over time to track your progress and see comparison insights.",
   },
   workoutPrep: {
+    addToWorkout: "Add to workout",
     newWorkout: "New Workout", loadFromMyWorkouts: "Load from My Workouts", savedWorkoutsAvailable: "{{count}} saved workout available",
     savedWorkoutsAvailable_other: "{{count}} saved workouts available", whatAreYouTraining: "What are you training?",
     workoutNameRequired: "Workout Name *", workoutNamePlaceholder: "e.g. Morning Push, Heavy Legs", noExercisesYet: "No exercises yet",
@@ -391,6 +392,7 @@ export const extraAr = {
     bcAddMoreTests: "أضف المزيد من الفحوصات مع مرور الوقت لتتبّع تقدمك ورؤية تحليلات المقارنة.",
   },
   workoutPrep: {
+    addToWorkout: "أضف إلى التمرين",
     newWorkout: "تمرين جديد", loadFromMyWorkouts: "تحميل من تماريني", savedWorkoutsAvailable: "{{count}} تمرين محفوظ متاح",
     savedWorkoutsAvailable_other: "{{count}} تمارين محفوظة متاحة", whatAreYouTraining: "ما الذي تتمرّن عليه؟",
     workoutNameRequired: "اسم التمرين *", workoutNamePlaceholder: "مثال: دفع الصباح، أرجل ثقيلة", noExercisesYet: "لا توجد تمارين بعد",

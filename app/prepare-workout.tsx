@@ -825,6 +825,19 @@ function ExercisePickerModal({ visible, onClose, onSelect, onInfo, highlightName
   const [search, setSearch] = useState('');
   const [equipment, setEquipment] = useState<string | null>(null);
   const [muscle, setMuscle] = useState<string | null>(null);
+  // when reopened after viewing an exercise's info, scroll that exercise back into view
+  const scrollRef = useRef<ScrollView>(null);
+  const rowRef = useRef<View>(null);
+  useEffect(() => {
+    if (!visible || !highlightName) return;
+    const id = setTimeout(() => {
+      const node = rowRef.current, sc = scrollRef.current;
+      if (node && sc) {
+        try { (node as any).measureLayout(sc, (_x: number, y: number) => sc.scrollTo({ y: Math.max(0, y - 100), animated: true }), () => {}); } catch {}
+      }
+    }, 300);
+    return () => clearTimeout(id);
+  }, [visible, highlightName]);
 
   const allExercises = useMemo(() => {
     const lib = exerciseLibrary.map(e => ({ ...e, isCustom: false }));
@@ -902,7 +915,7 @@ function ExercisePickerModal({ visible, onClose, onSelect, onInfo, highlightName
             theme={theme}
           />
 
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 120 }}>
+          <ScrollView ref={scrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 120 }}>
             {filtered.length === 0 ? (
               <View style={s.pickerEmpty}>
                 <View style={[s.pickerEmptyIcon, { backgroundColor: theme.card }]}>
@@ -919,12 +932,14 @@ function ExercisePickerModal({ visible, onClose, onSelect, onInfo, highlightName
                     <Text style={[s.sectionHeaderCount, { color: theme.textMuted }]}>{sec.data.length}</Text>
                   </View>
                 )}
-                {sec.data.map((ex, i) => (
+                {sec.data.map((ex, i) => {
+                  const isHi = !!highlightName && ex.name === highlightName;
+                  return (
+                  <View key={ex.id + i} ref={isHi ? rowRef : undefined}>
                   <ExerciseRow
-                    key={ex.id + i}
                     ex={ex}
                     theme={theme}
-                    highlighted={!!highlightName && ex.name === highlightName}
+                    highlighted={isHi}
                     onInfo={(name) => onInfo(name)}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -932,7 +947,9 @@ function ExercisePickerModal({ visible, onClose, onSelect, onInfo, highlightName
                       onClose();
                     }}
                   />
-                ))}
+                  </View>
+                  );
+                })}
               </View>
             ))}
 
@@ -1610,7 +1627,7 @@ export default function PrepareWorkoutScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: topPad + 60, paddingBottom: 300 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: topPad + 60, paddingBottom: 180 }}
         keyboardShouldPersistTaps="handled"
       >
           <View style={{ gap: 14, marginBottom: 14 }}>
@@ -1753,6 +1770,38 @@ export default function PrepareWorkoutScreen() {
               )}
             </View>
           ))}
+
+          {/* add-to-workout actions live in the scroll, below the list — not floating over it */}
+          {(() => {
+            const guard = (fn: () => void) => () => {
+              if (!resolvedName) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); alertDialog(t('workoutPrep.pickTypeFirst'), t('workoutPrep.pickTypeHint')); return; }
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); fn();
+            };
+            const tiles: { icon: any; label: string; color: string; onPress: () => void }[] = [
+              { icon: 'add', label: t('workoutPrep.exercise', { defaultValue: 'Exercise' }), color: Colors.primary, onPress: guard(() => setShowPicker(true)) },
+              { icon: 'git-merge-outline', label: t('workoutPrep.combo', { defaultValue: 'Combo' }), color: Colors.accent, onPress: guard(() => setShowComboBuilder(true)) },
+              { icon: 'pulse-outline', label: t('workoutPrep.interval', { defaultValue: 'Interval' }), color: Colors.electric, onPress: guard(() => setShowIntervalBuilder(true)) },
+            ];
+            return (
+              <View style={{ marginTop: 2 }}>
+                <Text style={[s.addSectionLabel, { color: theme.textMuted }]}>{t('workoutPrep.addToWorkout', { defaultValue: 'Add to workout' })}</Text>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  {tiles.map((c) => (
+                    <Pressable
+                      key={c.label}
+                      onPress={c.onPress}
+                      style={({ pressed }) => [s.addTile, { backgroundColor: theme.card, borderColor: c.color + (isDark ? '55' : '40'), opacity: !resolvedName ? 0.5 : pressed ? 0.85 : 1 }]}
+                    >
+                      <View style={[s.addTileIcon, { backgroundColor: c.color + '1F' }]}>
+                        <Ionicons name={c.icon} size={18} color={c.color} />
+                      </View>
+                      <Text style={[s.addTileText, { color: theme.text }]} numberOfLines={1}>{c.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            );
+          })()}
       </ScrollView>
 
       <View style={[s.bottomBar, { paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 8 }]}>
@@ -1760,28 +1809,6 @@ export default function PrepareWorkoutScreen() {
           colors={['transparent', fadeMid, fadeSolid]}
           style={StyleSheet.absoluteFill}
         />
-        {(() => {
-          const guard = (fn: () => void) => () => {
-            if (!resolvedName) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); alertDialog(t('workoutPrep.pickTypeFirst'), t('workoutPrep.pickTypeHint')); return; }
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); fn();
-          };
-          const chips: { icon: any; label: string; color: string; onPress: () => void }[] = [
-            { icon: 'add', label: t('workoutPrep.exercise', { defaultValue: 'Exercise' }), color: Colors.primary, onPress: guard(() => setShowPicker(true)) },
-            { icon: 'git-merge-outline', label: t('workoutPrep.combo', { defaultValue: 'Combo' }), color: Colors.accent, onPress: guard(() => setShowComboBuilder(true)) },
-            { icon: 'pulse-outline', label: t('workoutPrep.interval', { defaultValue: 'Interval' }), color: Colors.electric, onPress: guard(() => setShowIntervalBuilder(true)) },
-          ];
-          return (
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
-              {chips.map((c) => (
-                <Pressable key={c.label} onPress={c.onPress} style={({ pressed }) => [s.addChip, { borderColor: c.color + '80', backgroundColor: c.color + (isDark ? '14' : '10'), opacity: !resolvedName ? 0.45 : pressed ? 0.8 : 1 }]}>
-                  <Ionicons name={c.icon} size={16} color={c.color} />
-                  <Text style={[s.addChipText, { color: c.color }]} numberOfLines={1}>{c.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-          );
-        })()}
-
         <Pressable
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPreWorkout(p => !p); }}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 }}
@@ -2290,6 +2317,10 @@ const s = StyleSheet.create({
     borderStyle: 'dashed' as any,
   },
   addChipText: { fontSize: 13, fontWeight: '700' },
+  addSectionLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 0.3, textTransform: 'uppercase', marginBottom: 10 },
+  addTile: { flex: 1, alignItems: 'center', gap: 8, paddingVertical: 14, borderRadius: 16, borderWidth: 1 },
+  addTileIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  addTileText: { fontSize: 13, fontWeight: '700' },
   bottomRow: {
     flexDirection: 'row',
     gap: 10,
