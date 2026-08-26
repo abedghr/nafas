@@ -876,7 +876,7 @@ const s = StyleSheet.create({
   ringsLegend: { flex: 1, gap: 12 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   legendDot: { width: 9, height: 9, borderRadius: 5 },
-  legendVal: { fontFamily: 'SpaceMono_700Bold', fontSize: 15, color: '#fff' },
+  legendVal: { fontFamily: 'SpaceMono_700Bold', fontSize: 15 },
   legendLabel: { fontFamily: 'Rubik_500Medium', fontSize: 12, flexShrink: 1 },
   quickStatsRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 4 },
   quickStatWrap: { flex: 1 },

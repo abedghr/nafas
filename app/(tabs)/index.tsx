@@ -129,7 +129,7 @@ function PostCard({ post, index, isDark, likedPosts, toggleLike }: {
         <Text style={[styles.postContent, { color: theme.text }]}>{post.content}</Text>
 
         {post.type === 'image' && (post as any).imageUrl && (
-          <View style={styles.mediaWrap}>
+          <View style={[styles.mediaWrap, { backgroundColor: theme.cardAlt }]}>
             <ExpoImage
               source={{ uri: (post as any).imageUrl }}
               style={styles.postImage}
@@ -140,7 +140,7 @@ function PostCard({ post, index, isDark, likedPosts, toggleLike }: {
         )}
 
         {post.type === 'video' && (post as any).videoThumbnail && (
-          <View style={styles.mediaWrap}>
+          <View style={[styles.mediaWrap, { backgroundColor: theme.cardAlt }]}>
             <ExpoImage
               source={{ uri: (post as any).videoThumbnail }}
               style={styles.postImage}
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     ...Type.body, lineHeight: 22, marginBottom: 12,
   },
   mediaWrap: {
-    borderRadius: 16, overflow: 'hidden', marginBottom: 12, backgroundColor: '#0E0E16',
+    borderRadius: 16, overflow: 'hidden', marginBottom: 12,
   },
   postImage: {
     width: '100%', height: 220,

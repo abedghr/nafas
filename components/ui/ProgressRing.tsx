@@ -5,6 +5,7 @@ import Animated, { useSharedValue, useAnimatedProps, withTiming, Easing } from '
 import { Duration } from '@/constants/motion';
 import { Fonts } from '@/constants/typography';
 import Colors from '@/constants/colors';
+import { useApp } from '@/lib/app-context';
 
 const ACircle = Animated.createAnimatedComponent(Circle);
 
@@ -14,7 +15,8 @@ export function ProgressRing({
   size = 64,
   stroke = 6,
   color = Colors.electric,
-  track = '#FFFFFF14',
+  track,
+  labelColor,
   label,
 }: {
   value: number; // 0..1
@@ -22,8 +24,12 @@ export function ProgressRing({
   stroke?: number;
   color?: string;
   track?: string;
+  labelColor?: string;
   label?: string;
 }) {
+  const { isDark } = useApp();
+  const trackColor = track ?? (isDark ? '#FFFFFF14' : '#00000012');
+  const inkColor = labelColor ?? (isDark ? Colors.dark.text : Colors.light.text);
   const r = size / 2 - stroke / 2;
   const circ = 2 * Math.PI * r;
   const p = useSharedValue(0);
@@ -32,10 +38,10 @@ export function ProgressRing({
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={size} height={size} style={{ position: 'absolute' }}>
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke={track} strokeWidth={stroke} fill="none" />
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={trackColor} strokeWidth={stroke} fill="none" />
         <ACircle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth={stroke} fill="none" strokeLinecap="round" strokeDasharray={circ} animatedProps={ap} transform={`rotate(-90 ${size / 2} ${size / 2})`} />
       </Svg>
-      {!!label && <Text style={{ fontFamily: Fonts.monoBold, fontSize: size * 0.24, color: '#fff' }}>{label}</Text>}
+      {!!label && <Text style={{ fontFamily: Fonts.monoBold, fontSize: size * 0.24, color: inkColor }}>{label}</Text>}
     </View>
   );
 }

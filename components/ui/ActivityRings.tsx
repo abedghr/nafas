@@ -4,6 +4,7 @@ import Svg, { Circle } from 'react-native-svg';
 import Animated, { useSharedValue, useAnimatedProps, withTiming, Easing } from 'react-native-reanimated';
 import { Duration } from '@/constants/motion';
 import Colors from '@/constants/colors';
+import { useApp } from '@/lib/app-context';
 
 const ACircle = Animated.createAnimatedComponent(Circle);
 
@@ -18,7 +19,7 @@ export function ActivityRings({
     { value: 0.5, color: Colors.ring.amber },
     { value: 0.35, color: Colors.ring.blue },
   ],
-  trackColor = '#FFFFFF12',
+  trackColor,
 }: {
   size?: number;
   stroke?: number;
@@ -26,12 +27,14 @@ export function ActivityRings({
   rings?: { value: number; color: string }[];
   trackColor?: string;
 }) {
+  const { isDark } = useApp();
+  const track = trackColor ?? (isDark ? '#FFFFFF12' : '#0000000D');
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size}>
         {rings.map((r, i) => {
           const radius = size / 2 - stroke / 2 - i * (stroke + gap);
-          return <Ring key={i} cx={size / 2} cy={size / 2} radius={radius} stroke={stroke} color={r.color} value={r.value} track={trackColor} delay={i * 120} />;
+          return <Ring key={i} cx={size / 2} cy={size / 2} radius={radius} stroke={stroke} color={r.color} value={r.value} track={track} delay={i * 120} />;
         })}
       </Svg>
     </View>

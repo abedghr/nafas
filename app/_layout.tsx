@@ -1,5 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, router, useSegments } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -45,9 +46,15 @@ function NavigationGuard() {
   return null;
 }
 
+function ThemedStatusBar() {
+  const { isDark } = useApp();
+  return <StatusBar style={isDark ? 'light' : 'dark'} />;
+}
+
 function RootLayoutNav() {
   return (
     <>
+      <ThemedStatusBar />
       <NavigationGuard />
       <Stack screenOptions={{ headerBackTitle: "Back", headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

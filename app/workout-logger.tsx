@@ -127,7 +127,7 @@ function ExerciseCard({ exercise, onAddSet, onRemove, onUpdateSet, onToggleSet, 
           </Pressable>
         </View>
 
-        <View style={styles.tableHeader}>
+        <View style={[styles.tableHeader, { borderBottomColor: theme.border }]}>
           <View style={styles.setCell}>
             <Text style={[styles.tableHeaderText, { color: theme.textMuted }]}>{t('workoutPrep.set')}</Text>
           </View>
