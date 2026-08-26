@@ -82,42 +82,19 @@ interface CardStyleConfig {
   secondaryTextColor: string;
   borderColor: string;
   accentColor: string;
+  blockBg: string;      // tinted background for the stat blocks
+  track: string;        // chart track
 }
 
 function getCardStyleConfig(style: CardStyle, isDark: boolean): CardStyleConfig {
   if (style === 'dark') {
-    return {
-      backgroundColor: '#07070B',
-      textColor: '#FFFFFF',
-      secondaryTextColor: '#9B9BB0',
-      borderColor: '#2A2A3E',
-      accentColor: Colors.electric,
-    };
+    return { backgroundColor: '#07070B', textColor: '#FFFFFF', secondaryTextColor: '#9B9BB0', borderColor: '#2A2A3E', accentColor: Colors.electric, blockBg: 'rgba(255,255,255,0.06)', track: '#2A2A3E' };
   } else if (style === 'gradient') {
-    return {
-      backgroundColor: Colors.electric,
-      textColor: '#FFFFFF',
-      secondaryTextColor: '#E0E0E0',
-      borderColor: '#009B78',
-      accentColor: '#FFFFFF',
-    };
+    return { backgroundColor: Colors.electric, textColor: '#FFFFFF', secondaryTextColor: '#EAFBF4', borderColor: '#009B78', accentColor: '#FFFFFF', blockBg: 'rgba(255,255,255,0.16)', track: 'rgba(255,255,255,0.22)' };
   } else if (style === 'transparent') {
-    return {
-      backgroundColor: 'transparent',
-      textColor: '#FFFFFF',
-      secondaryTextColor: '#E6E6F0',
-      borderColor: 'rgba(255,255,255,0.25)',
-      accentColor: Colors.electric,
-    };
-  } else {
-    return {
-      backgroundColor: '#F5F5FA',
-      textColor: '#111118',
-      secondaryTextColor: '#6B6B80',
-      borderColor: '#E5E5EE',
-      accentColor: Colors.electric,
-    };
+    return { backgroundColor: 'transparent', textColor: '#FFFFFF', secondaryTextColor: '#E6E6F0', borderColor: 'rgba(255,255,255,0.25)', accentColor: Colors.electric, blockBg: 'rgba(255,255,255,0.10)', track: 'rgba(255,255,255,0.20)' };
   }
+  return { backgroundColor: '#F5F5FA', textColor: '#111118', secondaryTextColor: '#6B6B80', borderColor: '#E5E5EE', accentColor: Colors.electric, blockBg: 'rgba(0,0,0,0.04)', track: '#E5E5EE' };
 }
 
 // Minimal horizontal bar chart (RN views — captures reliably, no SVG needed).
@@ -178,60 +155,51 @@ function ShareCard({
         {formatDate(currentLog.date)}{currentLog.startTime && !isNaN(new Date(currentLog.startTime).getTime()) ? ` · ${formatTime(currentLog.startTime)}` : ''}
       </Text>
 
-      {/* Divider */}
-      <View style={[styles.divider, { borderTopColor: styleConfig.secondaryTextColor }]} />
-
-      {/* Stats row */}
+      {/* Stat blocks */}
       <View style={styles.statsRow}>
-        <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: styleConfig.textColor }]}>{formatDuration(currentLog.durationMinutes)}</Text>
-          <Text style={[styles.statLabel, { color: styleConfig.secondaryTextColor }]}>{t('workoutSession.duration')}</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: styleConfig.textColor }]}>{formatVolume(currentLog.totalVolumeKg)}</Text>
-          <Text style={[styles.statLabel, { color: styleConfig.secondaryTextColor }]}>{t('workoutSession.volume')}</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: styleConfig.textColor }]}>{t('workoutSession.setsValue', { n: currentLog.completedSets })}</Text>
-          <Text style={[styles.statLabel, { color: styleConfig.secondaryTextColor }]}>{t('workoutSession.completed')}</Text>
-        </View>
+        {[
+          { v: formatDuration(currentLog.durationMinutes), l: t('workoutSession.duration') },
+          { v: formatVolume(currentLog.totalVolumeKg), l: t('workoutSession.volume') },
+          { v: t('workoutSession.setsValue', { n: currentLog.completedSets }), l: t('workoutSession.completed') },
+        ].map((st, i) => (
+          <View key={i} style={[styles.statBlock, { backgroundColor: styleConfig.blockBg }]}>
+            <Text style={[styles.statValue, { color: styleConfig.textColor }]} numberOfLines={1} adjustsFontSizeToFit>{st.v}</Text>
+            <Text style={[styles.statLabel, { color: styleConfig.secondaryTextColor }]}>{st.l}</Text>
+          </View>
+        ))}
       </View>
-
-      {/* Divider */}
-      <View style={[styles.divider, { borderTopColor: styleConfig.secondaryTextColor }]} />
 
       {/* Top exercises — mini bar chart (falls back to a name list when no per-set data) */}
       {chartData.length > 0 ? (
-        <View style={{ gap: 8 }}>
+        <View style={{ gap: 10, marginTop: 18 }}>
           <Text style={[styles.chartTitle, { color: styleConfig.secondaryTextColor }]}>{t('workoutSession.topExercises', { defaultValue: 'Top exercises' })}</Text>
-          <MiniBars data={chartData} accent={styleConfig.accentColor} textColor={styleConfig.textColor} secondaryColor={styleConfig.secondaryTextColor} track={isGradient || style === 'transparent' ? 'rgba(255,255,255,0.18)' : styleConfig.borderColor} />
+          <MiniBars data={chartData} accent={styleConfig.accentColor} textColor={styleConfig.textColor} secondaryColor={styleConfig.secondaryTextColor} track={styleConfig.track} />
         </View>
       ) : (
-        <Text style={[styles.exercisesText, { color: styleConfig.textColor }]}>{exerciseNames}</Text>
+        <Text style={[styles.exercisesText, { color: styleConfig.textColor, marginTop: 16 }]}>{exerciseNames}</Text>
       )}
 
-      {/* Divider */}
-      <View style={[styles.divider, { borderTopColor: styleConfig.secondaryTextColor }]} />
+      {/* Top lift + comparison pill */}
+      <View style={styles.highlightRow}>
+        {topLift && (
+          <Text style={[styles.topLiftText, { color: styleConfig.textColor, flex: 1 }]} numberOfLines={1}>
+            {t('workoutSession.topLift', { name: topLift.name, weight: topLift.weight })}
+          </Text>
+        )}
+        <View style={[styles.pill, { backgroundColor: styleConfig.accentColor + (isGradient ? '' : '22') }]}>
+          <Text style={[styles.pillText, { color: isGradient ? '#04120B' : styleConfig.accentColor }]}>
+            {comparison
+              ? t('workoutSession.volumeVsLastSession', { arrow: comparison.volumePct >= 0 ? '▲' : '▼', pct: Math.abs(parseFloat(comparison.volumePct)).toFixed(1) })
+              : t('workoutSession.firstTime')}
+          </Text>
+        </View>
+      </View>
 
-      {/* Top lift and comparison */}
-      {topLift && (
-        <Text style={[styles.topLiftText, { color: styleConfig.textColor }]}>
-          {t('workoutSession.topLift', { name: topLift.name, weight: topLift.weight })}
-        </Text>
-      )}
-      {comparison ? (
-        <Text style={[styles.comparisonText, { color: styleConfig.accentColor }]}>
-          {t('workoutSession.volumeVsLastSession', { arrow: comparison.volumePct >= 0 ? '▲' : '▼', pct: Math.abs(parseFloat(comparison.volumePct)).toFixed(1) })}
-        </Text>
-      ) : (
-        <Text style={[styles.comparisonText, { color: styleConfig.accentColor }]}>{t('workoutSession.firstTime')}</Text>
-      )}
-
-      {/* Divider */}
-      <View style={[styles.divider, { borderTopColor: styleConfig.secondaryTextColor }]} />
-
-      {/* Username */}
-      <Text style={[styles.usernameText, { color: styleConfig.secondaryTextColor }]}>@{user?.username || 'user'}</Text>
+      {/* Footer */}
+      <View style={[styles.footerRow, { borderTopColor: styleConfig.borderColor }]}>
+        <Text style={[styles.usernameText, { color: styleConfig.secondaryTextColor }]}>@{user?.username || 'user'}</Text>
+        <Text style={[styles.footerBrand, { color: styleConfig.accentColor }]}>NAFAS</Text>
+      </View>
     </View>
   );
 
@@ -271,20 +239,27 @@ export default function ShareWorkoutScreen() {
   //   which react-native-web unconditionally throws on ("findNodeHandle is not supported
   //   on web"). Capture the card's DOM node directly with html2canvas (already a dependency
   //   of react-native-view-shot) and return a data URI.
-  const capture = async (): Promise<string> => {
-    if (Platform.OS === 'web') {
-      const node = webCardRef.current as unknown as HTMLElement | null;
-      if (!node) throw new Error('Card is not ready to capture yet.');
-      const h2c = require('html2canvas');
-      const html2canvas = h2c.default || h2c;
-      const canvas = await html2canvas(node, {
-        backgroundColor: null, // preserve rounded corners + transparent-style alpha
-        scale: (typeof window !== 'undefined' && window.devicePixelRatio) || 2,
-        useCORS: true,
-        logging: false,
-      });
-      return canvas.toDataURL('image/png', 1);
-    }
+  const fileName = () => `nafas-${(currentLog?.name || 'workout').replace(/\s+/g, '-').toLowerCase()}.png`;
+
+  // web capture via html2canvas → returns a Blob. Node fetched by id (RN-web maps
+  // nativeID → DOM id) which is more reliable than a forwarded View ref.
+  const captureWebBlob = async (): Promise<Blob> => {
+    const node = (typeof document !== 'undefined' && document.getElementById('nafas-share-card')) as HTMLElement | null;
+    if (!node) throw new Error('Card is not ready to capture yet.');
+    const h2c = require('html2canvas');
+    const html2canvas = h2c.default || h2c;
+    const canvas = await html2canvas(node, {
+      backgroundColor: null, // preserve rounded corners + transparent-style alpha
+      scale: (typeof window !== 'undefined' && window.devicePixelRatio) || 2,
+      useCORS: true,
+      logging: false,
+    });
+    return await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob((b: Blob | null) => (b ? resolve(b) : reject(new Error('Could not render the image.'))), 'image/png', 1));
+  };
+
+  // native capture via the ViewShot instance (never captureRef/findNodeHandle)
+  const captureNativeUri = async (): Promise<string> => {
     const vs: any = shotRef.current;
     if (!vs || typeof vs.capture !== 'function') throw new Error('Capture is not available.');
     return await vs.capture();
@@ -295,15 +270,28 @@ export default function ShareWorkoutScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setBusy('save');
     try {
-      const uri = await capture();
       if (Platform.OS === 'web') {
-        // browser download (no gallery API on web)
+        const blob = await captureWebBlob();
+        const name = fileName();
+        const nav: any = typeof navigator !== 'undefined' ? navigator : null;
+        // iOS PWA: a programmatic <a download> often won't save; the Web Share API
+        // opens the OS share sheet ("Save Image" → Photos). Fall back to a download.
+        try {
+          const file = new File([blob], name, { type: 'image/png' });
+          if (nav?.canShare?.({ files: [file] })) {
+            await nav.share({ files: [file], title: currentLog?.name || 'Nafas' });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            return;
+          }
+        } catch { /* user cancelled share, or unsupported → download */ }
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = uri; a.download = `nafas-${(currentLog?.name || 'workout').replace(/\s+/g, '-').toLowerCase()}.png`;
-        document.body.appendChild(a); a.click(); a.remove();
+        a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         return;
       }
+      const uri = await captureNativeUri();
       const MediaLibrary = require('expo-media-library');
       const perm = await MediaLibrary.requestPermissionsAsync();
       if (!perm.granted) { alertDialog(t('workoutSession.galleryPermission', { defaultValue: 'Allow photo access to save the image.' }), ''); return; }
@@ -320,10 +308,18 @@ export default function ShareWorkoutScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setBusy('share');
     try {
-      const uri = await capture();
-      const Sharing = require('expo-sharing');
-      if (Sharing.isAvailableAsync && (await Sharing.isAvailableAsync())) { await Sharing.shareAsync(uri); }
-      else handleShare();
+      if (Platform.OS === 'web') {
+        const blob = await captureWebBlob();
+        const nav: any = typeof navigator !== 'undefined' ? navigator : null;
+        const file = new File([blob], fileName(), { type: 'image/png' });
+        if (nav?.canShare?.({ files: [file] })) { await nav.share({ files: [file], title: currentLog?.name || 'Nafas' }); }
+        else handleShare();
+      } else {
+        const uri = await captureNativeUri();
+        const Sharing = require('expo-sharing');
+        if (Sharing.isAvailableAsync && (await Sharing.isAvailableAsync())) { await Sharing.shareAsync(uri); }
+        else handleShare();
+      }
     } catch { handleShare(); }
     finally { setBusy(null); }
   };
@@ -393,7 +389,7 @@ export default function ShareWorkoutScreen() {
         {/* Card Preview (captured to PNG) — transparent style is checkerboarded for clarity */}
         <Animated.View entering={FadeInDown.delay(100).springify()} style={cardStyle === 'transparent' ? styles.checker : undefined}>
           <ViewShot ref={shotRef} options={{ format: 'png', quality: 1, result: 'tmpfile' }}>
-            <View ref={webCardRef} collapsable={false}>
+            <View ref={webCardRef} nativeID="nafas-share-card" collapsable={false}>
               <ShareCard
                 style={cardStyle}
                 currentLog={currentLog}
@@ -518,21 +514,53 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginVertical: 4,
+    gap: 8,
+    marginTop: 20,
   },
-  statItem: {
-    alignItems: 'center',
+  statBlock: {
     flex: 1,
-    gap: 4,
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 14,
+    paddingHorizontal: 6,
+    borderRadius: 14,
   },
   statValue: {
     fontFamily: Fonts.monoBold,
-    fontSize: 20,
+    fontSize: 18,
   },
   statLabel: {
     ...Type.caption,
+    fontSize: 10,
     textTransform: 'uppercase',
+  },
+  highlightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 18,
+  },
+  pill: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+  },
+  pillText: {
+    fontFamily: Fonts.bold,
+    fontSize: 13,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+  },
+  footerBrand: {
+    fontFamily: Fonts.bold,
+    fontSize: 13,
+    letterSpacing: 1.5,
   },
   exercisesText: {
     fontFamily: Fonts.medium,

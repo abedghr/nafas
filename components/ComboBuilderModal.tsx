@@ -87,16 +87,10 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
   const close = () => { reset(); onClose(); };
 
   const allExercises = useMemo(() => {
-    const lib = exerciseLibrary.map(e => ({
-      id: e.id, name: e.name, muscleGroup: e.muscleGroup,
-      primaryMuscle: e.primaryMuscle, equipment: e.equipment || '', imageUrl: e.imageUrl || '',
-      nameEn: e.nameEn, nameAr: e.nameAr,
-    }));
-    const custom = customExercises.map(e => ({
-      id: e.id, name: e.name, muscleGroup: e.muscleGroup,
-      primaryMuscle: e.primaryMuscle, equipment: e.equipment || '', imageUrl: e.imageUrl || '',
-      nameEn: e.name, nameAr: null,
-    }));
+    // keep the FULL exercise (gifUrl/imageUrl/description/bodyTargets/instructions) so combo
+    // rows show the same media + info as the main exercise picker (single source of truth)
+    const lib = exerciseLibrary.map(e => ({ ...e, equipment: e.equipment || '', imageUrl: e.imageUrl || '' }));
+    const custom = customExercises.map(e => ({ ...e, equipment: e.equipment || '', imageUrl: e.imageUrl || '', nameEn: e.name, nameAr: null }));
     return [...lib, ...custom];
   }, [customExercises]);
 

@@ -357,25 +357,11 @@ export default function CoachScreen() {
                 </Animated.View>
               )}
 
-              {activeEnrollment ? (
+              {/* today's program card only when enrolled — the 'Programs' tile below covers
+                  navigation when there's no active program (no redundant banner) */}
+              {activeEnrollment && (
                 <Animated.View entering={FadeInDown.duration(400)}>
                   <ProgramTodayCard />
-                </Animated.View>
-              ) : (
-                <Animated.View entering={FadeInDown.duration(400)} style={{ paddingHorizontal: 20 }}>
-                  <Pressable
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/programs' as any); }}
-                    style={({ pressed }) => [s.noProgramCard, { backgroundColor: theme.card, opacity: pressed ? 0.9 : 1 }]}
-                  >
-                    <View style={[s.aiSmallBadge, { backgroundColor: Colors.electric + '22', width: 34, height: 34 }]}>
-                      <Ionicons name="flag-outline" size={17} color={Colors.electric} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[s.planPreviewTitle, { color: theme.text }]}>{t('programs.noActiveProgram', { defaultValue: 'No active program' })}</Text>
-                      <Text style={[s.planPreviewSub, { color: theme.textMuted }]}>{t('programs.startOneToTrack', { defaultValue: 'Start a program to follow day by day' })}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
-                  </Pressable>
                 </Animated.View>
               )}
 
