@@ -57,6 +57,10 @@ export const inbodyTests = pgTable("inbody_tests", {
   bmr: doublePrecision("bmr"),
   visceralFat: doublePrecision("visceral_fat"),
   skeletalMuscle: doublePrecision("skeletal_muscle"),
+  // full InBody sheet long-tail: composition (protein/minerals/fatMass/fatFreeMass),
+  // analysis (waistHipRatio/smi/obesityDegree/recommendedCalories/inbodyScore),
+  // segmentalLean/segmentalFat {leftArm,rightArm,trunk,leftLeg,rightLeg} in kg, sheet targets.
+  details: jsonb("details").$type<Record<string, any>>(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => ({ userDateIdx: index("inbody_user_date_idx").on(t.userId, t.date) }));
 

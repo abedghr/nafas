@@ -39,6 +39,8 @@ export const InBodyInputSchema = z.object({
   weight: z.number().optional(), muscleMass: z.number().optional(), bodyFat: z.number().optional(),
   bodyWater: z.number().optional(), bmi: z.number().optional(), bmr: z.number().optional(),
   visceralFat: z.number().optional(), skeletalMuscle: z.number().optional(),
+  // full InBody sheet long-tail (composition, analysis, segmental, sheet targets)
+  details: z.record(z.string(), z.any()).optional(),
 }).openapi("InBodyInput");
 
 // upload a photo/PDF of an InBody sheet → parse (no save; user reviews first)

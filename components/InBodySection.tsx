@@ -48,6 +48,127 @@ function calcDelta(current: number, previous: number) {
   return { diff: Math.round(diff * 10) / 10, pct: Math.round(pct * 10) / 10 };
 }
 
+const numify = (v: any): number | undefined => { const n = Number(v); return Number.isFinite(n) && n !== 0 ? n : undefined; };
+
+// the five InBody segmental regions
+const SEG_REGIONS: { key: string; labelKey: string; label: string; side: 'arm' | 'trunk' | 'leg' }[] = [
+  { key: 'leftArm', labelKey: 'inbody.segLeftArm', label: 'Left arm', side: 'arm' },
+  { key: 'rightArm', labelKey: 'inbody.segRightArm', label: 'Right arm', side: 'arm' },
+  { key: 'trunk', labelKey: 'inbody.segTrunk', label: 'Trunk', side: 'trunk' },
+  { key: 'leftLeg', labelKey: 'inbody.segLeftLeg', label: 'Left leg', side: 'leg' },
+  { key: 'rightLeg', labelKey: 'inbody.segRightLeg', label: 'Right leg', side: 'leg' },
+];
+
+// long-tail metrics from the full sheet, shown as a read-only breakdown grid
+const DETAIL_METRICS: { key: string; labelKey: string; label: string; unit: string; icon: string }[] = [
+  { key: 'fatFreeMass', labelKey: 'inbody.fatFreeMass', label: 'Fat-free mass', unit: 'kg', icon: 'body-outline' },
+  { key: 'fatMass', labelKey: 'inbody.fatMass', label: 'Body fat mass', unit: 'kg', icon: 'pie-chart-outline' },
+  { key: 'protein', labelKey: 'inbody.protein', label: 'Protein', unit: 'kg', icon: 'egg-outline' },
+  { key: 'minerals', labelKey: 'inbody.minerals', label: 'Minerals', unit: 'kg', icon: 'sparkles-outline' },
+  { key: 'waistHipRatio', labelKey: 'inbody.whr', label: 'Waist-hip ratio', unit: '', icon: 'ellipse-outline' },
+  { key: 'smi', labelKey: 'inbody.smi', label: 'SMI', unit: 'kg/m²', icon: 'stats-chart-outline' },
+  { key: 'obesityDegree', labelKey: 'inbody.obesityDegree', label: 'Obesity degree', unit: '%', icon: 'speedometer-outline' },
+  { key: 'recommendedCalories', labelKey: 'inbody.recommendedCalories', label: 'Recommended intake', unit: 'kcal', icon: 'restaurant-outline' },
+  { key: 'inbodyScore', labelKey: 'inbody.inbodyScore', label: 'InBody score', unit: 'pts', icon: 'trophy-outline' },
+  { key: 'targetWeight', labelKey: 'inbody.targetWeight', label: 'Target weight', unit: 'kg', icon: 'flag-outline' },
+  { key: 'fatControl', labelKey: 'inbody.fatControl', label: 'Fat control', unit: 'kg', icon: 'remove-circle-outline' },
+  { key: 'muscleControl', labelKey: 'inbody.muscleControl', label: 'Muscle control', unit: 'kg', icon: 'add-circle-outline' },
+];
+
+// keys that live in `details` (everything the parse returns beyond the core columns)
+const DETAIL_KEYS = [...DETAIL_METRICS.map((d) => d.key), 'segmentalLean', 'segmentalFat'];
+function pickDetails(r: Record<string, any>): Record<string, any> {
+  const d: Record<string, any> = {};
+  for (const k of DETAIL_KEYS) if (r[k] != null) d[k] = r[k];
+  return d;
+}
+
+// Horizontal stacked bar of body mass → Fat / Muscle / Water / Other (kg). Derives
+// fat mass from body-fat % when the sheet didn't print it. The signature InBody chart.
+function CompositionBar({ test, theme, t }: { test: any; theme: any; t: any }) {
+  const details = test?.details || {};
+  const weight = numify(test?.weight);
+  if (!weight) return null;
+  const fat = numify(details.fatMass) ?? (numify(test?.bodyFat) ? Math.round((weight * Number(test.bodyFat) / 100) * 10) / 10 : undefined);
+  const muscle = numify(test?.muscleMass);
+  const water = numify(test?.bodyWater);
+  const known = (fat || 0) + (muscle || 0) + (water || 0);
+  const other = known > 0 && known < weight ? Math.round((weight - known) * 10) / 10 : 0;
+  const segs = [
+    { label: t('workoutTab.metricMuscleMass', { defaultValue: 'Muscle' }), val: muscle, color: Colors.ring.blue },
+    { label: t('inbody.compFat', { defaultValue: 'Fat' }), val: fat, color: Colors.accent },
+    { label: t('inbody.compWater', { defaultValue: 'Water' }), val: water, color: Colors.ring.green },
+    { label: t('inbody.compOther', { defaultValue: 'Other' }), val: other, color: theme.textMuted },
+  ].filter((x) => x.val && x.val > 0) as { label: string; val: number; color: string }[];
+  if (segs.length < 2) return null;
+  const total = segs.reduce((a, x) => a + x.val, 0);
+  return (
+    <View style={[s.chartCard, { backgroundColor: theme.card }]}>
+      <Text style={[s.chartTitle, { color: theme.text }]}>{t('inbody.composition', { defaultValue: 'Body composition' })}</Text>
+      <View style={s.compBar}>
+        {segs.map((x, i) => (
+          <View key={i} style={{ flex: x.val / total, backgroundColor: x.color, height: '100%' }} />
+        ))}
+      </View>
+      <View style={s.compLegend}>
+        {segs.map((x, i) => (
+          <View key={i} style={s.compLegendItem}>
+            <View style={[s.compDot, { backgroundColor: x.color }]} />
+            <Text style={[s.compLegendLabel, { color: theme.textSecondary }]}>{x.label}</Text>
+            <Text style={[s.compLegendVal, { color: theme.text }]}>{x.val}kg</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// Segmental lean-mass bars (5 regions). Highlights left/right & upper/lower balance.
+function SegmentalBars({ seg, theme, t, title }: { seg: any; theme: any; t: any; title: string }) {
+  if (!seg) return null;
+  const rows = SEG_REGIONS.map((r) => ({ ...r, val: numify(seg[r.key]) })).filter((r) => r.val);
+  if (rows.length < 2) return null;
+  const max = Math.max(...rows.map((r) => r.val as number));
+  const colorFor = (side: string) => side === 'trunk' ? Colors.electric : side === 'arm' ? Colors.ring.blue : Colors.ring.amber;
+  return (
+    <View style={[s.chartCard, { backgroundColor: theme.card }]}>
+      <Text style={[s.chartTitle, { color: theme.text }]}>{title}</Text>
+      {rows.map((r) => (
+        <View key={r.key} style={s.segRow}>
+          <Text style={[s.segLabel, { color: theme.textSecondary }]}>{t(r.labelKey, { defaultValue: r.label })}</Text>
+          <View style={[s.segTrack, { backgroundColor: theme.cardAlt }]}>
+            <View style={[s.segFill, { width: `${Math.round(((r.val as number) / max) * 100)}%`, backgroundColor: colorFor(r.side) }]} />
+          </View>
+          <Text style={[s.segVal, { color: theme.text }]}>{r.val}kg</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// Read-only grid of every extra metric detected on the sheet.
+function DetailGrid({ details, theme, t }: { details: any; theme: any; t: any }) {
+  if (!details) return null;
+  const items = DETAIL_METRICS.filter((m) => numify(details[m.key]) != null);
+  if (!items.length) return null;
+  const fmt = (m: typeof DETAIL_METRICS[number], v: number) =>
+    (m.key === 'fatControl' || m.key === 'muscleControl') ? `${v > 0 ? '+' : ''}${v}${m.unit}` : `${v}${m.unit}`;
+  return (
+    <View style={[s.chartCard, { backgroundColor: theme.card }]}>
+      <Text style={[s.chartTitle, { color: theme.text }]}>{t('inbody.fullBreakdown', { defaultValue: 'Full breakdown' })}</Text>
+      <View style={s.detailGrid}>
+        {items.map((m) => (
+          <View key={m.key} style={[s.detailItem, { borderColor: theme.border }]}>
+            <Ionicons name={m.icon as any} size={15} color={Colors.electric} />
+            <Text style={[s.detailVal, { color: theme.text }]} numberOfLines={1}>{fmt(m, Number(details[m.key]))}</Text>
+            <Text style={[s.detailLabel, { color: theme.textMuted }]} numberOfLines={1}>{t(m.labelKey, { defaultValue: m.label })}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 // numeric field keys shown in the review card (date handled separately)
 const REVIEW_FIELDS: { key: string; labelKey: string; unit: string }[] = [
   { key: 'weight', labelKey: 'workoutTab.fieldWeightKg', unit: 'kg' },
@@ -74,10 +195,11 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
   const [previewUri, setPreviewUri] = useState<string | undefined>();
   const [date, setDate] = useState('');
   const [vals, setVals] = useState<Record<string, string>>({});
+  const [details, setDetails] = useState<Record<string, any>>({});
   const [insight, setInsight] = useState<{ summary: string; suggestions?: string[] } | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
 
-  const reset = () => { setStage('upload'); setError(''); setPreviewUri(undefined); setDate(''); setVals({}); setInsight(null); setInsightLoading(false); };
+  const reset = () => { setStage('upload'); setError(''); setPreviewUri(undefined); setDate(''); setVals({}); setDetails({}); setInsight(null); setInsightLoading(false); };
 
   // AI coach opinion on the parsed result (async; hidden if AI unavailable)
   const loadInsight = (metrics: Record<string, unknown>) => {
@@ -97,13 +219,16 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
       const v: Record<string, string> = {};
       for (const f of REVIEW_FIELDS) if (r[f.key] != null) v[f.key] = String(r[f.key]);
       setVals(v);
+      const det = pickDetails(r);
+      setDetails(det);
       const testDate = r.date || new Date().toISOString().split('T')[0];
       setDate(testDate);
       setStage('review');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // fetch the coach's opinion on the detected values (async, non-blocking)
+      // fetch the coach's opinion on the full detected result (async, non-blocking)
       const metrics: Record<string, unknown> = { date: testDate };
       for (const f of REVIEW_FIELDS) if (r[f.key] != null) metrics[f.key] = Number(r[f.key]);
+      if (Object.keys(det).length) metrics.details = det;
       loadInsight(metrics);
     } catch (e: any) {
       const raw = String(e?.message ?? e);
@@ -142,6 +267,7 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
       date: date || new Date().toISOString().split('T')[0],
       weight: num('weight'), muscleMass: num('muscleMass'), bodyFat: num('bodyFat'), bodyWater: num('bodyWater'),
       bmi: num('bmi'), bmr: num('bmr'), visceralFat: num('visceralFat'), skeletalMuscle: num('skeletalMuscle'),
+      ...(Object.keys(details).length ? { details } : {}),
     });
     reset();
   };
@@ -226,6 +352,21 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
                 </View>
               )}
 
+              {(() => {
+                const pt = {
+                  weight: parseFloat(vals.weight), bodyFat: parseFloat(vals.bodyFat),
+                  muscleMass: parseFloat(vals.muscleMass), bodyWater: parseFloat(vals.bodyWater), details,
+                };
+                return (
+                  <>
+                    <CompositionBar test={pt} theme={theme} t={t} />
+                    <SegmentalBars seg={details.segmentalLean} theme={theme} t={t} title={t('inbody.segmentalLean', { defaultValue: 'Segmental lean (kg)' })} />
+                    <DetailGrid details={details} theme={theme} t={t} />
+                  </>
+                );
+              })()}
+
+              <Text style={[s.editHint, { color: theme.textMuted }]}>{t('inbody.editHint', { defaultValue: 'Check the core values below and fix anything before saving.' })}</Text>
               <View>
                 <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{t('inbody.testDate', { defaultValue: 'Test date' })}</Text>
                 <TextInput
@@ -426,6 +567,15 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, ta
             })}
           </View>
           <Text style={[s.inbodyDate, { color: theme.textMuted }]}>{t('workoutTab.recorded', { date: latestInBody.date })}</Text>
+
+          {(latestInBody.details || latestInBody.muscleMass) && (
+            <View style={s.chartsWrap}>
+              <CompositionBar test={latestInBody} theme={theme} t={t} />
+              <SegmentalBars seg={latestInBody.details?.segmentalLean} theme={theme} t={t} title={t('inbody.segmentalLean', { defaultValue: 'Segmental lean (kg)' })} />
+              <SegmentalBars seg={latestInBody.details?.segmentalFat} theme={theme} t={t} title={t('inbody.segmentalFat', { defaultValue: 'Segmental fat (kg)' })} />
+              <DetailGrid details={latestInBody.details} theme={theme} t={t} />
+            </View>
+          )}
 
           <View style={s.sectionHead}><SectionHeader title={t('inbody.yourTarget', { defaultValue: 'Your target' })} /></View>
           <TargetCard target={target} latest={latestInBody} oldest={inBodyTests[inBodyTests.length - 1]} theme={theme} t={t} onEdit={onEditTarget} />
@@ -826,4 +976,24 @@ const s = StyleSheet.create({
   coachSug: { flex: 1, fontSize: 13, fontFamily: Fonts.regular, lineHeight: 18 },
   reuploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   reuploadText: { fontSize: 13, fontFamily: Fonts.medium },
+  editHint: { fontSize: 12, fontFamily: Fonts.regular, marginTop: 4, marginBottom: 2 },
+  // charts (shared: review card + saved latest view)
+  chartsWrap: { paddingHorizontal: 20, gap: 12, marginTop: 12 },
+  chartCard: { borderRadius: 16, padding: 14, gap: 12 },
+  chartTitle: { fontSize: 14, fontFamily: Fonts.semibold },
+  compBar: { flexDirection: 'row', height: 16, borderRadius: 8, overflow: 'hidden' },
+  compLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  compLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  compDot: { width: 9, height: 9, borderRadius: 3 },
+  compLegendLabel: { fontSize: 12, fontFamily: Fonts.medium },
+  compLegendVal: { fontSize: 12, fontFamily: Fonts.monoBold },
+  segRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  segLabel: { fontSize: 12, fontFamily: Fonts.medium, width: 66 },
+  segTrack: { flex: 1, height: 10, borderRadius: 5, overflow: 'hidden' },
+  segFill: { height: 10, borderRadius: 5 },
+  segVal: { fontSize: 12, fontFamily: Fonts.monoBold, width: 52, textAlign: 'right' },
+  detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  detailItem: { width: (SW - 40 - 28 - 16) / 3, borderWidth: 1, borderRadius: 12, padding: 10, gap: 3, alignItems: 'flex-start' },
+  detailVal: { fontSize: 15, fontFamily: Fonts.monoBold },
+  detailLabel: { fontSize: 10.5, fontFamily: Fonts.regular },
 });
