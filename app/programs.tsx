@@ -137,7 +137,9 @@ export default function ProgramsScreen() {
                   style={({ pressed }) => [{ opacity: pressed ? 0.92 : expired ? 0.5 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] }]}
                 >
                   <View style={[s.programCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                    <ProgressRing value={progress} size={56} stroke={5} color={expired ? theme.textMuted : Colors.electric} />
+                    <View style={[s.programIcon, { backgroundColor: (expired ? theme.textMuted : Colors.electric) + '1F' }]}>
+                      <Ionicons name="flag" size={22} color={expired ? theme.textMuted : Colors.electric} />
+                    </View>
                     <View style={{ flex: 1 }}>
                       <Display variant="d3" color={theme.text} numberOfLines={1}>{p.name}</Display>
                       <View style={s.chipRow}>
@@ -146,9 +148,7 @@ export default function ProgramsScreen() {
                         {expired && <Chip label={t('programs.expired', { defaultValue: 'Expired' })} icon="time-outline" />}
                       </View>
                     </View>
-                    <Pressable onPress={() => handleDelete(p)} hitSlop={10} style={s.trashBtn}>
-                      <Ionicons name="trash-outline" size={18} color={Colors.semantic.danger} />
-                    </Pressable>
+                    <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
                   </View>
                 </Pressable>
               </Animated.View>
@@ -184,6 +184,7 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 12 },
   backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   programCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1 },
+  programIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   chipRow: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   trashBtn: { padding: 6 },
   inviteCard: { borderRadius: 18, padding: 14, marginBottom: 10, borderWidth: 1 },

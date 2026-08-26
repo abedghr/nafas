@@ -557,6 +557,24 @@ export default function ProgramBuilderScreen() {
             <Text style={[s.addWeekText, { color: Colors.electric }]}>{t('programs.addDay', { defaultValue: 'Add day' })}</Text>
           </Pressable>
         )}
+
+        {/* delete program — edit mode only, confirm required (kept off the list so it isn't a one-tap action) */}
+        {isEdit && (
+          <Pressable
+            onPress={async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              const ok = await confirmDialog({ title: t('programs.deleteProgram', { defaultValue: 'Delete program?' }), message: t('programs.deleteProgramConfirm', { name: program.name, defaultValue: `Delete "${program.name}"? This can't be undone.` }), destructive: true, confirmText: t('programs.delete', { defaultValue: 'Delete' }), cancelText: t('programs.cancel', { defaultValue: 'Cancel' }) });
+              if (!ok) return;
+              disposableRef.current = false; // don't double-delete on unmount
+              deleteProgram(String(id));
+              router.canGoBack() ? router.back() : router.replace('/programs' as any);
+            }}
+            style={({ pressed }) => [s.deleteProgramBtn, { borderColor: Colors.semantic.danger + '55', opacity: pressed ? 0.8 : 1 }]}
+          >
+            <Ionicons name="trash-outline" size={18} color={Colors.semantic.danger} />
+            <Text style={[s.deleteProgramText, { color: Colors.semantic.danger }]}>{t('programs.deleteProgram', { defaultValue: 'Delete program' })}</Text>
+          </Pressable>
+        )}
       </ScrollView>
 
       {/* view-as-text sheet */}
@@ -1009,6 +1027,11 @@ const s = StyleSheet.create({
     paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', marginTop: 4,
   },
   addWeekText: { fontSize: 14, fontWeight: '700' },
+  deleteProgramBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 14, borderRadius: 14, borderWidth: 1, marginTop: 24,
+  },
+  deleteProgramText: { fontSize: 14, fontWeight: '700' },
   buildBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
     paddingVertical: 13, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed',
