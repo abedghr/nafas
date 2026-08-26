@@ -1272,6 +1272,10 @@ export default function PrepareWorkoutScreen() {
     customExercises, addCustomExercise, user, workoutTypes, programs, updateProgram, activeEnrollment, isDark,
   } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
+  // header/footer fades derived from the theme background (were hardcoded dark navy → a
+  // black smear over the buttons in light mode)
+  const fadeRGB = isDark ? '7,7,11' : '245,245,250';
+  const fadeSolid = `rgba(${fadeRGB},1)`, fadeMid = `rgba(${fadeRGB},0.95)`, fadeSoft = `rgba(${fadeRGB},0.7)`;
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [workoutName, setWorkoutName] = useState('');
@@ -1594,7 +1598,7 @@ export default function PrepareWorkoutScreen() {
     <View style={[s.container, { backgroundColor: theme.background }]}>
       <View style={[s.header, { paddingTop: topPad + 8 }]}>
         <LinearGradient
-          colors={['rgba(10,10,15,0.95)', 'rgba(10,10,15,0.7)', 'transparent']}
+          colors={[fadeMid, fadeSoft, 'transparent']}
           style={StyleSheet.absoluteFill}
         />
         <Pressable onPress={() => router.back()} hitSlop={12} style={s.backBtn}>
@@ -1753,7 +1757,7 @@ export default function PrepareWorkoutScreen() {
 
       <View style={[s.bottomBar, { paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 8 }]}>
         <LinearGradient
-          colors={['transparent', 'rgba(10,10,15,0.95)', 'rgba(10,10,15,1)']}
+          colors={['transparent', fadeMid, fadeSolid]}
           style={StyleSheet.absoluteFill}
         />
         {(() => {
@@ -1769,7 +1773,7 @@ export default function PrepareWorkoutScreen() {
           return (
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
               {chips.map((c) => (
-                <Pressable key={c.label} onPress={c.onPress} style={({ pressed }) => [s.addChip, { borderColor: c.color + '80', opacity: !resolvedName ? 0.4 : pressed ? 0.8 : 1 }]}>
+                <Pressable key={c.label} onPress={c.onPress} style={({ pressed }) => [s.addChip, { borderColor: c.color + '80', backgroundColor: c.color + (isDark ? '14' : '10'), opacity: !resolvedName ? 0.45 : pressed ? 0.8 : 1 }]}>
                   <Ionicons name={c.icon} size={16} color={c.color} />
                   <Text style={[s.addChipText, { color: c.color }]} numberOfLines={1}>{c.label}</Text>
                 </Pressable>
