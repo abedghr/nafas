@@ -43,6 +43,7 @@ export const extraEn = {
     whr: "Waist-hip ratio", smi: "SMI", obesityDegree: "Obesity degree",
     recommendedCalories: "Recommended intake", inbodyScore: "InBody score",
     targetWeight: "Target weight", fatControl: "Fat control", muscleControl: "Muscle control",
+    viewSheet: "View sheet", allTests: "All tests", tapToOpen: "Tap to view full result", testDetail: "Test result",
   },
   mealTypeTag: {
     breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack",
@@ -278,6 +279,7 @@ export const extraAr = {
     whr: "نسبة الخصر إلى الورك", smi: "مؤشر العضلات الهيكلية", obesityDegree: "درجة السمنة",
     recommendedCalories: "السعرات الموصى بها", inbodyScore: "نقاط إنبادي",
     targetWeight: "الوزن المستهدف", fatControl: "التحكم بالدهون", muscleControl: "التحكم بالعضلات",
+    viewSheet: "عرض الورقة", allTests: "جميع الفحوصات", tapToOpen: "اضغط لعرض النتيجة كاملة", testDetail: "نتيجة الفحص",
   },
   mealTypeTag: {
     breakfast: "فطور", lunch: "غداء", dinner: "عشاء", snack: "وجبة خفيفة",

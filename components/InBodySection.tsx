@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
@@ -32,6 +33,15 @@ async function uriToBase64(uri: string): Promise<string> {
   return FS.readAsStringAsync(uri, { encoding: 'base64' });
 }
 
+// downscale + re-encode any image (incl. HEIC) to a compact JPEG. Used for BOTH the
+// AI parse (Gemini reads JPEG, not HEIC) and for storing a viewable copy of the sheet.
+async function compressToJpeg(uri: string): Promise<{ uri: string; base64: string }> {
+  const r = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: 1400 } }], {
+    compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true,
+  });
+  return { uri: r.uri, base64: r.base64 || '' };
+}
+
 function getTimeDiffLabel(dateStr: string, t: (key: string, opts?: any) => string) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -49,6 +59,8 @@ function calcDelta(current: number, previous: number) {
 }
 
 const numify = (v: any): number | undefined => { const n = Number(v); return Number.isFinite(n) && n !== 0 ? n : undefined; };
+// the muscle figure for a test: soft-lean muscle mass if the sheet printed it, else SMM (skeletal muscle mass)
+const muscleOf = (test: any): number => Number(test?.muscleMass) || Number(test?.skeletalMuscle) || 0;
 
 // the five InBody segmental regions
 const SEG_REGIONS: { key: string; labelKey: string; label: string; side: 'arm' | 'trunk' | 'leg' }[] = [
@@ -90,7 +102,7 @@ function CompositionBar({ test, theme, t }: { test: any; theme: any; t: any }) {
   const weight = numify(test?.weight);
   if (!weight) return null;
   const fat = numify(details.fatMass) ?? (numify(test?.bodyFat) ? Math.round((weight * Number(test.bodyFat) / 100) * 10) / 10 : undefined);
-  const muscle = numify(test?.muscleMass);
+  const muscle = numify(test?.muscleMass) ?? numify(test?.skeletalMuscle); // SMM is the muscle figure when no separate soft-lean mass
   const water = numify(test?.bodyWater);
   const known = (fat || 0) + (muscle || 0) + (water || 0);
   const other = known > 0 && known < weight ? Math.round((weight - known) * 10) / 10 : 0;
@@ -196,10 +208,11 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
   const [date, setDate] = useState('');
   const [vals, setVals] = useState<Record<string, string>>({});
   const [details, setDetails] = useState<Record<string, any>>({});
+  const [imageB64, setImageB64] = useState<string>(''); // compact JPEG of the sheet, saved with the test
   const [insight, setInsight] = useState<{ summary: string; suggestions?: string[] } | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
 
-  const reset = () => { setStage('upload'); setError(''); setPreviewUri(undefined); setDate(''); setVals({}); setDetails({}); setInsight(null); setInsightLoading(false); };
+  const reset = () => { setStage('upload'); setError(''); setPreviewUri(undefined); setDate(''); setVals({}); setDetails({}); setImageB64(''); setInsight(null); setInsightLoading(false); };
 
   // AI coach opinion on the parsed result (async; hidden if AI unavailable)
   const loadInsight = (metrics: Record<string, unknown>) => {
@@ -243,19 +256,33 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
   };
 
   const pickImage = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.7 });
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
     if (res.canceled || !res.assets?.[0]) return;
-    const a = res.assets[0];
-    runParse({ mimeType: a.mimeType || 'image/jpeg', data: a.base64 || '' }, a.uri);
+    try {
+      // re-encode to JPEG (handles HEIC + shrinks) for both the AI read and the stored copy
+      const jpeg = await compressToJpeg(res.assets[0].uri);
+      if (!jpeg.base64) throw new Error('read failed');
+      setImageB64(jpeg.base64);
+      runParse({ mimeType: 'image/jpeg', data: jpeg.base64 }, jpeg.uri);
+    } catch {
+      setError(t('aiCreate.fileFailed', { defaultValue: 'Could not read that file. PDF or a clear photo works best.' }));
+    }
   };
   const pickFile = async () => {
     try {
       const res = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'], copyToCacheDirectory: true, multiple: false });
       if (res.canceled || !res.assets?.[0]) return;
       const a = res.assets[0];
-      const data = await uriToBase64(a.uri);
+      if ((a.mimeType || '').startsWith('image')) {
+        const jpeg = await compressToJpeg(a.uri);
+        if (!jpeg.base64) throw new Error('read failed');
+        setImageB64(jpeg.base64);
+        runParse({ mimeType: 'image/jpeg', data: jpeg.base64 }, jpeg.uri);
+        return;
+      }
+      const data = await uriToBase64(a.uri); // PDF: no stored image preview
       if (!data) throw new Error('read failed');
-      runParse({ mimeType: a.mimeType || 'application/pdf', data }, a.mimeType?.startsWith('image') ? a.uri : undefined);
+      runParse({ mimeType: a.mimeType || 'application/pdf', data }, undefined);
     } catch {
       setError(t('aiCreate.fileFailed', { defaultValue: 'Could not read that file. PDF or a clear photo works best.' }));
     }
@@ -263,11 +290,12 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
 
   const commit = () => {
     const num = (k: string) => { const n = parseFloat(vals[k]); return Number.isFinite(n) ? n : 0; };
+    const fullDetails = { ...details, ...(imageB64 ? { image: imageB64, imageMime: 'image/jpeg' } : {}) };
     onSave({
       date: date || new Date().toISOString().split('T')[0],
       weight: num('weight'), muscleMass: num('muscleMass'), bodyFat: num('bodyFat'), bodyWater: num('bodyWater'),
       bmi: num('bmi'), bmr: num('bmr'), visceralFat: num('visceralFat'), skeletalMuscle: num('skeletalMuscle'),
-      ...(Object.keys(details).length ? { details } : {}),
+      ...(Object.keys(fullDetails).length ? { details: fullDetails } : {}),
     });
     reset();
   };
@@ -404,9 +432,10 @@ function InBodyUploadModal({ visible, onClose, onSave }: { visible: boolean; onC
   );
 }
 
-function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, target, onEditTarget }: {
+function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, target, onEditTarget, onViewImage, onOpenTest }: {
   inBodyTests: any[]; latestInBody: any; theme: any; onAddTest: () => void; userHeight?: number;
   target: { weight?: number; bodyFat?: number; skeletalMuscle?: number } | null; onEditTarget: () => void;
+  onViewImage: (b64: string, mime?: string) => void; onOpenTest: (test: any) => void;
 }) {
   const { t } = useTranslation();
   // BMI is derivable from weight + height when not entered manually
@@ -433,10 +462,11 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, ta
     { key: 'bodyFat', label: t('workoutTab.metricBodyFat'), icon: 'pie-chart-outline', color: Colors.accent, unit: '%', higherIsBetter: false },
     { key: 'muscleMass', label: t('workoutTab.metricMuscleMass'), icon: 'barbell-outline', color: Colors.ring.blue, unit: 'kg', higherIsBetter: true },
     { key: 'bmi', label: t('workoutTab.metricBmi'), icon: 'analytics-outline', color: Colors.ring.amber, unit: '', higherIsBetter: false },
-    { key: 'bodyWater', label: t('workoutTab.metricBodyWater'), icon: 'water-outline', color: Colors.ring.blue, unit: '%', higherIsBetter: true },
+    { key: 'bodyWater', label: t('workoutTab.metricBodyWater'), icon: 'water-outline', color: Colors.ring.blue, unit: 'L', higherIsBetter: true },
     { key: 'bmr', label: t('workoutTab.metricBmr'), icon: 'flame-outline', color: Colors.accent, unit: 'kcal', higherIsBetter: true },
     { key: 'visceralFat', label: t('workoutTab.metricVisceralFat'), icon: 'heart-outline', color: Colors.semantic.danger, unit: '', higherIsBetter: false },
-    { key: 'skeletalMuscle', label: t('workoutTab.metricSkeletalMuscle'), icon: 'body-outline', color: Colors.electric, unit: '%', higherIsBetter: true },
+    // SMM (Skeletal Muscle Mass) is the primary muscle number — a mass in kg, not a percentage
+    { key: 'skeletalMuscle', label: t('workoutTab.metricSkeletalMuscle'), icon: 'body-outline', color: Colors.electric, unit: 'kg', higherIsBetter: true },
   ];
 
   const getComparisonData = (metricKey: string, higherIsBetter: boolean) => {
@@ -455,7 +485,7 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, ta
 
     if (previousInBody) {
       const fatDelta = calcDelta(latestInBody.bodyFat, previousInBody.bodyFat);
-      const muscleDelta = calcDelta(latestInBody.muscleMass, previousInBody.muscleMass);
+      const muscleDelta = calcDelta(muscleOf(latestInBody), muscleOf(previousInBody));
       if (fatDelta.diff < 0 && muscleDelta.diff > 0) {
         insights.push({ icon: 'trophy', color: '#FFD93D', text: t('workoutTab.bcGreatProgress', { fat: Math.abs(fatDelta.diff), muscle: muscleDelta.diff }), type: 'positive' });
       } else if (fatDelta.diff < 0) {
@@ -472,7 +502,7 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, ta
 
     if (test1yr) {
       const yearFatDelta = calcDelta(latestInBody.bodyFat, test1yr.bodyFat);
-      const yearMuscleDelta = calcDelta(latestInBody.muscleMass, test1yr.muscleMass);
+      const yearMuscleDelta = calcDelta(muscleOf(latestInBody), muscleOf(test1yr));
       if (yearFatDelta.diff < 0 || yearMuscleDelta.diff > 0) {
         const fragFat = yearFatDelta.diff < 0 ? t('workoutTab.bcFragLessFat', { fat: Math.abs(yearFatDelta.diff) }) : '';
         const fragMuscle = yearMuscleDelta.diff > 0 ? t('workoutTab.bcFragMoreMuscle', { muscle: yearMuscleDelta.diff }) : '';
@@ -525,7 +555,11 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, ta
         <View>
           <View style={s.sectionHead}><SectionHeader title={t('workoutTab.latestResults')} /></View>
           <View style={s.inbodyGrid}>
-            {metrics.map((item, i) => {
+            {metrics.filter((item) => {
+              let v = latestInBody[item.key];
+              if (item.key === 'bmi' && (!v || v === 0) && derivedBmi) v = derivedBmi;
+              return v != null && v !== 0; // hide metrics the sheet didn't provide (no empty "—" tiles)
+            }).map((item, i) => {
               let val = latestInBody[item.key];
               if (item.key === 'bmi' && (!val || val === 0) && derivedBmi) val = derivedBmi;
               const has = val != null && val !== 0;
@@ -568,8 +602,14 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, ta
           </View>
           <Text style={[s.inbodyDate, { color: theme.textMuted }]}>{t('workoutTab.recorded', { date: latestInBody.date })}</Text>
 
-          {(latestInBody.details || latestInBody.muscleMass) && (
+          {(latestInBody.details || latestInBody.muscleMass || latestInBody.skeletalMuscle) && (
             <View style={s.chartsWrap}>
+              {!!latestInBody.details?.image && (
+                <Pressable onPress={() => onViewImage(latestInBody.details.image, latestInBody.details.imageMime)} style={({ pressed }) => [s.sheetThumbWrap, { opacity: pressed ? 0.9 : 1 }]}>
+                  <Image source={{ uri: `data:${latestInBody.details.imageMime || 'image/jpeg'};base64,${latestInBody.details.image}` }} style={s.sheetThumb} resizeMode="cover" />
+                  <View style={s.sheetThumbBadge}><Ionicons name="expand-outline" size={13} color="#fff" /><Text style={s.sheetThumbBadgeText}>{t('inbody.viewSheet', { defaultValue: 'View sheet' })}</Text></View>
+                </Pressable>
+              )}
               <CompositionBar test={latestInBody} theme={theme} t={t} />
               <SegmentalBars seg={latestInBody.details?.segmentalLean} theme={theme} t={t} title={t('inbody.segmentalLean', { defaultValue: 'Segmental lean (kg)' })} />
               <SegmentalBars seg={latestInBody.details?.segmentalFat} theme={theme} t={t} title={t('inbody.segmentalFat', { defaultValue: 'Segmental fat (kg)' })} />
@@ -598,18 +638,18 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, ta
             </View>
           )}
 
-          {inBodyTests.length > 1 && (
+          {inBodyTests.length >= 1 && (
             <View>
-              <View style={s.sectionHead}><SectionHeader title={t('workoutTab.testHistory')} /></View>
-              {inBodyTests.slice(0, 8).map((test: any, i: number) => {
+              <View style={s.sectionHead}><SectionHeader title={t('inbody.allTests', { defaultValue: 'All tests' })} /></View>
+              {inBodyTests.slice(0, 24).map((test: any, i: number) => {
                 const isLatest = i === 0;
                 const prevTest = i < inBodyTests.length - 1 ? inBodyTests[i + 1] : null;
                 const weightDelta = prevTest ? calcDelta(test.weight, prevTest.weight) : null;
                 const fatDelta = prevTest ? calcDelta(test.bodyFat, prevTest.bodyFat) : null;
-                const muscleDelta = prevTest ? calcDelta(test.muscleMass, prevTest.muscleMass) : null;
+                const muscleDelta = prevTest ? calcDelta(muscleOf(test), muscleOf(prevTest)) : null;
                 return (
                   <Animated.View key={test.id} entering={FadeInRight.duration(300).delay(i * 60)}>
-                    <View style={[s.historyCard, { backgroundColor: theme.card, borderColor: isLatest ? Colors.electric + '40' : 'transparent', borderWidth: isLatest ? 1 : 0 }]}>
+                    <Pressable onPress={() => onOpenTest(test)} style={({ pressed }) => [s.historyCard, { backgroundColor: theme.card, borderColor: isLatest ? Colors.electric + '40' : 'transparent', borderWidth: isLatest ? 1 : 0, opacity: pressed ? 0.9 : 1 }]}>
                       <View style={s.historyCardHeader}>
                         <View style={s.historyDateRow}>
                           <Text style={[s.inbodyHistDate, { color: theme.text }]}>{test.date}</Text>
@@ -641,7 +681,7 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, ta
                           )}
                         </View>
                         <View style={s.historyMetric}>
-                          <Text style={[s.historyMetricVal, { color: Colors.ring.blue }]}>{test.muscleMass}kg</Text>
+                          <Text style={[s.historyMetricVal, { color: Colors.ring.blue }]}>{muscleOf(test)}kg</Text>
                           {muscleDelta && muscleDelta.diff !== 0 && (
                             <View style={s.historyDeltaRow}>
                               <Ionicons name={muscleDelta.diff > 0 ? 'caret-up' : 'caret-down'} size={10} color={muscleDelta.diff > 0 ? Colors.electric : Colors.semantic.danger} />
@@ -650,7 +690,12 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, ta
                           )}
                         </View>
                       </View>
-                    </View>
+                      <View style={[s.historyFooter, { borderTopColor: theme.border }]}>
+                        {!!test.details?.image && <Ionicons name="image-outline" size={13} color={theme.textMuted} />}
+                        <Text style={[s.historyOpen, { color: theme.textMuted }]}>{t('inbody.tapToOpen', { defaultValue: 'Tap to view full result' })}</Text>
+                        <Ionicons name="chevron-forward" size={15} color={theme.textMuted} />
+                      </View>
+                    </Pressable>
                   </Animated.View>
                 );
               })}
@@ -660,7 +705,7 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, ta
                 if (!oldest || inBodyTests.length < 2) return null;
                 const wDelta = calcDelta(latestInBody.weight, oldest.weight);
                 const fDelta = calcDelta(latestInBody.bodyFat, oldest.bodyFat);
-                const mDelta = calcDelta(latestInBody.muscleMass, oldest.muscleMass);
+                const mDelta = calcDelta(muscleOf(latestInBody), muscleOf(oldest));
                 return (
                   <Animated.View entering={FadeInDown.duration(400).delay(200)}>
                     <LinearGradient colors={[Colors.electric + '15', Colors.ring.blue + '15']} style={s.totalProgressCard}>
@@ -832,12 +877,80 @@ function InBodyTargetModal({ visible, initial, onClose, onSave }: {
   );
 }
 
+// core numbers shown as tiles in the per-test detail view
+const CORE_TILES: { key: string; labelKey: string; unit: string; icon: string; color: string }[] = [
+  { key: 'weight', labelKey: 'workoutTab.metricWeight', unit: 'kg', icon: 'scale-outline', color: Colors.electric },
+  { key: 'skeletalMuscle', labelKey: 'workoutTab.metricSkeletalMuscle', unit: 'kg', icon: 'body-outline', color: Colors.electric },
+  { key: 'bodyFat', labelKey: 'workoutTab.metricBodyFat', unit: '%', icon: 'pie-chart-outline', color: Colors.accent },
+  { key: 'bmi', labelKey: 'workoutTab.metricBmi', unit: '', icon: 'analytics-outline', color: Colors.ring.amber },
+  { key: 'bodyWater', labelKey: 'workoutTab.metricBodyWater', unit: 'L', icon: 'water-outline', color: Colors.ring.blue },
+  { key: 'bmr', labelKey: 'workoutTab.metricBmr', unit: 'kcal', icon: 'flame-outline', color: Colors.accent },
+  { key: 'visceralFat', labelKey: 'workoutTab.metricVisceralFat', unit: '', icon: 'heart-outline', color: Colors.semantic.danger },
+];
+
+// full-screen, pinch-to-zoom viewer for the saved InBody sheet image
+function ImageViewer({ visible, b64, mime, onClose }: { visible: boolean; b64: string; mime?: string; onClose: () => void }) {
+  return (
+    <Modal visible={visible && !!b64} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={s.viewerRoot}>
+        <Pressable onPress={onClose} hitSlop={14} style={s.viewerClose}><Ionicons name="close" size={30} color="#fff" /></Pressable>
+        <ScrollView maximumZoomScale={4} minimumZoomScale={1} centerContent contentContainerStyle={s.viewerScroll}>
+          {!!b64 && <Image source={{ uri: `data:${mime || 'image/jpeg'};base64,${b64}` }} style={s.viewerImg} resizeMode="contain" />}
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+// read-only full detail of a single saved test — numbers, charts, and the scan image
+function TestDetailModal({ test, theme, t, onClose, onViewImage }: { test: any | null; theme: any; t: any; onClose: () => void; onViewImage: (b64: string, mime?: string) => void }) {
+  return (
+    <Modal visible={!!test} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={s.modalOverlay}>
+        <View style={[s.modalContent, { backgroundColor: theme.background }]}>
+          <View style={s.modalHandle}><View style={[s.handleBar, { backgroundColor: theme.border }]} /></View>
+          <View style={s.modalHeader}>
+            <Text style={[s.modalTitle, { color: theme.text }]}>{test?.date || t('inbody.testDetail', { defaultValue: 'Test result' })}</Text>
+            <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={24} color={theme.text} /></Pressable>
+          </View>
+          {test && (
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 32 }}>
+              {!!test.details?.image && (
+                <Pressable onPress={() => onViewImage(test.details.image, test.details.imageMime)} style={({ pressed }) => [s.sheetThumbWrap, { opacity: pressed ? 0.9 : 1 }]}>
+                  <Image source={{ uri: `data:${test.details.imageMime || 'image/jpeg'};base64,${test.details.image}` }} style={s.sheetThumb} resizeMode="cover" />
+                  <View style={s.sheetThumbBadge}><Ionicons name="expand-outline" size={13} color="#fff" /><Text style={s.sheetThumbBadgeText}>{t('inbody.viewSheet', { defaultValue: 'View sheet' })}</Text></View>
+                </Pressable>
+              )}
+              <View style={s.detailTiles}>
+                {CORE_TILES.filter((m) => numify(test[m.key]) != null).map((m) => (
+                  <View key={m.key} style={[s.detailTile, { backgroundColor: theme.card }]}>
+                    <Ionicons name={m.icon as any} size={16} color={m.color} />
+                    <Text style={[s.detailTileVal, { color: theme.text }]}>{test[m.key]}{m.unit}</Text>
+                    <Text style={[s.detailTileLabel, { color: theme.textMuted }]} numberOfLines={1}>{t(m.labelKey)}</Text>
+                  </View>
+                ))}
+              </View>
+              <CompositionBar test={test} theme={theme} t={t} />
+              <SegmentalBars seg={test.details?.segmentalLean} theme={theme} t={t} title={t('inbody.segmentalLean', { defaultValue: 'Segmental lean (kg)' })} />
+              <SegmentalBars seg={test.details?.segmentalFat} theme={theme} t={t} title={t('inbody.segmentalFat', { defaultValue: 'Segmental fat (kg)' })} />
+              <DetailGrid details={test.details} theme={theme} t={t} />
+            </ScrollView>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function InBodySection() {
+  const { t } = useTranslation();
   const { isDark, inBodyTests, addInBodyTest, user } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const [showInBodyModal, setShowInBodyModal] = useState(false);
   const [showTarget, setShowTarget] = useState(false);
   const [target, setTarget] = useState<{ weight?: number; bodyFat?: number; skeletalMuscle?: number } | null>(null);
+  const [openTest, setOpenTest] = useState<any | null>(null);         // per-test detail modal
+  const [viewer, setViewer] = useState<{ b64: string; mime?: string } | null>(null); // full-screen sheet image
   React.useEffect(() => { nutritionApi.inbodyTarget().then(setTarget).catch(() => {}); }, []);
 
   const latestInBody = inBodyTests.length > 0 ? inBodyTests[0] : null;
@@ -864,9 +977,13 @@ export default function InBodySection() {
         target={target}
         onEditTarget={() => { setShowTarget(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
         onAddTest={() => { setShowInBodyModal(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+        onViewImage={(b64, mime) => { setViewer({ b64, mime }); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+        onOpenTest={(test) => { setOpenTest(test); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
       />
       <InBodyUploadModal visible={showInBodyModal} onClose={() => setShowInBodyModal(false)} onSave={handleSaveInBody} />
       <InBodyTargetModal visible={showTarget} initial={target} onClose={() => setShowTarget(false)} onSave={handleSaveTarget} />
+      <TestDetailModal test={openTest} theme={theme} t={t} onClose={() => setOpenTest(null)} onViewImage={(b64, mime) => setViewer({ b64, mime })} />
+      <ImageViewer visible={!!viewer} b64={viewer?.b64 || ''} mime={viewer?.mime} onClose={() => setViewer(null)} />
     </View>
   );
 }
@@ -996,4 +1113,20 @@ const s = StyleSheet.create({
   detailItem: { width: (SW - 40 - 28 - 16) / 3, borderWidth: 1, borderRadius: 12, padding: 10, gap: 3, alignItems: 'flex-start' },
   detailVal: { fontSize: 15, fontFamily: Fonts.monoBold },
   detailLabel: { fontSize: 10.5, fontFamily: Fonts.regular },
+  // saved sheet image + viewer
+  sheetThumbWrap: { borderRadius: 16, overflow: 'hidden' },
+  sheetThumb: { width: '100%', height: 170 },
+  sheetThumbBadge: { position: 'absolute', bottom: 10, right: 10, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  sheetThumbBadgeText: { color: '#fff', fontSize: 11.5, fontFamily: Fonts.semibold },
+  viewerRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)' },
+  viewerClose: { position: 'absolute', top: 52, right: 20, zIndex: 2 },
+  viewerScroll: { flexGrow: 1, justifyContent: 'center' },
+  viewerImg: { width: SW, height: '82%' },
+  // per-test detail tiles
+  historyFooter: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingTop: 10, borderTopWidth: 1 },
+  historyOpen: { flex: 1, fontSize: 11.5, fontFamily: Fonts.medium },
+  detailTiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  detailTile: { width: (SW - 40 - 16) / 3, borderRadius: 14, padding: 12, gap: 4, alignItems: 'flex-start' },
+  detailTileVal: { fontSize: 16, fontFamily: Fonts.monoBold },
+  detailTileLabel: { fontSize: 10.5, fontFamily: Fonts.regular },
 });

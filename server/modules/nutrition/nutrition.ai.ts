@@ -48,9 +48,11 @@ const INBODY_SCHEMA = {
   required: ["isInbody"],
 } as const;
 
-const SYSTEM = `You read InBody / body-composition test sheets (InBody 270/370/570/770/970 and similar, any language). Extract EVERY numeric metric printed on the sheet into the schema — not only the common ones. Rules:
-- Convert any pounds to kilograms; report weight/muscle/protein/minerals/fat masses in kg, body fat as a percentage (PBF), body water in litres (TBW), BMR and recommended intake in kcal, visceral fat as its level number, obesity degree as a percent, WHR and SMI as printed.
-- Segmental analysis: read the per-region values. segmentalLean/segmentalFat are the MASS in kg for each of the five regions (left arm, right arm, trunk, left leg, right leg). Ignore the "% of ideal" bars — report the kg figure.
+const SYSTEM = `You are an expert reading InBody / body-composition test sheets (InBody 270/370/570/770/970 and similar, any language). Extract EVERY numeric metric printed on the sheet into the schema — not only the common ones. Read like a technician who knows the layout:
+- skeletalMuscle = SMM (Skeletal Muscle Mass) in KILOGRAMS, from the Muscle-Fat Analysis rows (e.g. "SMM 39.7 kg"). It is a mass in kg, NOT a percentage. This is the primary muscle number — always fill it when SMM is printed.
+- muscleMass = a SEPARATE soft-lean / muscle-mass figure ONLY if the sheet prints one distinct from SMM. Most sheets do not; if the only muscle figure is SMM, leave muscleMass empty (do NOT copy SMM into it, and do NOT invent a percentage).
+- weight, skeletalMuscle, fatMass, fatFreeMass, protein, minerals, and all segmental values are MASSES in kg (convert pounds to kg). bodyFat = PBF percent. bodyWater = TBW in litres. bmr and recommendedCalories = kcal. visceralFat = its level number. obesityDegree = percent. waistHipRatio (WHR) and smi (kg/m^2) as printed. inbodyScore = the total InBody score/points if printed.
+- Segmental analysis: segmentalLean/segmentalFat are the MASS in kg for each of the five regions (left arm, right arm, trunk, left leg, right leg). Ignore the "% of ideal" bars — report the kg figure.
 - Use the EXACT printed values; do NOT estimate, derive, or invent. Omit any field not clearly present on the sheet.
 - date = the test/measurement date printed on the sheet as YYYY-MM-DD, else "".
 - If the file is NOT an InBody / body-composition report, set isInbody=false and omit the metrics.`;
