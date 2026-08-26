@@ -736,6 +736,7 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, ta
                       </View>
                       <View style={s.historyMetrics}>
                         <View style={s.historyMetric}>
+                          <Text style={[s.historyMetricLabel, { color: theme.textMuted }]}>{t('workoutTab.metricWeight')}</Text>
                           <Text style={[s.historyMetricVal, { color: theme.text }]}>{test.weight}kg</Text>
                           {weightDelta && weightDelta.diff !== 0 && (
                             <View style={s.historyDeltaRow}>
@@ -745,6 +746,7 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, ta
                           )}
                         </View>
                         <View style={s.historyMetric}>
+                          <Text style={[s.historyMetricLabel, { color: theme.textMuted }]}>{t('workoutTab.metricBodyFat')}</Text>
                           <Text style={[s.historyMetricVal, { color: Colors.accent }]}>{test.bodyFat}%</Text>
                           {fatDelta && fatDelta.diff !== 0 && (
                             <View style={s.historyDeltaRow}>
@@ -754,6 +756,7 @@ function InBodyTab({ inBodyTests, latestInBody, theme, onAddTest, userHeight, ta
                           )}
                         </View>
                         <View style={s.historyMetric}>
+                          <Text style={[s.historyMetricLabel, { color: theme.textMuted }]}>{t('workoutTab.muscleShort')}</Text>
                           <Text style={[s.historyMetricVal, { color: Colors.ring.blue }]}>{muscleOf(test)}kg</Text>
                           {muscleDelta && muscleDelta.diff !== 0 && (
                             <View style={s.historyDeltaRow}>
@@ -1138,6 +1141,7 @@ const s = StyleSheet.create({
   historyTimeAgo: { fontSize: 11, fontFamily: Fonts.regular },
   historyMetrics: { flexDirection: 'row', justifyContent: 'space-around' },
   historyMetric: { alignItems: 'center', gap: 2 },
+  historyMetricLabel: { fontSize: 10, fontFamily: Fonts.medium, letterSpacing: 0.2 },
   historyMetricVal: { fontSize: 14, fontFamily: Fonts.monoBold },
   historyDeltaRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   totalProgressCard: {
