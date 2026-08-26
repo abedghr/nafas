@@ -576,7 +576,7 @@ export default function CoachScreen() {
             <Text style={[s.startSheetTitle, { color: theme.text }]}>{t('workoutTab.startWorkout')}</Text>
             <Pressable
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowStart(false); router.push((activeEnrollment ? `/program/${activeEnrollment.programId}` : '/programs') as any); }}
-              style={({ pressed }) => [s.startOpt, { borderColor: Colors.electric + '55', backgroundColor: pressed ? theme.cardAlt : theme.card }]}
+              style={({ pressed }) => [s.startOpt, { borderColor: theme.border, backgroundColor: pressed ? theme.cardAlt : theme.card }]}
             >
               <View style={[s.startOptIcon, { backgroundColor: Colors.electric + '18' }]}><Ionicons name="flag" size={20} color={Colors.electric} /></View>
               <View style={{ flex: 1 }}>
@@ -598,7 +598,7 @@ export default function CoachScreen() {
             </Pressable>
             <Pressable
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowStart(false); router.push('/ai-coach' as any); }}
-              style={({ pressed }) => [s.startOpt, { borderColor: Colors.electric + '55', backgroundColor: pressed ? theme.cardAlt : theme.card }]}
+              style={({ pressed }) => [s.startOpt, { borderColor: theme.border, backgroundColor: pressed ? theme.cardAlt : theme.card }]}
             >
               <View style={[s.startOptIcon, { backgroundColor: Colors.electric + '18' }]}><Ionicons name="sparkles" size={19} color={Colors.electric} /></View>
               <View style={{ flex: 1 }}>
