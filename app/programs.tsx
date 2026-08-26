@@ -25,6 +25,7 @@ export default function ProgramsScreen() {
   const [code, setCode] = useState('');
   const [claiming, setClaiming] = useState(false);
   const [followers, setFollowers] = useState<Record<string, number>>({}); // programId → active users following
+  const [filter, setFilter] = useState<'active' | 'shared' | 'expired'>('active'); // default hides expired
 
   const loadInvites = useCallback(() => {
     workoutApi.programInvites().then((d) => setInvites(Array.isArray(d) ? d : [])).catch(() => {});
@@ -130,8 +131,35 @@ export default function ProgramsScreen() {
 
         {programs.length === 0 ? (
           <EmptyState icon="calendar-outline" title={t('programs.noPrograms')} subtitle={t('programs.noProgramsSub')} />
-        ) : (
-          programs.map((p: any, index) => {
+        ) : (() => {
+          const isRec = (p: any) => !p.canShare && p.canShare !== undefined;
+          const expiredCount = programs.filter((p: any) => p.expired).length;
+          const shown = programs.filter((p: any) => {
+            if (filter === 'expired') return !!p.expired;
+            if (filter === 'shared') return isRec(p) && !p.expired;
+            return !p.expired; // active (default)
+          });
+          const filters: { key: typeof filter; label: string }[] = [
+            { key: 'active', label: t('programs.filterActive', { defaultValue: 'Active' }) },
+            { key: 'shared', label: t('programs.filterShared', { defaultValue: 'Shared' }) },
+            ...(expiredCount > 0 ? [{ key: 'expired' as const, label: t('programs.filterExpired', { defaultValue: 'Expired' }) }] : []),
+          ];
+          return (
+          <>
+          <View style={s.filterRow}>
+            {filters.map((f) => {
+              const on = filter === f.key;
+              return (
+                <Pressable key={f.key} onPress={() => { Haptics.selectionAsync(); setFilter(f.key); }} style={[s.filterPill, { backgroundColor: on ? Colors.electric : theme.card, borderColor: on ? Colors.electric : theme.border }]}>
+                  <Text style={[s.filterPillText, { color: on ? '#03110D' : theme.textSecondary }]}>{f.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {shown.length === 0 ? (
+            <EmptyState icon="funnel-outline" title={t('programs.noneInFilter', { defaultValue: 'Nothing here' })} subtitle={t('programs.noneInFilterSub', { defaultValue: 'No programs match this filter.' })} />
+          ) : (
+          shown.map((p: any, index) => {
             const totalDays = p.days?.length ?? 0;
             const trainingDays = (p.days ?? []).filter((d: any) => !d.restDay && ((d.exercises?.length ?? 0) > 0 || d.templateId || d.label)).length;
             const weeks = Math.max(1, p.weeks || Math.ceil(totalDays / 7));
@@ -139,6 +167,9 @@ export default function ProgramsScreen() {
             const received = !p.canShare && p.canShare !== undefined;
             const isActive = activeEnrollment?.programId === p.id;
             const fc = followers[p.id] ?? 0;
+            // shared programs can carry an access window — show the countdown
+            const expAt = p.accessExpiresAt ? new Date(p.accessExpiresAt) : null;
+            const daysLeft = expAt && !expired ? Math.max(0, Math.ceil((expAt.getTime() - Date.now()) / 86400000)) : null;
             return (
               <Animated.View key={p.id} entering={FadeInDown.duration(350).delay(index * 70)}>
                 <Pressable
@@ -165,6 +196,7 @@ export default function ProgramsScreen() {
                         {trainingDays > 0 && <Chip label={t('programs.trainingDaysCount', { n: trainingDays, defaultValue: `${trainingDays} training` })} icon="barbell-outline" />}
                         {fc > 0 && <Chip label={t('programs.followersCount', { n: fc, defaultValue: `${fc} ${fc === 1 ? 'athlete' : 'athletes'}` })} icon="people-outline" />}
                         {received && <Chip label={t('programs.shared', { defaultValue: 'Shared' })} icon="gift-outline" />}
+                        {daysLeft != null && <Chip label={daysLeft === 0 ? t('programs.expiresToday', { defaultValue: 'Expires today' }) : t('programs.daysLeft', { n: daysLeft, defaultValue: `${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left` })} icon="hourglass-outline" />}
                         {expired && <Chip label={t('programs.expired', { defaultValue: 'Expired' })} icon="time-outline" />}
                       </View>
                     </View>
@@ -174,7 +206,10 @@ export default function ProgramsScreen() {
               </Animated.View>
             );
           })
-        )}
+          )}
+          </>
+          );
+        })()}
       </ScrollView>
 
       {/* claim by code */}
@@ -209,6 +244,9 @@ const s = StyleSheet.create({
   activePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#03110D' },
   activePillText: { fontFamily: Fonts.bold, fontSize: 11, color: '#03110D', letterSpacing: 0.3 },
+  filterRow: { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
+  filterPill: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, borderWidth: 1 },
+  filterPillText: { fontFamily: Fonts.semibold, fontSize: 13 },
   chipRow: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   trashBtn: { padding: 6 },
   inviteCard: { borderRadius: 18, padding: 14, marginBottom: 10, borderWidth: 1 },

@@ -189,6 +189,9 @@ export const extraEn = {
   programs: {
     title: "My Programs", newProgram: "New Program", weeksCount: "{{n}} weeks", restDay: "Rest", startDay: "Start",
     daysCount: "{{n}} days", trainingDaysCount: "{{n}} training", followersCount: "{{n}} athletes", active: "Active", shared: "Shared", expired: "Expired",
+    daysLeft: "{{n}} days left", expiresToday: "Expires today",
+    filterActive: "Active", filterShared: "Shared", filterExpired: "Expired", filterRevoked: "Revoked", filterAll: "All",
+    noneInFilter: "Nothing here", noneInFilterSub: "No programs match this filter.",
     weekN: "Week {{n}}", pickWorkout: "Pick a workout", clearDay: "Clear day", programsCardTitle: "Programs",
     programsCardSub: "Plan multi-week schedules", noPrograms: "No programs yet",
     noProgramsSub: "Create a program to plan your training across weeks",
@@ -431,6 +434,9 @@ export const extraAr = {
   programs: {
     title: "برامجي", newProgram: "برنامج جديد", weeksCount: "{{n}} أسابيع", restDay: "راحة", startDay: "ابدأ",
     daysCount: "{{n}} يوم", trainingDaysCount: "{{n}} تمرين", followersCount: "{{n}} رياضي", active: "نشط", shared: "مُشارَك", expired: "منتهٍ",
+    daysLeft: "متبقٍ {{n}} يوم", expiresToday: "ينتهي اليوم",
+    filterActive: "نشط", filterShared: "مُشارَك", filterExpired: "منتهٍ", filterRevoked: "ملغى", filterAll: "الكل",
+    noneInFilter: "لا شيء هنا", noneInFilterSub: "لا برامج تطابق هذا التصفية.",
     weekN: "الأسبوع {{n}}", pickWorkout: "اختر تمريناً", clearDay: "مسح اليوم", programsCardTitle: "البرامج",
     programsCardSub: "خطّط جداول متعددة الأسابيع", noPrograms: "لا توجد برامج بعد",
     noProgramsSub: "أنشئ برنامجاً لتخطيط تدريبك عبر الأسابيع",

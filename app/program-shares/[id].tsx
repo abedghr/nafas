@@ -26,6 +26,7 @@ export default function ProgramSharesScreen() {
 
   const [data, setData] = useState<{ shares: any[]; activeUsers: number; total: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [shareFilter, setShareFilter] = useState<'active' | 'revoked' | 'all'>('active'); // default hides revoked
 
   const load = useCallback(() => {
     if (!id) return;
@@ -83,8 +84,31 @@ export default function ProgramSharesScreen() {
 
           {!data?.shares.length ? (
             <EmptyState icon="share-social-outline" title={t('programs.noShares', { defaultValue: 'Not shared yet' })} subtitle={t('programs.noSharesSub', { defaultValue: 'Share this program to see who has it here.' })} />
-          ) : (
-            data.shares.map((sh, i) => {
+          ) : (() => {
+            const revokedCount = data.shares.filter((x) => x.status === 'revoked').length;
+            const shown = data.shares.filter((sh) =>
+              shareFilter === 'all' ? true : shareFilter === 'revoked' ? sh.status === 'revoked' : sh.status !== 'revoked');
+            const pills: { key: typeof shareFilter; label: string }[] = [
+              { key: 'active', label: t('programs.filterActive', { defaultValue: 'Active' }) },
+              ...(revokedCount > 0 ? [{ key: 'revoked' as const, label: t('programs.filterRevoked', { defaultValue: 'Revoked' }) }, { key: 'all' as const, label: t('programs.filterAll', { defaultValue: 'All' }) }] : []),
+            ];
+            return (
+            <>
+            {pills.length > 1 && (
+              <View style={s.filterRow}>
+                {pills.map((f) => {
+                  const on = shareFilter === f.key;
+                  return (
+                    <Pressable key={f.key} onPress={() => { Haptics.selectionAsync(); setShareFilter(f.key); }} style={[s.filterPill, { backgroundColor: on ? Colors.electric : theme.card, borderColor: on ? Colors.electric : theme.border }]}>
+                      <Text style={[s.filterPillText, { color: on ? '#03110D' : theme.textSecondary }]}>{f.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+            {shown.length === 0 ? (
+              <EmptyState icon="funnel-outline" title={t('programs.noneInFilter', { defaultValue: 'Nothing here' })} subtitle="" />
+            ) : shown.map((sh, i) => {
               const st = statusMeta(sh);
               const canRevoke = sh.status === 'pending' || (sh.status === 'accepted' && !sh.accessExpired);
               return (
@@ -119,8 +143,10 @@ export default function ProgramSharesScreen() {
                   </View>
                 </Animated.View>
               );
-            })
-          )}
+            })}
+            </>
+            );
+          })()}
         </ScrollView>
       )}
     </View>
@@ -148,6 +174,9 @@ const s = StyleSheet.create({
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   sub: { fontFamily: Fonts.medium, fontSize: 12.5, marginTop: 2 },
+  filterRow: { flexDirection: 'row', gap: 8, marginTop: 12, marginBottom: 4, flexWrap: 'wrap' },
+  filterPill: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, borderWidth: 1 },
+  filterPillText: { fontFamily: Fonts.semibold, fontSize: 13 },
   statusPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   statusText: { fontFamily: Fonts.bold, fontSize: 11 },
   metaRow: { gap: 6 },
