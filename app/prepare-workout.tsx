@@ -302,19 +302,12 @@ export default function PrepareWorkoutScreen() {
       alertDialog(t('workoutPrep.noExercisesTitle'), t('workoutPrep.noExercisesStartMsg'));
       return;
     }
-    // ask about pre-workout at the moment of starting (moved off the build screen)
-    const tookPre = await confirmDialog({
-      title: t('workoutPrep.preWorkoutQTitle', { defaultValue: 'Pre-workout' }),
-      message: t('workoutPrep.preWorkoutQ', { defaultValue: 'Did you take a pre-workout before this session?' }),
-      confirmText: t('workoutPrep.yes', { defaultValue: 'Yes' }),
-      cancelText: t('workoutPrep.no', { defaultValue: 'No' }),
-    });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setActiveSession({
       workoutName: resolvedName,
       workoutType: workoutType || undefined,
       startTimestamp: Date.now(),
-      preWorkout: tookPre,
+      preWorkout: false, // toggled in-session via the pre-workout card (no start dialog)
       exercises: exercises.map(e => {
         if (e.kind === 'intervals') {
           // Live interval execution is a later phase; carry the block through as-is.

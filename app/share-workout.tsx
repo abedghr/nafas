@@ -12,7 +12,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import ViewShot, { captureRef } from 'react-native-view-shot';
+import ViewShot from 'react-native-view-shot';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -262,13 +262,32 @@ export default function ShareWorkoutScreen() {
   const topPadding = Platform.OS === 'web' ? 67 : insets.top;
   const [cardStyle, setCardStyle] = useState<CardStyle>('dark');
   const shotRef = useRef<ViewShot>(null);
+  const webCardRef = useRef<View>(null);
   const [busy, setBusy] = useState<'save' | 'share' | null>(null);
 
-  // Use the ViewShot instance .capture() (works on web + native; captureRef/findNodeHandle is native-only)
+  // Capture the card to an image.
+  // - Native: use the ViewShot INSTANCE method .capture() (never captureRef/findNodeHandle).
+  // - Web: react-native-view-shot's .capture()/captureRef route through findNodeHandle,
+  //   which react-native-web unconditionally throws on ("findNodeHandle is not supported
+  //   on web"). Capture the card's DOM node directly with html2canvas (already a dependency
+  //   of react-native-view-shot) and return a data URI.
   const capture = async (): Promise<string> => {
+    if (Platform.OS === 'web') {
+      const node = webCardRef.current as unknown as HTMLElement | null;
+      if (!node) throw new Error('Card is not ready to capture yet.');
+      const h2c = require('html2canvas');
+      const html2canvas = h2c.default || h2c;
+      const canvas = await html2canvas(node, {
+        backgroundColor: null, // preserve rounded corners + transparent-style alpha
+        scale: (typeof window !== 'undefined' && window.devicePixelRatio) || 2,
+        useCORS: true,
+        logging: false,
+      });
+      return canvas.toDataURL('image/png', 1);
+    }
     const vs: any = shotRef.current;
-    if (vs && typeof vs.capture === 'function') return await vs.capture();
-    return await captureRef(shotRef, { format: 'png', quality: 1, result: 'tmpfile' });
+    if (!vs || typeof vs.capture !== 'function') throw new Error('Capture is not available.');
+    return await vs.capture();
   };
 
   const saveToGallery = async () => {
@@ -374,14 +393,16 @@ export default function ShareWorkoutScreen() {
         {/* Card Preview (captured to PNG) — transparent style is checkerboarded for clarity */}
         <Animated.View entering={FadeInDown.delay(100).springify()} style={cardStyle === 'transparent' ? styles.checker : undefined}>
           <ViewShot ref={shotRef} options={{ format: 'png', quality: 1, result: 'tmpfile' }}>
-            <ShareCard
-              style={cardStyle}
-              currentLog={currentLog}
-              comparison={comparison}
-              topLift={topLift}
-              user={user}
-              isDark={isDark}
-            />
+            <View ref={webCardRef} collapsable={false}>
+              <ShareCard
+                style={cardStyle}
+                currentLog={currentLog}
+                comparison={comparison}
+                topLift={topLift}
+                user={user}
+                isDark={isDark}
+              />
+            </View>
           </ViewShot>
         </Animated.View>
 

@@ -1785,6 +1785,23 @@ export default function LiveWorkoutScreen() {
       return next;
     });
   }, []);
+  // auto-collapse a regular exercise once every set is done/skipped (reopen via the chevron).
+  // tracked so a manual re-expand isn't fought, and re-collapses if it's completed again.
+  const autoCollapsedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!session) return;
+    session.exercises.forEach((ex, i) => {
+      if (ex.combo || ex.kind === 'intervals') return;
+      const key = ex.exerciseId + '-' + i;
+      const done = ex.sets.length > 0 && ex.sets.every(s => s.status === 'done' || s.status === 'skipped');
+      if (done && !autoCollapsedRef.current.has(key)) {
+        autoCollapsedRef.current.add(key);
+        setCollapsed(prev => { const n = new Set(prev); n.add(key); return n; });
+      } else if (!done) {
+        autoCollapsedRef.current.delete(key);
+      }
+    });
+  }, [session?.exercises]);
   const restTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -2323,14 +2340,28 @@ export default function LiveWorkoutScreen() {
           );
         })()}
 
-        {session.preWorkout && (
-          <Animated.View entering={FadeInDown.duration(300)}>
-            <View style={[styles.preWorkoutCard, { backgroundColor: theme.card, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
-              <Ionicons name="flask-outline" size={18} color={Colors.accent} />
-              <Text style={[styles.preWorkoutText, { color: theme.text }]}>{t('workoutSession.preWorkoutTaken')}</Text>
+        <Animated.View entering={FadeInDown.duration(300)}>
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); updateSession(s => ({ ...s, preWorkout: !s.preWorkout })); }}
+            style={[styles.preWorkoutCard, { backgroundColor: theme.card, borderWidth: 1, borderColor: session.preWorkout ? Colors.accent + '55' : theme.border, flexDirection: 'row', alignItems: 'center', gap: 10 }]}
+          >
+            <View style={[styles.preWorkoutIcon, { backgroundColor: (session.preWorkout ? Colors.accent : theme.textMuted) + '1F' }]}>
+              <Ionicons name="flask" size={17} color={session.preWorkout ? Colors.accent : theme.textMuted} />
             </View>
-          </Animated.View>
-        )}
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.preWorkoutText, { color: theme.text }]}>{t('workoutSession.preWorkout', { defaultValue: 'Pre-workout' })}</Text>
+              <Text style={[styles.preWorkoutSub, { color: theme.textMuted }]}>
+                {session.preWorkout ? t('workoutSession.preWorkoutTakenYes', { defaultValue: 'Taken before this session' }) : t('workoutSession.preWorkoutTapIfTaken', { defaultValue: 'Tap if you took one' })}
+              </Text>
+            </View>
+            <Switch
+              value={!!session.preWorkout}
+              onValueChange={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); updateSession(s => ({ ...s, preWorkout: !s.preWorkout })); }}
+              trackColor={{ false: theme.border, true: Colors.accent }}
+              thumbColor="#fff"
+            />
+          </Pressable>
+        </Animated.View>
 
         {session.exercises.length > 1 && (() => {
           const allKeys = session.exercises.map((ex, i) => ex.exerciseId + '-' + i);
@@ -2471,14 +2502,15 @@ export default function LiveWorkoutScreen() {
           </Animated.View>
         ))}
 
-        <View style={styles.addRowBtns}>
-          <Pressable onPress={() => setShowExercisePicker(true)} style={[styles.addSplitBtn, { borderColor: Colors.primary + '40' }]}>
-            <Ionicons name="add-circle-outline" size={19} color={Colors.primary} />
-            <Text style={[styles.addExerciseText, { color: Colors.primary }]}>{t('workoutSession.addExercise')}</Text>
+        <Text style={[styles.addSectionLabel, { color: theme.textMuted }]}>{t('workoutPrep.addToWorkout', { defaultValue: 'Add to workout' })}</Text>
+        <View style={styles.addTilesRow}>
+          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowExercisePicker(true); }} style={({ pressed }) => [styles.addTile, { backgroundColor: theme.card, borderColor: Colors.primary + (isDark ? '55' : '40'), opacity: pressed ? 0.85 : 1 }]}>
+            <View style={[styles.addTileIcon, { backgroundColor: Colors.primary + '1F' }]}><Ionicons name="add" size={18} color={Colors.primary} /></View>
+            <Text style={[styles.addTileText, { color: theme.text }]}>{t('workoutSession.addExercise')}</Text>
           </Pressable>
-          <Pressable onPress={() => setShowComboBuilder(true)} style={[styles.addSplitBtn, { borderColor: Colors.accent + '40' }]}>
-            <Ionicons name="git-merge-outline" size={19} color={Colors.accent} />
-            <Text style={[styles.addExerciseText, { color: Colors.accent }]}>{t('workoutSession.addCombo')}</Text>
+          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowComboBuilder(true); }} style={({ pressed }) => [styles.addTile, { backgroundColor: theme.card, borderColor: Colors.accent + (isDark ? '55' : '40'), opacity: pressed ? 0.85 : 1 }]}>
+            <View style={[styles.addTileIcon, { backgroundColor: Colors.accent + '1F' }]}><Ionicons name="git-merge-outline" size={18} color={Colors.accent} /></View>
+            <Text style={[styles.addTileText, { color: theme.text }]}>{t('workoutSession.addCombo')}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -2621,9 +2653,16 @@ const styles = StyleSheet.create({
   progLbl: { fontSize: 11, fontFamily: 'Rubik_400Regular' },
   progTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(0,200,150,0.15)', overflow: 'hidden' },
   progFill: { height: '100%', borderRadius: 3, backgroundColor: '#00C896' },
-  preWorkoutCard: { borderRadius: 16, padding: 16 },
+  preWorkoutCard: { borderRadius: 16, padding: 14 },
   preWorkoutRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  preWorkoutText: { flex: 1, fontSize: 15, fontWeight: '500' as const },
+  preWorkoutIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  preWorkoutText: { fontSize: 15, fontWeight: '600' as const },
+  preWorkoutSub: { fontSize: 12, fontWeight: '400' as const, marginTop: 2 },
+  addSectionLabel: { fontSize: 12, fontWeight: '600' as const, letterSpacing: 0.3, textTransform: 'uppercase', marginTop: 14, marginBottom: 10 },
+  addTilesRow: { flexDirection: 'row', gap: 10, paddingBottom: 12 },
+  addTile: { flex: 1, alignItems: 'center', gap: 8, paddingVertical: 14, borderRadius: 16, borderWidth: 1 },
+  addTileIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  addTileText: { fontSize: 13, fontWeight: '700' as const },
   exCard: { borderRadius: 16, overflow: 'hidden' },
   exCardHeader: { flexDirection: 'row', alignItems: 'center', padding: 16, paddingBottom: 8, gap: 8 },
   exCardName: { fontSize: 16, fontWeight: '700' as const },
