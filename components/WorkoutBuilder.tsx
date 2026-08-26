@@ -17,6 +17,15 @@ import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import { workoutApi, EQUIPMENT_OPTIONS, MUSCLE_CATEGORIES } from '@/src/features/workout/api';
 import ComboBuilderModal, { type ComboBuildResult, type ComboSetType } from '@/components/ComboBuilderModal';
 import ExerciseInfoSheet from '@/components/ExerciseInfoSheet';
+
+// training-day split → the primary muscles to recommend in the exercise picker
+const REC_BY_TYPE: Record<string, string[]> = {
+  'Push Day': ['Chest', 'Shoulders', 'Triceps'],
+  'Pull Day': ['Lats', 'Upper Back', 'Traps', 'Biceps', 'Forearms'],
+  'Leg Day': ['Quadriceps', 'Hamstrings', 'Glutes', 'Calves'],
+  'Lower Body': ['Quadriceps', 'Hamstrings', 'Glutes', 'Calves'],
+  'Upper Body': ['Chest', 'Shoulders', 'Triceps', 'Lats', 'Upper Back', 'Traps', 'Biceps', 'Forearms'],
+};
 import IntervalBuilderModal, { formatDuration } from '@/components/IntervalBuilderModal';
 import ExerciseRow from '@/components/ExerciseRow';
 import ExerciseFilterBar from '@/components/ExerciseFilterBar';
@@ -826,12 +835,13 @@ function ExerciseCard({ exercise, index, onUpdate, onRemove, onMoveUp, onMoveDow
   );
 }
 
-function ExercisePickerModal({ visible, onClose, onSelect, onInfo, highlightName, customExercises, onCreateCustom, theme }: {
+function ExercisePickerModal({ visible, onClose, onSelect, onInfo, highlightName, recommendMuscles, customExercises, onCreateCustom, theme }: {
   visible: boolean;
   onClose: () => void;
   onSelect: (ex: { id: string; name: string; muscleGroup: string; defaultSetType: string; isCustom?: boolean }) => void;
   onInfo: (ex: any) => void;           // opens the info sheet (a Modal above the picker)
   highlightName?: string | null;       // exercise whose info is open → highlight its button
+  recommendMuscles?: string[] | null;  // primary muscles for the selected split → "Recommended" section
   customExercises: any[];
   onCreateCustom: () => void;
   theme: typeof Colors.dark;
@@ -887,9 +897,19 @@ function ExercisePickerModal({ visible, onClose, onSelect, onInfo, highlightName
     const lib = filtered.filter(e => !e.isCustom).sort(byName);
     const secs: { title: string | null; data: any[] }[] = [];
     if (custom.length) secs.push({ title: t('workoutPrep.myExercises'), data: custom });
-    if (lib.length) secs.push({ title: t('workoutPrep.allExercises'), data: lib });
+    // when a split is selected (Push/Pull/Legs/…) and no filter is active, surface a
+    // "Recommended" section of exercises for that day's muscles.
+    const recSet = (!muscle && !equipment && recommendMuscles?.length) ? new Set(recommendMuscles) : null;
+    if (recSet) {
+      const rec = lib.filter(e => recSet.has(e.primaryMuscle || e.muscleGroup)).sort(byName);
+      const rest = lib.filter(e => !recSet.has(e.primaryMuscle || e.muscleGroup)).sort(byName);
+      if (rec.length) secs.push({ title: t('workoutPrep.recommended', { defaultValue: 'Recommended' }), data: rec });
+      if (rest.length) secs.push({ title: t('workoutPrep.allExercises'), data: rest });
+    } else if (lib.length) {
+      secs.push({ title: t('workoutPrep.allExercises'), data: lib });
+    }
     return secs;
-  }, [filtered, search, t]);
+  }, [filtered, search, t, muscle, equipment, recommendMuscles]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -1499,6 +1519,7 @@ export default function WorkoutBuilder({
         onSelect={handleAddExercise}
         onInfo={setInfoEx}
         highlightName={infoEx?.name ?? null}
+        recommendMuscles={workoutType ? REC_BY_TYPE[workoutType] ?? null : null}
         customExercises={customExercises}
         onCreateCustom={() => {
           setShowPicker(false);
