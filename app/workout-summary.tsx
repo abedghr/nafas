@@ -408,8 +408,8 @@ export default function WorkoutSummaryScreen() {
           <Animated.View entering={FadeInDown.delay(550).duration(600)}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('workoutSession.aiInsight')}</Text>
             <LinearGradient
-              colors={[theme.card, '#1C1C2E']}
-              style={styles.insightCard}
+              colors={isDark ? [theme.card, '#1C1C2E'] : [Colors.electric + '16', Colors.electric + '06']}
+              style={[styles.insightCard, !isDark && { borderWidth: 1, borderColor: Colors.electric + '30' }]}
             >
               <View style={styles.insightBadge}>
                 <LinearGradient
