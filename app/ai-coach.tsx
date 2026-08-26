@@ -4,14 +4,15 @@
 // proposal card and taps Save (disabled if the plan is empty). Attach a photo/PDF
 // of an existing program and it transcribes it.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, TextInput, Pressable, Image, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, TextInput, Pressable, Image, KeyboardAvoidingView, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import Animated, { FadeInUp, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { FadeInUp, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import { workoutApi } from '@/src/features/workout/api';
@@ -69,6 +70,23 @@ export default function AICoachScreen() {
   const [stage, setStage] = useState('');
   const scrollRef = useRef<ScrollView>(null);
   const scrollDown = () => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 60);
+
+  // slide-up sheet over the previous screen (transparentModal); backdrop + drag-to-dismiss
+  const SCREEN_H = Dimensions.get('window').height;
+  const ty = useSharedValue(SCREEN_H);
+  const dismissing = useRef(false);
+  useEffect(() => { ty.value = withSpring(0, { damping: 24, stiffness: 240, mass: 0.7 }); }, []);
+  const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)/coach' as any); };
+  const closeSheet = () => { if (dismissing.current) return; dismissing.current = true; ty.value = withTiming(SCREEN_H, { duration: 240 }, (f) => { if (f) runOnJS(goBack)(); }); };
+  const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: ty.value }] }));
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: 0.55 * (1 - Math.min(1, ty.value / SCREEN_H)) }));
+  const dragPan = Gesture.Pan()
+    .onUpdate((e) => { if (e.translationY > 0) ty.value = e.translationY; })
+    .onEnd((e) => {
+      if (e.translationY > 120 || e.velocityY > 900) { dismissing.current = true; ty.value = withTiming(SCREEN_H, { duration: 220 }, (f) => { if (f) runOnJS(goBack)(); }); }
+      else ty.value = withSpring(0, { damping: 24, stiffness: 240 });
+    });
+  const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
   const pickImage = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.7 });
@@ -161,15 +179,23 @@ export default function AICoachScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={[s.container, { backgroundColor: theme.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
-      <View style={[s.header, { paddingTop: topPad }]}>
-        <View style={s.headerTitleWrap}>
-          <View style={[s.headerBadge, { backgroundColor: Colors.electric + '22' }]}><Ionicons name="sparkles" size={15} color={Colors.electric} /></View>
-          <Text style={[s.headerTitle, { color: theme.text }]}>{t('aiCoach.title', { defaultValue: 'AI Assistant' })}</Text>
-        </View>
-        <Button variant="icon" icon="close" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/coach' as any))} />
-      </View>
+    <View style={s.root}>
+      <AnimatedPressable style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }, backdropStyle]} onPress={closeSheet} />
+      <Animated.View style={[s.sheet, { backgroundColor: theme.background }, sheetStyle]}>
+        <GestureDetector gesture={dragPan}>
+          <View>
+            <View style={s.grabberWrap}><View style={[s.grabber, { backgroundColor: theme.border }]} /></View>
+            <View style={s.header}>
+              <View style={s.headerTitleWrap}>
+                <View style={[s.headerBadge, { backgroundColor: Colors.electric + '22' }]}><Ionicons name="sparkles" size={15} color={Colors.electric} /></View>
+                <Text style={[s.headerTitle, { color: theme.text }]}>{t('aiCoach.title', { defaultValue: 'AI Assistant' })}</Text>
+              </View>
+              <Button variant="icon" icon="close" onPress={closeSheet} />
+            </View>
+          </View>
+        </GestureDetector>
 
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
       <ScrollView ref={scrollRef} contentContainerStyle={{ padding: 16, paddingBottom: 24, gap: 14 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} onContentSizeChange={scrollDown}>
         {messages.map((m, i) => (
           <Animated.View key={i} entering={FadeInUp.duration(260)} style={[s.msgRow, { justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }]}>
@@ -241,7 +267,9 @@ export default function AICoachScreen() {
           </Pressable>
         </View>
       </View>
-    </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -398,6 +426,10 @@ function WorkoutCard({ workout, theme, t, onSave }: { workout: any; theme: any; 
 
 const s = StyleSheet.create({
   container: { flex: 1 },
+  root: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'transparent' },
+  sheet: { height: '92%', borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' },
+  grabberWrap: { alignItems: 'center', paddingTop: 8, paddingBottom: 2 },
+  grabber: { width: 40, height: 4, borderRadius: 2 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 8, gap: 8 },
   headerTitleWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 8 },
   headerBadge: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
