@@ -16,7 +16,7 @@ import Colors from '@/constants/colors';
 export default function ProgramsScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { programs, addProgram, deleteProgram, refreshPrograms, isDark } = useApp();
+  const { programs, addProgram, deleteProgram, refreshPrograms, activeEnrollment, isDark } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
@@ -24,11 +24,19 @@ export default function ProgramsScreen() {
   const [claimOpen, setClaimOpen] = useState(false);
   const [code, setCode] = useState('');
   const [claiming, setClaiming] = useState(false);
+  const [followers, setFollowers] = useState<Record<string, number>>({}); // programId → active users following
 
   const loadInvites = useCallback(() => {
     workoutApi.programInvites().then((d) => setInvites(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
-  useFocusEffect(useCallback(() => { loadInvites(); }, [loadInvites]));
+  // follower counts for programs the user owns + has shared (small list; one call each)
+  const loadFollowers = useCallback(() => {
+    for (const p of programs as any[]) {
+      if (!p.canShare) continue;
+      workoutApi.programShares(p.id).then((r) => setFollowers((m) => ({ ...m, [p.id]: r?.activeUsers ?? 0 }))).catch(() => {});
+    }
+  }, [programs]);
+  useFocusEffect(useCallback(() => { loadInvites(); loadFollowers(); }, [loadInvites, loadFollowers]));
 
   const handleNewProgram = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -75,7 +83,6 @@ export default function ProgramsScreen() {
     } finally { setClaiming(false); }
   };
 
-  const plannedCount = (p: Program) => p.days.filter(d => !d.restDay && (d.templateId || d.label)).length;
 
   return (
     <View style={[s.container, { backgroundColor: theme.background }]}>
@@ -125,25 +132,38 @@ export default function ProgramsScreen() {
           <EmptyState icon="calendar-outline" title={t('programs.noPrograms')} subtitle={t('programs.noProgramsSub')} />
         ) : (
           programs.map((p: any, index) => {
-            const planned = plannedCount(p);
             const totalDays = p.days?.length ?? 0;
-            const progress = totalDays > 0 ? Math.min(1, planned / totalDays) : 0;
+            const trainingDays = (p.days ?? []).filter((d: any) => !d.restDay && ((d.exercises?.length ?? 0) > 0 || d.templateId || d.label)).length;
+            const weeks = Math.max(1, p.weeks || Math.ceil(totalDays / 7));
             const expired = !!p.expired;
             const received = !p.canShare && p.canShare !== undefined;
+            const isActive = activeEnrollment?.programId === p.id;
+            const fc = followers[p.id] ?? 0;
             return (
               <Animated.View key={p.id} entering={FadeInDown.duration(350).delay(index * 70)}>
                 <Pressable
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(('/program/' + p.id) as any); }}
                   style={({ pressed }) => [{ opacity: pressed ? 0.92 : expired ? 0.5 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] }]}
                 >
-                  <View style={[s.programCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                  <View style={[s.programCard, { backgroundColor: theme.card, borderColor: isActive ? Colors.electric + '55' : theme.border }]}>
                     <View style={[s.programIcon, { backgroundColor: (expired ? theme.textMuted : Colors.electric) + '1F' }]}>
                       <Ionicons name="flag" size={22} color={expired ? theme.textMuted : Colors.electric} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Display variant="d3" color={theme.text} numberOfLines={1}>{p.name}</Display>
+                      <View style={s.nameRow}>
+                        <Display variant="d3" color={theme.text} numberOfLines={1} style={{ flexShrink: 1 }}>{p.name}</Display>
+                        {isActive && (
+                          <View style={[s.activePill, { backgroundColor: Colors.electric }]}>
+                            <View style={s.activeDot} />
+                            <Text style={s.activePillText}>{t('programs.active', { defaultValue: 'Active' })}</Text>
+                          </View>
+                        )}
+                      </View>
                       <View style={s.chipRow}>
                         <Chip label={t('programs.daysCount', { n: totalDays, defaultValue: `${totalDays} days` })} icon="calendar-outline" />
+                        <Chip label={t('programs.weeksCount', { n: weeks, defaultValue: `${weeks} ${weeks === 1 ? 'week' : 'weeks'}` })} icon="albums-outline" />
+                        {trainingDays > 0 && <Chip label={t('programs.trainingDaysCount', { n: trainingDays, defaultValue: `${trainingDays} training` })} icon="barbell-outline" />}
+                        {fc > 0 && <Chip label={t('programs.followersCount', { n: fc, defaultValue: `${fc} ${fc === 1 ? 'athlete' : 'athletes'}` })} icon="people-outline" />}
                         {received && <Chip label={t('programs.shared', { defaultValue: 'Shared' })} icon="gift-outline" />}
                         {expired && <Chip label={t('programs.expired', { defaultValue: 'Expired' })} icon="time-outline" />}
                       </View>
@@ -185,6 +205,10 @@ const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   programCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1 },
   programIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  activePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#03110D' },
+  activePillText: { fontFamily: Fonts.bold, fontSize: 11, color: '#03110D', letterSpacing: 0.3 },
   chipRow: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   trashBtn: { padding: 6 },
   inviteCard: { borderRadius: 18, padding: 14, marginBottom: 10, borderWidth: 1 },
