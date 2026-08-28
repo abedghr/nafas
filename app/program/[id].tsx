@@ -15,6 +15,15 @@ import { confirmDialog } from '@/lib/dialog';
 import DateTimeField from '@/components/DateTimeField';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
 import WorkoutBuilder, { type PrepExercise } from '@/components/WorkoutBuilder';
+import { daySessions } from '@/lib/program-sessions';
+
+// one session being edited in the day sheet
+type EditSession = { id: string; label: string; type: WorkoutType | null; exercises: PrepExercise[] };
+const mapEx = (exercises: PrepExercise[]) => exercises.map(e => ({
+  exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, restSeconds: e.restSeconds, sets: e.sets, isCustom: e.isCustom,
+  ...(e.combo ? { combo: true, unbroken: e.unbroken, components: e.components, comboRounds: e.comboRounds, mode: e.mode, intervalSeconds: e.intervalSeconds, timeCapSeconds: e.timeCapSeconds } : {}),
+  ...(e.kind === 'intervals' ? { kind: 'intervals' as const, intervals: e.intervals } : {}),
+}));
 import { programStats, positionToday, dayStatus, ordinalOf, dateForOrdinal, resolveDayExercises, programSequence, currentDayReachable } from '@/lib/program-schedule';
 import Colors from '@/constants/colors';
 import { Fonts } from '@/constants/typography';
@@ -63,12 +72,12 @@ export default function ProgramBuilderScreen() {
   // day editor sheet state
   const [editing, setEditing] = useState<{ week: number; day: number } | null>(null);
   const [dRest, setDRest] = useState(false);
-  const [dTemplateId, setDTemplateId] = useState<string | null>(null);
-  // the day's inline workout, edited via <WorkoutBuilder> right in the sheet
-  const [dType, setDType] = useState<WorkoutType | null>(null);
-  const [dExercises, setDExercises] = useState<PrepExercise[]>([]);
+  // a day holds 1+ sessions (morning run + evening calisthenics), each built inline
+  const [dSessions, setDSessions] = useState<EditSession[]>([]);
   const [dNotes, setDNotes] = useState('');
-  const [search, setSearch] = useState('');
+  const updateSession = (i: number, patch: Partial<EditSession>) => setDSessions(prev => prev.map((s, idx) => idx === i ? { ...s, ...patch } : s));
+  const addSession = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDSessions(prev => [...prev, { id: Crypto.randomUUID(), label: '', type: null, exercises: [] }]); };
+  const removeSession = (i: number) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDSessions(prev => prev.filter((_, idx) => idx !== i)); };
 
   const commit = useCallback((patch: Partial<Omit<Program, 'id' | 'userId'>>) => {
     if (!program) return;
@@ -107,35 +116,28 @@ export default function ProgramBuilderScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const day = findDay(week, dayIdx);
     setDRest(day?.restDay ?? false);
-    setDTemplateId(day?.templateId ?? null);
-    // the day's training type is stored on name/label; seed the builder from it
-    setDType(((day?.name || day?.label) as WorkoutType) || null);
-    setDExercises((day?.exercises ?? []).map(e => ({ ...e, uid: Crypto.randomUUID() })));
+    // seed each session (resolving a template ref to its exercises for inline editing)
+    const seeded: EditSession[] = daySessions(day).map((sess) => {
+      const exs = sess.templateId ? (workoutTemplates.find(t => t.id === sess.templateId)?.exercises ?? []) : (sess.exercises ?? []);
+      return { id: sess.id || Crypto.randomUUID(), label: sess.label || '', type: ((sess.name || '') as WorkoutType) || null, exercises: exs.map(e => ({ ...e, uid: Crypto.randomUUID() })) };
+    });
+    setDSessions(seeded.length ? seeded : (day?.restDay ? [] : [{ id: Crypto.randomUUID(), label: '', type: null, exercises: [] }]));
     setDNotes(day?.notes ?? '');
-    setSearch('');
     setEditing({ week, day: dayIdx });
   };
 
   const saveDay = () => {
     if (!editing) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const built = !dRest && !dTemplateId && dExercises.length > 0;
-    const typeName = dType || '';
     if (dRest) {
-      upsertDay({ weekIndex: editing.week, dayIndex: editing.day, restDay: true, templateId: null, label: '', notes: dNotes.trim() });
-    } else if (built) {
-      // inline workout → strip uid, carry combo/interval shapes through
-      const mapped = dExercises.map(e => ({
-        exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, restSeconds: e.restSeconds, sets: e.sets, isCustom: e.isCustom,
-        ...(e.combo ? { combo: true, unbroken: e.unbroken, components: e.components, comboRounds: e.comboRounds, mode: e.mode, intervalSeconds: e.intervalSeconds, timeCapSeconds: e.timeCapSeconds } : {}),
-        ...(e.kind === 'intervals' ? { kind: 'intervals' as const, intervals: e.intervals } : {}),
-      }));
-      // the day's label IS the training type — no separate label field
-      upsertDay({ weekIndex: editing.week, dayIndex: editing.day, restDay: false, templateId: null, name: typeName, exercises: mapped as any, label: typeName, notes: dNotes.trim() });
-    } else if (dTemplateId) {
-      upsertDay({ weekIndex: editing.week, dayIndex: editing.day, restDay: false, templateId: dTemplateId, label: '', notes: dNotes.trim() });
+      upsertDay({ weekIndex: editing.week, dayIndex: editing.day, restDay: true, templateId: null, sessions: [], label: '', notes: dNotes.trim() });
     } else {
-      upsertDay({ weekIndex: editing.week, dayIndex: editing.day, restDay: false, templateId: null, label: '', notes: dNotes.trim() });
+      // one entry per built session (drop empty ones); the day's name/label = the first session's type
+      const sessions = dSessions
+        .filter(s => s.exercises.length > 0)
+        .map(s => ({ id: s.id, label: s.label.trim(), name: s.type || '', templateId: null, exercises: mapEx(s.exercises) as any }));
+      const dayName = sessions[0]?.name || '';
+      upsertDay({ weekIndex: editing.week, dayIndex: editing.day, restDay: false, templateId: null, name: dayName, exercises: [], sessions, label: dayName, notes: dNotes.trim() });
     }
     setEditing(null);
   };
@@ -284,12 +286,6 @@ export default function ProgramBuilderScreen() {
     try { await Share.share({ message: code }); } catch {}
   };
 
-  const filteredTemplates = useMemo(() => {
-    if (!search.trim()) return workoutTemplates;
-    const q = search.toLowerCase();
-    return workoutTemplates.filter(tp =>
-      tp.name.toLowerCase().includes(q) || (tp.workoutType || '').toLowerCase().includes(q));
-  }, [workoutTemplates, search]);
 
   if (!program) {
     return (
@@ -714,67 +710,39 @@ export default function ProgramBuilderScreen() {
 
               {!dRest && (
                 <>
-                  {/* build this day's workout inline (not a saved template) */}
-                  <WorkoutBuilder
-                    workoutType={dType}
-                    exercises={dExercises}
-                    onChangeType={setDType}
-                    onChangeExercises={(ex) => { setDExercises(ex); if (ex.length) setDTemplateId(null); }}
-                    theme={theme}
-                  />
-
-                  <Text style={[s.miniLabel, { color: theme.textMuted, marginTop: 14 }]}>{t('programs.pickWorkout')}</Text>
-                  <View style={[s.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                    <Ionicons name="search" size={16} color={theme.textMuted} />
-                    <TextInput
-                      style={[s.searchInput, { color: theme.text }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]}
-                      value={search}
-                      onChangeText={setSearch}
-                      placeholder={t('programs.searchWorkouts')}
-                      placeholderTextColor={theme.textMuted}
-                      autoCapitalize="none"
-                    />
-                    {search.length > 0 && (
-                      <Pressable onPress={() => setSearch('')}>
-                        <Ionicons name="close-circle" size={16} color={theme.textMuted} />
-                      </Pressable>
-                    )}
-                  </View>
-
-                  {filteredTemplates.length === 0 && (
-                    <Text style={{ color: theme.textMuted, textAlign: 'center', marginTop: 20, fontSize: 13 }}>
-                      {workoutTemplates.length === 0 ? t('programs.noTemplates') : t('programs.noMatchingTemplates')}
-                    </Text>
-                  )}
-                  {filteredTemplates.map(tmpl => {
-                    const active = dTemplateId === tmpl.id;
-                    return (
-                      <Pressable
-                        key={tmpl.id}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          // template and inline build are mutually exclusive
-                          if (active) { setDTemplateId(null); }
-                          else { setDTemplateId(tmpl.id); setDExercises([]); }
-                        }}
-                        style={[s.tmplRow, { borderBottomColor: theme.border }]}
-                      >
-                        <View style={[s.tmplIcon, { backgroundColor: (active ? Colors.primary : theme.textMuted) + '15' }]}>
-                          <Ionicons name="barbell-outline" size={16} color={active ? Colors.primary : theme.textMuted} />
+                  {dSessions.map((sess, i) => (
+                    <View key={sess.id} style={[s.sessionCard, { borderColor: theme.border }]}>
+                      <View style={s.sessionHead}>
+                        <View style={[s.sessionIndexBadge, { backgroundColor: Colors.electric + '1F' }]}>
+                          <Text style={[s.sessionIndexText, { color: Colors.electric }]}>{i + 1}</Text>
                         </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ color: active ? Colors.primary : theme.text, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>
-                            {tmpl.name}
-                          </Text>
-                          <Text style={{ color: theme.textMuted, fontSize: 11, marginTop: 1 }} numberOfLines={1}>
-                            {t('programs.exercisesCount', { n: tmpl.exercises.length })}
-                            {tmpl.workoutType ? ` · ${t(`workoutTypeNames.${tmpl.workoutType}`, { defaultValue: tmpl.workoutType })}` : ''}
-                          </Text>
-                        </View>
-                        {active && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
-                      </Pressable>
-                    );
-                  })}
+                        <TextInput
+                          style={[s.sessionLabelInput, { color: theme.text }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]}
+                          value={sess.label}
+                          onChangeText={(v) => updateSession(i, { label: v })}
+                          placeholder={t('programs.sessionLabelPlaceholder', { n: i + 1, defaultValue: `Session ${i + 1} (e.g. Morning)` })}
+                          placeholderTextColor={theme.textMuted}
+                        />
+                        {dSessions.length > 1 && (
+                          <Pressable onPress={() => removeSession(i)} hitSlop={8} style={{ padding: 4 }}>
+                            <Ionicons name="trash-outline" size={17} color={Colors.semantic.danger} />
+                          </Pressable>
+                        )}
+                      </View>
+                      <WorkoutBuilder
+                        workoutType={sess.type}
+                        exercises={sess.exercises}
+                        onChangeType={(type) => updateSession(i, { type })}
+                        onChangeExercises={(ex) => updateSession(i, { exercises: ex })}
+                        theme={theme}
+                      />
+                    </View>
+                  ))}
+
+                  <Pressable onPress={addSession} style={({ pressed }) => [s.addSessionBtn, { borderColor: Colors.electric + '55', opacity: pressed ? 0.85 : 1 }]}>
+                    <Ionicons name="add" size={18} color={Colors.electric} />
+                    <Text style={[s.addSessionText, { color: Colors.electric }]}>{t('programs.addSession', { defaultValue: 'Add another session' })}</Text>
+                  </Pressable>
                 </>
               )}
             </ScrollView>
@@ -1104,6 +1072,13 @@ const s = StyleSheet.create({
   inputsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   miniLabel: { fontSize: 11, fontWeight: '600', marginBottom: 5 },
   sheetInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14 },
+  sessionCard: { borderWidth: 1, borderRadius: 16, padding: 12, marginBottom: 14 },
+  sessionHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  sessionIndexBadge: { width: 26, height: 26, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  sessionIndexText: { fontSize: 13, fontWeight: '800' },
+  sessionLabelInput: { flex: 1, fontSize: 15, fontWeight: '600' },
+  addSessionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', marginBottom: 8 },
+  addSessionText: { fontSize: 14, fontWeight: '700' },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, height: 42, marginBottom: 8,
