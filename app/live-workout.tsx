@@ -1819,11 +1819,20 @@ export default function LiveWorkoutScreen() {
     return () => clearInterval(timer);
   }, [session?.startTimestamp]);
 
+  // keep the latest session in a ref and flush it to the store when leaving the
+  // screen — otherwise going back before the autosave tick loses done/edited sets.
+  const sessionRef = useRef(session);
+  const finishedRef = useRef(false); // set when finished/discarded → don't re-save on unmount
+  useEffect(() => { sessionRef.current = session; }, [session]);
+  useEffect(() => {
+    return () => { if (sessionRef.current && !finishedRef.current) setActiveSession(sessionRef.current); };
+  }, [setActiveSession]);
+
   useEffect(() => {
     if (!session) return;
     autoSaveRef.current = setInterval(() => {
       setActiveSession(session);
-    }, 30000);
+    }, 5000);
     return () => {
       if (autoSaveRef.current) clearInterval(autoSaveRef.current);
     };
@@ -2244,6 +2253,7 @@ export default function LiveWorkoutScreen() {
       if (added.length || removed.length) setEnrollmentDayEdit(p.enrollmentId, p.weekIndex, p.slotDay, { added: added as any, removed });
       }
     }
+    finishedRef.current = true;
     setActiveSession(null);
     if (restTimerRef.current) clearInterval(restTimerRef.current);
     if (autoSaveRef.current) clearInterval(autoSaveRef.current);
@@ -2271,6 +2281,7 @@ export default function LiveWorkoutScreen() {
     setShowFinishModal(false);
     if (restTimerRef.current) clearInterval(restTimerRef.current);
     if (autoSaveRef.current) clearInterval(autoSaveRef.current);
+    finishedRef.current = true;
     setActiveSession(null);
     router.replace('/(tabs)' as any);
   }, [setActiveSession, t]);
