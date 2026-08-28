@@ -200,7 +200,11 @@ export interface Enrollment {
   dayEdits: Record<string, DayEdit>;
   dayOrder?: string[]; // per-enrollment day sequence (from swaps); "<week>-<day>" keys
   completions: DayCompletion[];
+  finishedAt?: string | null;               // set when status leaves 'active'
+  endReport?: ProgramEndReportAI | null;     // cached AI narrative (see lib/program-report.ts)
 }
+// AI narrative cached on the enrollment; stats/journey are derived, not stored.
+export interface ProgramEndReportAI { generatedAt: string; summary: string; highlights: string[]; suggestions: string[] }
 
 export const WORKOUT_TYPES = [
   'Push Day', 'Pull Day', 'Leg Day', 'Upper Body', 'Lower Body',
@@ -422,7 +426,7 @@ interface AppContextValue {
   activeEnrollment: Enrollment | null;
   refreshEnrollments: () => void;
   startProgram: (programId: string, startDate: string) => Promise<void>;
-  endEnrollment: (id: string) => void;
+  endEnrollment: (id: string, status?: 'finished' | 'abandoned') => void;
   updateEnrollmentLocal: (id: string, patch: { startDate?: string; status?: Enrollment['status']; dayEdits?: Enrollment['dayEdits']; dayOrder?: string[] }) => void;
   setEnrollmentDay: (id: string, weekIndex: number, dayIndex: number, status: DayStatus, opts?: { completedDate?: string; durationMin?: number; logId?: string; sessionIndex?: number }) => void;
   clearEnrollmentDay: (id: string, weekIndex: number, dayIndex: number, sessionIndex?: number) => void;
@@ -811,9 +815,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const endEnrollment = useCallback((id: string) => {
-    setEnrollments(prev => prev.map(e => e.id === id ? { ...e, status: 'finished' as const } : e));
-    workoutApi.updateEnrollment(id, { status: 'finished' }).catch(() => {});
+  // status defaults to 'finished' (completed all days); pass 'abandoned' for a manual early end.
+  const endEnrollment = useCallback((id: string, status: 'finished' | 'abandoned' = 'finished') => {
+    const finishedAt = new Date().toISOString();
+    setEnrollments(prev => prev.map(e => e.id === id ? { ...e, status, finishedAt } : e));
+    workoutApi.updateEnrollment(id, { status }).catch(() => {});
   }, []);
 
   const updateEnrollmentLocal = useCallback((id: string, patch: { startDate?: string; status?: Enrollment['status']; dayEdits?: Enrollment['dayEdits']; dayOrder?: string[] }) => {

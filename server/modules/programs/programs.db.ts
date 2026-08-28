@@ -82,6 +82,9 @@ export const programEnrollments = pgTable("program_enrollments", {
   dayOrder: jsonb("day_order").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   finishedAt: timestamp("finished_at"),
+  // cached AI narrative for the end-of-program report (generated on demand).
+  // Stats/journey are derived client-side from completions; only this is stored.
+  endReport: jsonb("end_report").$type<{ generatedAt: string; summary: string; highlights: string[]; suggestions: string[] } | null>(),
 }, (t) => ({ userIdx: index("enroll_user_idx").on(t.userId, t.status) }));
 
 // One (week, day) cell marked done or skipped within an enrollment. logId is a

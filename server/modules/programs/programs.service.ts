@@ -236,7 +236,7 @@ export const programsService = {
     if (!e) return null;
     await db.update(programEnrollments).set({
       ...(patch.startDate ? { startDate: new Date(patch.startDate) } : {}),
-      ...(patch.status ? { status: patch.status, ...(patch.status === "finished" ? { finishedAt: new Date() } : {}) } : {}),
+      ...(patch.status ? { status: patch.status, ...(patch.status !== "active" ? { finishedAt: new Date() } : {}) } : {}),
       ...(patch.dayEdits ? { dayEdits: patch.dayEdits } : {}),
       ...(patch.dayOrder ? { dayOrder: patch.dayOrder } : {}),
     }).where(eq(programEnrollments.id, id));
