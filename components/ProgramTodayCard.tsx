@@ -64,45 +64,61 @@ export default function ProgramTodayCard() {
           <Text style={[s.pct, { color: Colors.electric }]}>{pct}%</Text>
         </View>
 
-        {/* today row */}
-        {today && (
-          <View style={[s.todayRow, { borderTopColor: theme.border }]}>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[s.kicker, { color: theme.textMuted }]}>{pos.finishedPlan ? t('programs.planComplete', { defaultValue: 'Plan complete' }) : t('programs.today', { defaultValue: 'TODAY' })}</Text>
-              <Text style={[s.todayName, { color: theme.text }]} numberOfLines={1}>{today.day.restDay ? t('programs.restDay') : (today.day.name || today.day.label || t('programs.rest', { defaultValue: 'Rest day' }))}</Text>
+        {/* today block */}
+        {today && (() => {
+          const exCount = today.day.restDay ? 0 : (today.day.exercises?.length ?? 0);
+          const statusCol = todayStatus === 'done' ? Colors.semantic.success : todayStatus === 'skipped' ? Colors.semantic.warn : theme.textSecondary;
+          return (
+          <View style={[s.todayBlock, { borderTopColor: theme.border }]}>
+            <View style={s.todayHeadRow}>
+              <Text style={[s.kicker, { color: theme.textMuted }]}>
+                {pos.finishedPlan ? t('programs.planComplete', { defaultValue: 'Plan complete' }) : `${t('programs.today', { defaultValue: 'TODAY' })}${exCount > 0 ? `  ·  ${t('programs.exercisesN', { n: exCount })}` : ''}`}
+              </Text>
+              {todayStatus && (
+                <View style={[s.statusDot, { backgroundColor: statusCol }]} />
+              )}
             </View>
-            {runnable && (
-              <Pressable
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay({ ...today.day, exercises: resolveDayExercises(activeEnrollment, today.weekIndex, today.dayIndex, (today.day.exercises as any[]) || []) }); }}
-                hitSlop={8} style={[s.menuBtn, { backgroundColor: theme.cardAlt }]}
-                accessibilityLabel={t('workoutPrep.viewAsText', { defaultValue: 'View as text' })}
-              >
-                <Ionicons name="reader-outline" size={16} color={Colors.electric} />
-              </Pressable>
-            )}
-            {/* shown day not yet due (already trained today, or a future day) → no actions until then */}
-            <Pressable
-              disabled={locked}
-              onPress={() => { Haptics.selectionAsync(); setMarking(false); setSwapping(false); setSkipping(false); setSheetOpen(true); }}
-              hitSlop={8} style={[s.menuBtn, { backgroundColor: theme.cardAlt, opacity: locked ? 0.4 : 1 }]}
-            >
-              <Ionicons name="ellipsis-horizontal" size={16} color={theme.textSecondary} />
-            </Pressable>
-            {todayStatus ? (
-              <View style={[s.statusPill, { backgroundColor: (todayStatus === 'done' ? Colors.semantic.success : todayStatus === 'skipped' ? Colors.semantic.warn : theme.textSecondary) + '22' }]}>
-                <Text style={[s.statusPillText, { color: todayStatus === 'done' ? Colors.semantic.success : todayStatus === 'skipped' ? Colors.semantic.warn : theme.textSecondary }]}>{t(`programs.${todayStatus}`, { defaultValue: todayStatus })}</Text>
+            <Text style={[s.todayName, { color: theme.text }]} numberOfLines={2}>{today.day.restDay ? t('programs.restDay') : (today.day.name || today.day.label || t('programs.rest', { defaultValue: 'Rest day' }))}</Text>
+
+            <View style={s.actionsRow}>
+              <View style={s.leftActions}>
+                {runnable && (
+                  <Pressable
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay({ ...today.day, exercises: resolveDayExercises(activeEnrollment, today.weekIndex, today.dayIndex, (today.day.exercises as any[]) || []) }); }}
+                    hitSlop={8} style={[s.iconBtn, { backgroundColor: theme.cardAlt }]}
+                    accessibilityLabel={t('workoutPrep.viewAsText', { defaultValue: 'View as text' })}
+                  >
+                    <Ionicons name="reader-outline" size={17} color={Colors.electric} />
+                  </Pressable>
+                )}
+                <Pressable
+                  disabled={locked}
+                  onPress={() => { Haptics.selectionAsync(); setMarking(false); setSwapping(false); setSkipping(false); setSheetOpen(true); }}
+                  hitSlop={8} style={[s.iconBtn, { backgroundColor: theme.cardAlt, opacity: locked ? 0.4 : 1 }]}
+                >
+                  <Ionicons name="ellipsis-horizontal" size={17} color={theme.textSecondary} />
+                </Pressable>
               </View>
-            ) : locked ? (
-              <View style={[s.statusPill, { backgroundColor: theme.cardAlt }]}>
-                <Text style={[s.statusPillText, { color: theme.textMuted, textTransform: 'none' }]}>{t('programs.nextTomorrow', { defaultValue: 'Next tomorrow' })}</Text>
-              </View>
-            ) : runnable ? (
-              <Pressable onPress={() => start(today)} style={[s.startBtn, { backgroundColor: Colors.electric }]}>
-                <Ionicons name="play" size={12} color="#04120B" /><Text style={s.startBtnText}>{t('programs.startDay', { defaultValue: 'Start' })}</Text>
-              </Pressable>
-            ) : null}
+
+              {todayStatus ? (
+                <View style={[s.statusPill, { backgroundColor: statusCol + '22' }]}>
+                  <Ionicons name={todayStatus === 'done' ? 'checkmark-circle' : todayStatus === 'skipped' ? 'close-circle' : 'moon'} size={13} color={statusCol} />
+                  <Text style={[s.statusPillText, { color: statusCol }]}>{t(`programs.${todayStatus}`, { defaultValue: todayStatus })}</Text>
+                </View>
+              ) : locked ? (
+                <View style={[s.statusPill, { backgroundColor: theme.cardAlt }]}>
+                  <Ionicons name="time-outline" size={13} color={theme.textMuted} />
+                  <Text style={[s.statusPillText, { color: theme.textMuted, textTransform: 'none' }]}>{t('programs.nextTomorrow', { defaultValue: 'Next tomorrow' })}</Text>
+                </View>
+              ) : runnable ? (
+                <Pressable onPress={() => start(today)} style={({ pressed }) => [s.startBtn, { backgroundColor: Colors.electric, opacity: pressed ? 0.9 : 1 }]}>
+                  <Ionicons name="play" size={13} color="#04120B" /><Text style={s.startBtnText}>{t('programs.startDay', { defaultValue: 'Start' })}</Text>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
-        )}
+          );
+        })()}
       </View>
 
       {/* today actions sheet */}
@@ -199,14 +215,19 @@ const s = StyleSheet.create({
   progTrack: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
   progFill: { height: 6, borderRadius: 3 },
   pct: { fontFamily: Fonts.monoBold, fontSize: 12, minWidth: 34, textAlign: 'right' },
-  todayRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10 },
-  kicker: { ...Type.caption, letterSpacing: 1, textTransform: 'uppercase', fontSize: 9.5 },
-  todayName: { ...Type.bodyMed, marginTop: 1 },
+  todayBlock: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12, gap: 8 },
+  todayHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  kicker: { ...Type.caption, letterSpacing: 1, textTransform: 'uppercase', fontSize: 9.5, flex: 1 },
+  statusDot: { width: 7, height: 7, borderRadius: 4 },
+  todayName: { ...Type.h2, fontWeight: '700', lineHeight: 24 },
   menuBtn: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  statusPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
-  statusPillText: { fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
-  startBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 13, paddingVertical: 7, borderRadius: 9 },
-  startBtnText: { color: '#04120B', fontSize: 12, fontWeight: '800' },
+  actionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 2 },
+  leftActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconBtn: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999 },
+  statusPillText: { fontSize: 12, fontWeight: '700', textTransform: 'capitalize' },
+  startBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 },
+  startBtnText: { color: '#04120B', fontSize: 14, fontWeight: '800' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16, paddingBottom: 34, gap: 4 },
   sheetTitle: { ...Type.h2, marginBottom: 8 },
