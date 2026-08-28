@@ -1,7 +1,7 @@
 // Compact "my program" card for the workout dashboard: program name + a thin
 // progress bar + today's workout with a Start button and a small actions menu.
 // Deliberately small — the full day list lives on the program screen.
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -26,6 +26,19 @@ export default function ProgramTodayCard() {
   const [skipping, setSkipping] = useState(false);
   const [dur, setDur] = useState('');
   const [textDay, setTextDay] = useState<any | null>(null);
+  const [finishModal, setFinishModal] = useState(false);
+
+  // pop a congrats modal the moment the last day gets decided (once per run).
+  const finishAckRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeEnrollment || !program) return;
+    const p = positionToday(activeEnrollment, program);
+    if (p.finishedPlan && activeEnrollment.status === 'active' && finishAckRef.current !== activeEnrollment.id) {
+      finishAckRef.current = activeEnrollment.id;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setFinishModal(true);
+    }
+  }, [activeEnrollment, program]);
 
   if (!activeEnrollment || !program) return null;
 
@@ -217,6 +230,31 @@ export default function ProgramTodayCard() {
       </Modal>
 
       <WorkoutTextModal visible={textDay !== null} onClose={() => setTextDay(null)} title={textDay?.name || t('programs.buildWorkout')} exercises={(textDay?.exercises as any[]) || []} />
+
+      {/* program-complete congrats */}
+      <Modal visible={finishModal} transparent animationType="fade" onRequestClose={() => setFinishModal(false)}>
+        <Pressable style={[s.overlay, { justifyContent: 'center', alignItems: 'center', padding: 24 }]} onPress={() => setFinishModal(false)}>
+          <Pressable style={[s.finishCard, { backgroundColor: theme.background }]} onPress={(e) => e.stopPropagation()}>
+            <View style={[s.finishIcon, { backgroundColor: Colors.electric + '22' }]}>
+              <Ionicons name="trophy" size={34} color={Colors.electric} />
+            </View>
+            <Text style={[s.finishTitle, { color: theme.text }]}>{t('programs.finishModalTitle', { defaultValue: 'Program complete!' })}</Text>
+            <Text style={[s.finishBody, { color: theme.textSecondary }]}>
+              {t('programs.finishModalBody', { name: program.name, defaultValue: `You finished "${program.name}". See your full journey and your coach's analysis.` })}
+            </Text>
+            <Pressable
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setFinishModal(false); endEnrollment(activeEnrollment.id, 'finished'); router.push(`/program-report/${activeEnrollment.id}` as any); }}
+              style={({ pressed }) => [s.finishPrimary, { backgroundColor: Colors.electric, opacity: pressed ? 0.9 : 1 }]}
+            >
+              <Ionicons name="stats-chart" size={17} color="#04120B" />
+              <Text style={s.finishPrimaryText}>{t('programs.viewReport', { defaultValue: 'View report' })}</Text>
+            </Pressable>
+            <Pressable onPress={() => setFinishModal(false)} style={s.finishSecondary}>
+              <Text style={[s.finishSecondaryText, { color: theme.textMuted }]}>{t('programs.later', { defaultValue: 'Later' })}</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -236,6 +274,14 @@ const s = StyleSheet.create({
   badge: { width: 24, height: 24, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   name: { ...Type.bodyMed, fontWeight: '700', flex: 1 },
   count: { ...Type.caption, fontFamily: Fonts.monoBold },
+  finishCard: { width: '86%', maxWidth: 380, borderRadius: 22, padding: 24, alignItems: 'center' },
+  finishIcon: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  finishTitle: { fontSize: 21, fontFamily: Fonts.bold, textAlign: 'center' },
+  finishBody: { fontSize: 14, fontFamily: Fonts.regular, textAlign: 'center', lineHeight: 20, marginTop: 8 },
+  finishPrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, alignSelf: 'stretch', borderRadius: 14, paddingVertical: 14, marginTop: 20 },
+  finishPrimaryText: { fontSize: 15, fontFamily: Fonts.semibold, color: '#04120B' },
+  finishSecondary: { paddingVertical: 12, marginTop: 2 },
+  finishSecondaryText: { fontSize: 14, fontFamily: Fonts.medium },
   finishBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12 },
   finishBannerTitle: { fontSize: 14, fontFamily: Fonts.bold, color: '#04120B' },
   finishBannerSub: { fontSize: 12, fontFamily: Fonts.medium, color: '#04120B', opacity: 0.8, marginTop: 1 },

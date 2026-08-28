@@ -211,6 +211,10 @@ export const extraEn = {
     removeWeekConfirm: "Remove this week and its planned days?",
     planCompleteTitle: "Program complete", viewReport: "View report", viewLastReport: "View last report",
     endProgramMsg: "You will see your full journey report. This closes the program.",
+    finishModalTitle: "Program complete!", finishModalBody: "You finished \"{{name}}\". See your full journey and your coach's analysis.", later: "Later",
+  },
+  history: {
+    title: "Program history", empty: "No finished programs yet. Complete or end a program to see it here.",
   },
   report: {
     title: "Program report", notFound: "This program run could not be found.",
@@ -477,6 +481,10 @@ export const extraAr = {
     removeWeekConfirm: "حذف هذا الأسبوع وأيامه المخطّطة؟",
     planCompleteTitle: "اكتمل البرنامج", viewReport: "عرض التقرير", viewLastReport: "عرض آخر تقرير",
     endProgramMsg: "سترى تقرير رحلتك الكامل. هذا ينهي البرنامج.",
+    finishModalTitle: "اكتمل البرنامج!", finishModalBody: "أنهيت \"{{name}}\". اطّلع على رحلتك الكاملة وتحليل مدرّبك.", later: "لاحقًا",
+  },
+  history: {
+    title: "سجلّ البرامج", empty: "لا برامج منتهية بعد. أكمل برنامجًا أو أنهه لتراه هنا.",
   },
   report: {
     title: "تقرير البرنامج", notFound: "تعذّر العثور على هذه الدورة من البرنامج.",

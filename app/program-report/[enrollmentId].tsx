@@ -2,7 +2,7 @@
 // (auto: all days decided; or manual end). Stats are derived live from the
 // enrollment's completions (lib/program-report.ts); the AI narrative, once
 // generated, is cached on enrollment.endReport.
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, Pressable, ActivityIndicator } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
@@ -59,6 +59,19 @@ export default function ProgramReportScreen() {
         : t('report.aiError', { defaultValue: 'Could not generate the analysis. Try again.' }));
     } finally { setAiLoading(false); }
   };
+
+  // auto-generate the AI analysis once for an ENDED run that has none yet.
+  // (active/preview runs keep the manual button — don't burn a call on a partial journey.)
+  const autoTriedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!enr || !report) return;
+    const ended = enr.status !== 'active';
+    if (ended && !enr.endReport && !aiLoading && autoTriedRef.current !== enr.id) {
+      autoTriedRef.current = enr.id;
+      genReport();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enr?.id, enr?.status, enr?.endReport, report]);
 
   // outcome → colour
   const aggColor = (a: DayAgg): string => {

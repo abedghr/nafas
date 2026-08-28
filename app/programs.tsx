@@ -92,9 +92,14 @@ export default function ProgramsScreen() {
           <Ionicons name="arrow-back" size={20} color={theme.text} />
         </Pressable>
         <Display variant="d3" color={theme.text}>{t('programs.title')}</Display>
-        <Pressable onPress={() => setClaimOpen(true)} hitSlop={12} style={[s.backBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Ionicons name="enter-outline" size={20} color={Colors.electric} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/program-history' as any); }} hitSlop={12} style={[s.backBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Ionicons name="time-outline" size={20} color={theme.text} />
+          </Pressable>
+          <Pressable onPress={() => setClaimOpen(true)} hitSlop={12} style={[s.backBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Ionicons name="enter-outline" size={20} color={Colors.electric} />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: insets.bottom + 40 }}>
