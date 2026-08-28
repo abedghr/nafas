@@ -15,7 +15,7 @@ import { confirmDialog } from '@/lib/dialog';
 import DateTimeField from '@/components/DateTimeField';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
 import WorkoutBuilder, { type PrepExercise } from '@/components/WorkoutBuilder';
-import { programStats, positionToday, dayStatus, ordinalOf, dateForOrdinal, resolveDayExercises, programSequence } from '@/lib/program-schedule';
+import { programStats, positionToday, dayStatus, ordinalOf, dateForOrdinal, resolveDayExercises, programSequence, currentDayReachable } from '@/lib/program-schedule';
 import Colors from '@/constants/colors';
 import { Fonts } from '@/constants/typography';
 
@@ -191,12 +191,14 @@ export default function ProgramBuilderScreen() {
   const startDay = (day: ProgramDay) => {
     if (!program) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (day.exercises?.length) {
-      // inline workout day → open the builder in program mode, ready to start
-      router.push(('/prepare-workout?programId=' + program.id + '&weekIndex=' + day.weekIndex + '&dayIndex=' + day.dayIndex + '&run=1') as any);
-    } else if (day.templateId) {
-      router.push(('/prepare-workout?templateId=' + day.templateId + '&run=1') as any);
-    }
+    // Always go through the programId path (resolves inline AND template days in
+    // prepare-workout) and, when enrolled, carry enrollmentId + slotDay so the
+    // finished workout is written back as this day's completion and progress
+    // advances. Without these params the log is never linked to the enrollment.
+    const enr = activeEnrollment && activeEnrollment.programId === program.id
+      ? `&enrollmentId=${activeEnrollment.id}&slotDay=${day.dayIndex}`
+      : '';
+    router.push((`/prepare-workout?programId=${program.id}&weekIndex=${day.weekIndex}&dayIndex=${day.dayIndex}&run=1${enr}`) as any);
   };
 
   // ── share (owner originals only) ──────────────────────────────────────────
@@ -306,6 +308,9 @@ export default function ProgramBuilderScreen() {
   // enrollment overlay for the week grid: highlight today + show done/skipped
   const enrolled = activeEnrollment && activeEnrollment.programId === program.id ? activeEnrollment : null;
   const todayPos = enrolled ? positionToday(enrolled, program) : null;
+  // The current day is only startable when its scheduled date has arrived (past
+  // days are catch-up-able; future days stay locked — no running ahead).
+  const currentUnlocked = enrolled ? currentDayReachable(enrolled, program) : false;
   const orderedDays = programSequence(program, isEdit ? null : enrolled);
 
   return (
@@ -476,7 +481,10 @@ export default function ProgramBuilderScreen() {
             ? t('programs.restDay')
             : tmplName || (inlineCount > 0 ? (day.name || t('programs.buildWorkout')) : (day.label || t('programs.emptyDay', { defaultValue: 'Empty day' })));
           const cStatus = enrolled && !isEdit ? dayStatus(enrolled, w, dIdx) : null;
-          const isToday = !!todayPos && !isEdit && !todayPos.finishedPlan && todayPos.week === w && todayPos.dayIndex === dIdx;
+          const isCurrent = !!todayPos && !isEdit && !todayPos.finishedPlan && todayPos.week === w && todayPos.dayIndex === dIdx;
+          // "today" (highlighted + startable) only when the current day is also
+          // due by the calendar; a current-but-future day renders locked.
+          const isToday = isCurrent && currentUnlocked;
           const statusCol = cStatus === 'done' ? Colors.semantic.success : cStatus === 'skipped' ? Colors.semantic.warn : cStatus === 'rest' ? theme.textSecondary : null;
           const dateStr = enrolled && !isEdit ? dateForOrdinal(enrolled, ord).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
           // enrolled: only the active (today) day is startable. Future days open their
@@ -488,9 +496,9 @@ export default function ProgramBuilderScreen() {
             ? () => openDay(w, dIdx)
             : (enrolled && planned && isToday)
               ? () => { Haptics.selectionAsync(); setMarking(false); setMarkDur(''); setDayAction({ week: w, day: dIdx }); }
-              : (enrolled && planned)
-                ? viewText
-                : (planned ? () => startDay(day) : undefined);
+              // enrolled-but-locked, or before the program is started: preview
+              // only. No individual day is startable outside the active day.
+              : (planned ? viewText : undefined);
           const sub = [
             dateStr,
             day.restDay ? '' : inlineCount > 0 ? t('programs.exercisesN', { n: inlineCount }) : day.label ? day.label : t('programs.tapToBuild', { defaultValue: 'Tap to build' }),
@@ -547,15 +555,16 @@ export default function ProgramBuilderScreen() {
                   <Ionicons name={cStatus === 'done' ? 'checkmark-circle' : cStatus === 'skipped' ? 'close-circle' : 'moon'} size={13} color={statusCol!} />
                   <Text style={[s.statusChipText, { color: statusCol! }]}>{t(`programs.${cStatus}`, { defaultValue: cStatus })}</Text>
                 </View>
-              ) : planned && enrolled && !isEdit && !isToday ? (
-                <View style={[s.statusChip, { backgroundColor: theme.cardAlt }]}>
-                  <Ionicons name="lock-closed" size={12} color={theme.textMuted} />
-                  <Text style={[s.statusChipText, { color: theme.textMuted }]}>{t('programs.upcoming', { defaultValue: 'Upcoming' })}</Text>
-                </View>
-              ) : planned ? (
+              ) : planned && isToday ? (
                 <View style={[s.startBtn, { backgroundColor: Colors.electric }]}>
                   <Ionicons name="play" size={11} color="#04120B" />
                   <Text style={[s.startBtnText, { color: '#04120B' }]}>{t('programs.startDay')}</Text>
+                </View>
+              ) : planned ? (
+                // locked: enrolled future day, or any day before the program is
+                // started. Lock icon only — no label (cleaner, less noise).
+                <View style={[s.lockChip, { backgroundColor: theme.cardAlt }]} accessibilityLabel={t('programs.upcoming', { defaultValue: 'Upcoming' })}>
+                  <Ionicons name="lock-closed" size={14} color={theme.textMuted} />
                 </View>
               ) : day.restDay ? (
                 <Ionicons name="moon" size={15} color={theme.textSecondary} />
@@ -1066,6 +1075,7 @@ const s = StyleSheet.create({
   },
   startBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   peekBtn: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  lockChip: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   todayTag: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5 },
   todayTagText: { color: '#04120B', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
   statusChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },

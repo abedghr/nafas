@@ -68,6 +68,23 @@ export function positionToday(enr: Enrollment, program: Program): Position {
   return { ordinal, week: cell?.weekIndex ?? 0, dayIndex: cell?.dayIndex ?? 0, started: true, finishedPlan };
 }
 
+const sameCalendarDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+// Can the current (positionToday) day be started right now? True only when its
+// scheduled calendar date has arrived (past/today — so a backdated plan can be
+// caught up) AND no program workout has already been logged today (one program
+// session per calendar day). Future days stay locked: no running ahead of plan.
+export function currentDayReachable(enr: Enrollment, program: Program): boolean {
+  const pos = positionToday(enr, program);
+  if (pos.finishedPlan) return false;
+  const due = startOfDay(dateForOrdinal(enr, pos.ordinal)).getTime();
+  const now = startOfDay(new Date()).getTime();
+  if (due > now) return false;
+  const trainedToday = (enr.completions ?? []).some((c) => !!c.logId && !!c.completedDate && sameCalendarDay(new Date(c.completedDate), new Date()));
+  return !trainedToday;
+}
+
 export interface Progress { done: number; skipped: number; rest: number; decided: number; total: number; pct: number }
 export function programProgress(enr: Enrollment, program: Program): Progress {
   const total = programSequence(program).length;

@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
 import { Type, Fonts } from '@/constants/typography';
-import { programSequence, positionToday, dayStatus, programProgress, resolveDayExercises, swapDayOrder, type SeqDay } from '@/lib/program-schedule';
+import { programSequence, positionToday, dayStatus, programProgress, resolveDayExercises, swapDayOrder, currentDayReachable, type SeqDay } from '@/lib/program-schedule';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
 
 export default function ProgramTodayCard() {
@@ -35,9 +35,11 @@ export default function ProgramTodayCard() {
   const pct = Math.round(prog.pct * 100);
   const todayStatus = today ? dayStatus(activeEnrollment, today.weekIndex, today.dayIndex) : null;
   const runnable = !!today && !today.day.restDay && ((today.day.exercises?.length ?? 0) > 0 || !!today.day.templateId);
-  // one program workout per calendar day: a completion with a real log today locks the next
-  const isToday = (iso?: string | null) => { if (!iso) return false; const d = new Date(iso), n = new Date(); return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate(); };
-  const trainedToday = activeEnrollment.completions.some((c) => !!c.logId && isToday(c.completedDate));
+  // Startable only when the shown day's scheduled date has arrived and nothing
+  // has been trained today. When false, the shown day is a future/next day:
+  // display it but don't allow starting it early.
+  const unlocked = currentDayReachable(activeEnrollment, program);
+  const locked = !unlocked;
 
   const start = (sd: SeqDay) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -78,11 +80,11 @@ export default function ProgramTodayCard() {
                 <Ionicons name="reader-outline" size={16} color={Colors.electric} />
               </Pressable>
             )}
-            {/* today already trained → the shown day is tomorrow's; no actions until then */}
+            {/* shown day not yet due (already trained today, or a future day) → no actions until then */}
             <Pressable
-              disabled={trainedToday}
+              disabled={locked}
               onPress={() => { Haptics.selectionAsync(); setMarking(false); setSwapping(false); setSkipping(false); setSheetOpen(true); }}
-              hitSlop={8} style={[s.menuBtn, { backgroundColor: theme.cardAlt, opacity: trainedToday ? 0.4 : 1 }]}
+              hitSlop={8} style={[s.menuBtn, { backgroundColor: theme.cardAlt, opacity: locked ? 0.4 : 1 }]}
             >
               <Ionicons name="ellipsis-horizontal" size={16} color={theme.textSecondary} />
             </Pressable>
@@ -90,7 +92,7 @@ export default function ProgramTodayCard() {
               <View style={[s.statusPill, { backgroundColor: (todayStatus === 'done' ? Colors.semantic.success : todayStatus === 'skipped' ? Colors.semantic.warn : theme.textSecondary) + '22' }]}>
                 <Text style={[s.statusPillText, { color: todayStatus === 'done' ? Colors.semantic.success : todayStatus === 'skipped' ? Colors.semantic.warn : theme.textSecondary }]}>{t(`programs.${todayStatus}`, { defaultValue: todayStatus })}</Text>
               </View>
-            ) : trainedToday ? (
+            ) : locked ? (
               <View style={[s.statusPill, { backgroundColor: theme.cardAlt }]}>
                 <Text style={[s.statusPillText, { color: theme.textMuted, textTransform: 'none' }]}>{t('programs.nextTomorrow', { defaultValue: 'Next tomorrow' })}</Text>
               </View>
@@ -155,7 +157,7 @@ export default function ProgramTodayCard() {
               return (
                 <>
                   <Text style={[s.sheetTitle, { color: theme.text }]}>{`Day ${pos.ordinal + 1}`}{today.day.name ? ` · ${today.day.name}` : ''}</Text>
-                  {runnable && !trainedToday && (
+                  {runnable && !locked && (
                     <SheetBtn icon="play" color={Colors.electric} label={t('programs.startDay', { defaultValue: 'Start' })} onPress={() => { setSheetOpen(false); start(today); }} theme={theme} />
                   )}
                   {runnable && (
