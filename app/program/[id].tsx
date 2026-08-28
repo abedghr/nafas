@@ -24,7 +24,7 @@ const mapEx = (exercises: PrepExercise[]) => exercises.map(e => ({
   ...(e.combo ? { combo: true, unbroken: e.unbroken, components: e.components, comboRounds: e.comboRounds, mode: e.mode, intervalSeconds: e.intervalSeconds, timeCapSeconds: e.timeCapSeconds } : {}),
   ...(e.kind === 'intervals' ? { kind: 'intervals' as const, intervals: e.intervals } : {}),
 }));
-import { programStats, positionToday, dayStatus, ordinalOf, dateForOrdinal, resolveDayExercises, programSequence, currentDayReachable } from '@/lib/program-schedule';
+import { programStats, positionToday, dayAggStatus, firstUndecidedSession, ordinalOf, dateForOrdinal, resolveDayExercises, programSequence, currentDayReachable } from '@/lib/program-schedule';
 import Colors from '@/constants/colors';
 import { Fonts } from '@/constants/typography';
 
@@ -470,18 +470,23 @@ export default function ProgramBuilderScreen() {
         )}
         {orderedDays.map((sd) => {
           const w = sd.weekIndex, dIdx = sd.dayIndex, ord = sd.ordinal, day = sd.day;
-          const tmplName = templateName(day.templateId);
-          const inlineCount = day.exercises?.length ?? 0;
-          const planned = !day.restDay && (!!day.templateId || inlineCount > 0);
+          const sessions = day.restDay ? [] : daySessions(day);
+          const sCount = sessions.length;
+          const single = sCount === 1;
+          const firstExs = single ? (sessions[0].exercises?.length ?? 0) : 0;
+          const inlineCount = single ? firstExs : 0; // legacy peek path: single-session days only
+          const planned = !day.restDay && sCount > 0;
           const title = day.restDay
             ? t('programs.restDay')
-            : tmplName || (inlineCount > 0 ? (day.name || t('programs.buildWorkout')) : (day.label || t('programs.emptyDay', { defaultValue: 'Empty day' })));
-          const cStatus = enrolled && !isEdit ? dayStatus(enrolled, w, dIdx) : null;
+            : (day.name || day.label || (sCount > 0 ? t('programs.buildWorkout') : t('programs.emptyDay', { defaultValue: 'Empty day' })));
+          const cStatus = enrolled && !isEdit && program ? dayAggStatus(enrolled, program, w, dIdx) : null;
           const isCurrent = !!todayPos && !isEdit && !todayPos.finishedPlan && todayPos.week === w && todayPos.dayIndex === dIdx;
           // "today" (highlighted + startable) only when the current day is also
           // due by the calendar; a current-but-future day renders locked.
           const isToday = isCurrent && currentUnlocked;
-          const statusCol = cStatus === 'done' ? Colors.semantic.success : cStatus === 'skipped' ? Colors.semantic.warn : cStatus === 'rest' ? theme.textSecondary : null;
+          const undecidedIdx = enrolled && program && !isEdit ? firstUndecidedSession(enrolled, program, w, dIdx) : (planned ? 0 : -1);
+          const canStartToday = planned && isToday && undecidedIdx !== -1;
+          const statusCol = cStatus === 'done' ? Colors.semantic.success : cStatus === 'skipped' ? Colors.semantic.warn : cStatus === 'partial' ? Colors.electric : cStatus === 'rest' ? theme.textSecondary : null;
           const dateStr = enrolled && !isEdit ? dateForOrdinal(enrolled, ord).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
           // enrolled: only the active (today) day is startable. Future days open their
           // text preview; to play a different day, act on the active day (skip / swap).
@@ -495,9 +500,13 @@ export default function ProgramBuilderScreen() {
               // enrolled-but-locked, or before the program is started: preview
               // only. No individual day is startable outside the active day.
               : (planned ? viewText : undefined);
+          const sessNames = sessions.map((se, i) => se.name || se.label || t('programs.sessionN', { n: i + 1, defaultValue: `Session ${i + 1}` })).join(', ');
           const sub = [
             dateStr,
-            day.restDay ? '' : inlineCount > 0 ? t('programs.exercisesN', { n: inlineCount }) : day.label ? day.label : t('programs.tapToBuild', { defaultValue: 'Tap to build' }),
+            day.restDay ? ''
+              : sCount > 1 ? `${t('programs.sessionsN', { n: sCount, defaultValue: `${sCount} sessions` })}  ·  ${sessNames}`
+              : firstExs > 0 ? t('programs.exercisesN', { n: firstExs })
+              : day.label ? day.label : t('programs.tapToBuild', { defaultValue: 'Tap to build' }),
           ].filter(Boolean).join('  ·  ');
           return (
             <Pressable
@@ -546,15 +555,15 @@ export default function ProgramBuilderScreen() {
                   <Pressable onPress={() => moveDay(ord, 1)} disabled={ord === orderedDays.length - 1} hitSlop={4} style={{ padding: 3, opacity: ord === orderedDays.length - 1 ? 0.3 : 1 }}><Ionicons name="chevron-down" size={18} color={theme.textSecondary} /></Pressable>
                   <Pressable onPress={() => deleteDayAt(w, dIdx)} hitSlop={4} style={{ padding: 3 }}><Ionicons name="trash-outline" size={17} color={theme.textMuted} /></Pressable>
                 </View>
-              ) : cStatus ? (
-                <View style={[s.statusChip, { backgroundColor: statusCol! + '22' }]}>
-                  <Ionicons name={cStatus === 'done' ? 'checkmark-circle' : cStatus === 'skipped' ? 'close-circle' : 'moon'} size={13} color={statusCol!} />
-                  <Text style={[s.statusChipText, { color: statusCol! }]}>{t(`programs.${cStatus}`, { defaultValue: cStatus })}</Text>
-                </View>
-              ) : planned && isToday ? (
+              ) : canStartToday ? (
                 <View style={[s.startBtn, { backgroundColor: Colors.electric }]}>
                   <Ionicons name="play" size={11} color="#04120B" />
                   <Text style={[s.startBtnText, { color: '#04120B' }]}>{t('programs.startDay')}</Text>
+                </View>
+              ) : cStatus ? (
+                <View style={[s.statusChip, { backgroundColor: statusCol! + '22' }]}>
+                  <Ionicons name={cStatus === 'done' ? 'checkmark-circle' : cStatus === 'skipped' ? 'close-circle' : cStatus === 'partial' ? 'ellipsis-horizontal-circle' : 'moon'} size={13} color={statusCol!} />
+                  <Text style={[s.statusChipText, { color: statusCol! }]}>{t(`programs.${cStatus}`, { defaultValue: cStatus })}</Text>
                 </View>
               ) : planned ? (
                 // locked: enrolled future day, or any day before the program is
@@ -613,16 +622,22 @@ export default function ProgramBuilderScreen() {
           <Pressable style={[s.actionSheet, { backgroundColor: theme.background }]} onPress={(e) => e.stopPropagation()}>
             {dayAction && enrolled && (() => {
               const d = findDay(dayAction.week, dayAction.day);
-              const st = dayStatus(enrolled, dayAction.week, dayAction.day);
+              const st = program ? dayAggStatus(enrolled, program, dayAction.week, dayAction.day) : null;
+              const sess = d ? daySessions(d) : [];
+              const multiSess = sess.length > 1;
+              // act on the first still-undecided session; if all decided, fall back to session 0
+              const undec = program ? firstUndecidedSession(enrolled, program, dayAction.week, dayAction.day) : 0;
+              const si = undec === -1 ? 0 : undec;
+              const curSess = sess[si];
               const commitDone = () => {
                 const mins = parseInt(markDur, 10);
-                setEnrollmentDay(enrolled.id, dayAction.week, dayAction.day, 'done', Number.isFinite(mins) && mins > 0 ? { durationMin: mins } : undefined);
+                setEnrollmentDay(enrolled.id, dayAction.week, dayAction.day, 'done', { sessionIndex: si, ...(Number.isFinite(mins) && mins > 0 ? { durationMin: mins } : {}) });
                 setDayAction(null);
               };
               return (
                 <>
                   <Text style={[s.actionTitle, { color: theme.text }]}>
-                    {t('programs.dayN', { n: dayAction.week * 7 + dayAction.day + 1, defaultValue: `Day ${dayAction.week * 7 + dayAction.day + 1}` })}{d?.name ? ` · ${d.name}` : ''}
+                    {t('programs.dayN', { n: dayAction.week * 7 + dayAction.day + 1, defaultValue: `Day ${dayAction.week * 7 + dayAction.day + 1}` })}{multiSess ? ` · ${t('programs.sessionOfN', { n: si + 1, total: sess.length, defaultValue: `Session ${si + 1}/${sess.length}` })}` : ''}{curSess?.name ? ` · ${curSess.name}` : (d?.name ? ` · ${d.name}` : '')}
                   </Text>
                   {marking ? (
                     <>
@@ -643,15 +658,15 @@ export default function ProgramBuilderScreen() {
                     </>
                   ) : (
                     <>
-                      {d && !d.restDay && ((d.exercises?.length ?? 0) > 0 || d.templateId) && (
+                      {d && !d.restDay && curSess && ((curSess.exercises?.length ?? 0) > 0 || curSess.templateId) && (
                         <>
-                          <ActBtn icon="play" color={Colors.electric} label={t('programs.startDay', { defaultValue: 'Start' })} onPress={() => { setDayAction(null); if (d) startDay(d); }} theme={theme} />
-                          <ActBtn icon="list-outline" color={theme.text} label={t('programs.viewAsText', { defaultValue: 'View as text' })} onPress={() => { setTextDay(d!); setDayAction(null); }} theme={theme} />
+                          <ActBtn icon="play" color={Colors.electric} label={t('programs.startDay', { defaultValue: 'Start' })} onPress={() => { setDayAction(null); if (d) startDay(d, si); }} theme={theme} />
+                          <ActBtn icon="list-outline" color={theme.text} label={t('programs.viewAsText', { defaultValue: 'View as text' })} onPress={() => { setTextDay({ name: curSess.name || d.name, exercises: (curSess.exercises as any) || [] } as any); setDayAction(null); }} theme={theme} />
                         </>
                       )}
                       <ActBtn icon="checkmark-circle" color={Colors.semantic.success} label={t('programs.markDone', { defaultValue: 'Mark done' })} onPress={() => setMarking(true)} theme={theme} />
-                      <ActBtn icon="close-circle" color={Colors.semantic.warn} label={t('programs.markSkipped', { defaultValue: 'Mark skipped' })} onPress={() => { setEnrollmentDay(enrolled.id, dayAction.week, dayAction.day, 'skipped'); setDayAction(null); }} theme={theme} />
-                      {st && <ActBtn icon="refresh" color={theme.textMuted} label={t('programs.clearStatus', { defaultValue: 'Clear' })} onPress={() => { clearEnrollmentDay(enrolled.id, dayAction.week, dayAction.day); setDayAction(null); }} theme={theme} />}
+                      <ActBtn icon="close-circle" color={Colors.semantic.warn} label={t('programs.markSkipped', { defaultValue: 'Mark skipped' })} onPress={() => { setEnrollmentDay(enrolled.id, dayAction.week, dayAction.day, 'skipped', { sessionIndex: si }); setDayAction(null); }} theme={theme} />
+                      {st && <ActBtn icon="refresh" color={theme.textMuted} label={t('programs.clearStatus', { defaultValue: 'Clear' })} onPress={() => { clearEnrollmentDay(enrolled.id, dayAction.week, dayAction.day, si); setDayAction(null); }} theme={theme} />}
                     </>
                   )}
                 </>

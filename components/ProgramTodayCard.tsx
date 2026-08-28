@@ -12,6 +12,7 @@ import Colors from '@/constants/colors';
 import { Type, Fonts } from '@/constants/typography';
 import { programSequence, positionToday, dayStatus, programProgress, resolveDayExercises, swapDayOrder, currentDayReachable, type SeqDay } from '@/lib/program-schedule';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
+import { daySessions } from '@/lib/program-sessions';
 
 export default function ProgramTodayCard() {
   const { t } = useTranslation();
@@ -34,7 +35,12 @@ export default function ProgramTodayCard() {
   const prog = programProgress(activeEnrollment, program);
   const pct = Math.round(prog.pct * 100);
   const todayStatus = today ? dayStatus(activeEnrollment, today.weekIndex, today.dayIndex) : null;
-  const runnable = !!today && !today.day.restDay && ((today.day.exercises?.length ?? 0) > 0 || !!today.day.templateId);
+  // the CURRENT session within the current day (a day can hold morning + evening)
+  const sessions = today ? daySessions(today.day) : [];
+  const curSession = sessions[pos.sessionIndex];
+  const multi = sessions.length > 1;
+  const curName = today?.day.restDay ? '' : (curSession?.name || curSession?.label || today?.day.name || today?.day.label || '');
+  const runnable = !!today && !today.day.restDay && ((curSession?.exercises?.length ?? 0) > 0 || !!curSession?.templateId);
   // Startable only when the shown day's scheduled date has arrived and nothing
   // has been trained today. When false, the shown day is a future/next day:
   // display it but don't allow starting it early.
@@ -66,25 +72,29 @@ export default function ProgramTodayCard() {
 
         {/* today block */}
         {today && (() => {
-          const exCount = today.day.restDay ? 0 : (today.day.exercises?.length ?? 0);
+          const exCount = curSession?.exercises?.length ?? 0;
           const statusCol = todayStatus === 'done' ? Colors.semantic.success : todayStatus === 'skipped' ? Colors.semantic.warn : theme.textSecondary;
+          // kicker: TODAY, plus "Session X/Y · Label" for multi-session days, else exercise count
+          const sessTag = multi
+            ? `  ·  ${t('programs.sessionOfN', { n: pos.sessionIndex + 1, total: sessions.length, defaultValue: `Session ${pos.sessionIndex + 1}/${sessions.length}` })}${curSession?.label ? `  ·  ${curSession.label}` : ''}`
+            : (exCount > 0 ? `  ·  ${t('programs.exercisesN', { n: exCount })}` : '');
           return (
           <View style={[s.todayBlock, { borderTopColor: theme.border }]}>
             <View style={s.todayHeadRow}>
               <Text style={[s.kicker, { color: theme.textMuted }]}>
-                {pos.finishedPlan ? t('programs.planComplete', { defaultValue: 'Plan complete' }) : `${t('programs.today', { defaultValue: 'TODAY' })}${exCount > 0 ? `  ·  ${t('programs.exercisesN', { n: exCount })}` : ''}`}
+                {pos.finishedPlan ? t('programs.planComplete', { defaultValue: 'Plan complete' }) : `${t('programs.today', { defaultValue: 'TODAY' })}${sessTag}`}
               </Text>
               {todayStatus && (
                 <View style={[s.statusDot, { backgroundColor: statusCol }]} />
               )}
             </View>
-            <Text style={[s.todayName, { color: theme.text }]} numberOfLines={2}>{today.day.restDay ? t('programs.restDay') : (today.day.name || today.day.label || t('programs.rest', { defaultValue: 'Rest day' }))}</Text>
+            <Text style={[s.todayName, { color: theme.text }]} numberOfLines={2}>{today.day.restDay ? t('programs.restDay') : (curName || t('programs.rest', { defaultValue: 'Rest day' }))}</Text>
 
             <View style={s.actionsRow}>
               <View style={s.leftActions}>
                 {runnable && (
                   <Pressable
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay({ ...today.day, exercises: resolveDayExercises(activeEnrollment, today.weekIndex, today.dayIndex, (today.day.exercises as any[]) || []) }); }}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay({ name: curName, exercises: resolveDayExercises(activeEnrollment, today.weekIndex, today.dayIndex, (curSession?.exercises as any[]) || []) }); }}
                     hitSlop={8} style={[s.iconBtn, { backgroundColor: theme.cardAlt }]}
                     accessibilityLabel={t('workoutPrep.viewAsText', { defaultValue: 'View as text' })}
                   >
@@ -128,7 +138,7 @@ export default function ProgramTodayCard() {
             {today && (() => {
               const commitDone = () => {
                 const mins = parseInt(dur, 10);
-                setEnrollmentDay(activeEnrollment.id, today.weekIndex, today.dayIndex, 'done', Number.isFinite(mins) && mins > 0 ? { durationMin: mins } : undefined);
+                setEnrollmentDay(activeEnrollment.id, today.weekIndex, today.dayIndex, 'done', { sessionIndex: pos.sessionIndex, ...(Number.isFinite(mins) && mins > 0 ? { durationMin: mins } : {}) });
                 setSheetOpen(false);
               };
               if (swapping) {
@@ -172,18 +182,18 @@ export default function ProgramTodayCard() {
               }
               return (
                 <>
-                  <Text style={[s.sheetTitle, { color: theme.text }]}>{`Day ${pos.ordinal + 1}`}{today.day.name ? ` · ${today.day.name}` : ''}</Text>
+                  <Text style={[s.sheetTitle, { color: theme.text }]}>{`Day ${pos.ordinal + 1}`}{multi ? ` · ${t('programs.sessionOfN', { n: pos.sessionIndex + 1, total: sessions.length, defaultValue: `Session ${pos.sessionIndex + 1}/${sessions.length}` })}` : ''}{curName ? ` · ${curName}` : ''}</Text>
                   {runnable && !locked && (
                     <SheetBtn icon="play" color={Colors.electric} label={t('programs.startDay', { defaultValue: 'Start' })} onPress={() => { setSheetOpen(false); start(today); }} theme={theme} />
                   )}
                   {runnable && (
-                    <SheetBtn icon="reader-outline" color={theme.text} label={t('workoutPrep.viewAsText', { defaultValue: 'View as text' })} onPress={() => { setTextDay({ ...today.day, exercises: resolveDayExercises(activeEnrollment, today.weekIndex, today.dayIndex, (today.day.exercises as any[]) || []) }); setSheetOpen(false); }} theme={theme} />
+                    <SheetBtn icon="reader-outline" color={theme.text} label={t('workoutPrep.viewAsText', { defaultValue: 'View as text' })} onPress={() => { setTextDay({ name: curName, exercises: resolveDayExercises(activeEnrollment, today.weekIndex, today.dayIndex, (curSession?.exercises as any[]) || []) }); setSheetOpen(false); }} theme={theme} />
                   )}
                   <SheetBtn icon="checkmark-circle" color={Colors.semantic.success} label={t('programs.markDone', { defaultValue: 'Mark done' })} onPress={() => setMarking(true)} theme={theme} />
                   <SheetBtn icon="play-skip-forward" color={Colors.semantic.warn} label={t('programs.skipToday', { defaultValue: 'Skip today' })} onPress={() => setSkipping(true)} theme={theme} />
                   <SheetBtn icon="swap-horizontal" color={theme.text} label={t('programs.swapDay', { defaultValue: 'Swap with another day' })} onPress={() => setSwapping(true)} theme={theme} />
                   {(activeEnrollment.dayOrder?.length ?? 0) > 0 && <SheetBtn icon="arrow-undo" color={theme.textSecondary} label={t('programs.resetOrder', { defaultValue: 'Reset day order' })} onPress={() => { updateEnrollmentLocal(activeEnrollment.id, { dayOrder: [] }); setSheetOpen(false); }} theme={theme} />}
-                  {todayStatus && <SheetBtn icon="refresh" color={theme.textMuted} label={t('programs.clearStatus', { defaultValue: 'Clear' })} onPress={() => { clearEnrollmentDay(activeEnrollment.id, today.weekIndex, today.dayIndex); setSheetOpen(false); }} theme={theme} />}
+                  {todayStatus && <SheetBtn icon="refresh" color={theme.textMuted} label={t('programs.clearStatus', { defaultValue: 'Clear' })} onPress={() => { clearEnrollmentDay(activeEnrollment.id, today.weekIndex, today.dayIndex, pos.sessionIndex); setSheetOpen(false); }} theme={theme} />}
                 </>
               );
             })()}
