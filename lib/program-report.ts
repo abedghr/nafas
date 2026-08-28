@@ -229,6 +229,39 @@ export function compareRuns(current: ProgramReport, others: ProgramReport[]): Ru
   };
 }
 
+// Compact, numbers-only context sent to the server AI. Weekdays are named and
+// weeks/ordinals are 1-based for the model's benefit.
+const WD_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const r2 = (x: number) => Math.round(x * 100) / 100;
+export function reportContext(r: ProgramReport, cmp: RunComparison | null, language: string): Record<string, unknown> {
+  const notable = (pred: (j: JourneyDay) => boolean) =>
+    r.journey.filter(pred).slice(0, 8).map((j) => ({ day: j.ordinal + 1, name: j.name || '', date: j.scheduledDate.slice(0, 10) }));
+  return {
+    language,
+    programName: r.programName,
+    status: r.status,
+    completed: r.completed,
+    durationDays: r.durationDays,
+    plannedSessions: r.plannedSessions,
+    done: r.done, skipped: r.skipped, substituted: r.substituted, rest: r.rest, pending: r.pending,
+    completionRate: r2(r.completionRate),
+    adherenceRate: r2(r.adherenceRate),
+    onTimeRate: r2(r.onTimeRate),
+    longestStreak: r.longestStreak,
+    totalVolumeKg: r.totalVolumeKg,
+    totalMinutes: r.totalMinutes,
+    byWeek: r.byWeek.map((w) => ({ week: w.week + 1, rate: r2(w.rate) })),
+    byWeekday: r.byWeekday.filter((d) => d.planned > 0).map((d) => ({ weekday: WD_NAMES[d.weekday], done: d.done, planned: d.planned })),
+    activePeak: r.activePeak ? { week: r.activePeak.week + 1, rate: r2(r.activePeak.rate) } : null,
+    weakSpot: r.weakSpot ? { week: r.weakSpot.week + 1, rate: r2(r.weakSpot.rate) } : null,
+    skippedDays: notable((j) => j.agg === 'skipped'),
+    swappedDays: notable((j) => j.agg === 'substituted'),
+    vsPrevious: cmp?.previous
+      ? { deltaCompletion: cmp.deltaCompletion != null ? r2(cmp.deltaCompletion) : null, deltaAdherence: cmp.deltaAdherence != null ? r2(cmp.deltaAdherence) : null, deltaVolume: cmp.deltaVolume, rank: cmp.rankByCompletion, totalRuns: cmp.totalRuns }
+      : null,
+  };
+}
+
 // A letter grade from the completion rate — used by the report hero.
 export function gradeOf(rate: number): string {
   if (rate >= 0.95) return 'A+';

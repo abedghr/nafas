@@ -2,8 +2,8 @@
 // (auto: all days decided; or manual end). Stats are derived live from the
 // enrollment's completions (lib/program-report.ts); the AI narrative, once
 // generated, is cached on enrollment.endReport.
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, ActivityIndicator } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,7 +14,8 @@ import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
 import { Type, Fonts } from '@/constants/typography';
 import { Button } from '@/components/ui';
-import { buildReport, compareRuns, gradeOf, type ProgramReport, type DayAgg } from '@/lib/program-report';
+import { buildReport, compareRuns, reportContext, gradeOf, type ProgramReport, type DayAgg } from '@/lib/program-report';
+import { workoutApi } from '@/src/features/workout/api';
 
 const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -22,9 +23,11 @@ export default function ProgramReportScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { enrollmentId } = useLocalSearchParams<{ enrollmentId: string }>();
-  const { programs, enrollments, workoutLogs, isDark } = useApp();
+  const { programs, enrollments, workoutLogs, isDark, language, refreshEnrollments } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const enr = enrollments.find((e) => e.id === enrollmentId);
   const program = enr ? programs.find((p: any) => p.id === enr.programId) : undefined;
@@ -42,6 +45,20 @@ export default function ProgramReportScreen() {
       .map((e) => buildReport(e, program, workoutLogs));
     return compareRuns(report, others);
   }, [report, program, enrollments, workoutLogs, enr]);
+
+  const genReport = async () => {
+    if (!report || !enr) return;
+    setAiLoading(true); setAiError(null);
+    try {
+      await workoutApi.generateReport(enr.id, reportContext(report, comparison, language));
+      refreshEnrollments(); // pulls the enrollment back with endReport populated
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      setAiError(/501|AI_UNAVAILABLE|not configured/i.test(msg)
+        ? t('report.aiUnavailable', { defaultValue: 'AI analysis is not available yet.' })
+        : t('report.aiError', { defaultValue: 'Could not generate the analysis. Try again.' }));
+    } finally { setAiLoading(false); }
+  };
 
   // outcome → colour
   const aggColor = (a: DayAgg): string => {
@@ -259,9 +276,20 @@ export default function ProgramReportScreen() {
               ))}
             </>
           ) : (
-            <Text style={[s.aiSummary, { color: theme.textMuted }]}>
-              {t('report.aiPending', { defaultValue: 'A personalised analysis of your journey will appear here.' })}
-            </Text>
+            <>
+              <Text style={[s.aiSummary, { color: theme.textMuted }]}>
+                {t('report.aiPending', { defaultValue: 'A personalised analysis of your journey will appear here.' })}
+              </Text>
+              {aiError && <Text style={[s.aiSummary, { color: Colors.semantic.danger, marginTop: 8 }]}>{aiError}</Text>}
+              <Pressable
+                onPress={() => { if (!aiLoading) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); genReport(); } }}
+                disabled={aiLoading}
+                style={({ pressed }) => [s.aiBtn, { backgroundColor: Colors.accent, opacity: aiLoading ? 0.7 : pressed ? 0.9 : 1 }]}
+              >
+                {aiLoading ? <ActivityIndicator size="small" color="#04120B" /> : <Ionicons name="sparkles" size={16} color="#04120B" />}
+                <Text style={s.aiBtnText}>{aiLoading ? t('report.aiGenerating', { defaultValue: 'Analysing your journey…' }) : t('report.aiGenerate', { defaultValue: 'Generate AI analysis' })}</Text>
+              </Pressable>
+            </>
           )}
         </View>
 
@@ -369,6 +397,8 @@ const s = StyleSheet.create({
   aiSummary: { fontSize: 14, fontFamily: Fonts.regular, lineHeight: 20 },
   aiRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 10 },
   aiText: { flex: 1, fontSize: 13.5, fontFamily: Fonts.regular, lineHeight: 19 },
+  aiBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, borderRadius: 12, paddingVertical: 13 },
+  aiBtnText: { fontSize: 14, fontFamily: Fonts.semibold, color: '#04120B' },
 
   timelineHead: { fontSize: 18, fontFamily: Fonts.bold, marginTop: 22, marginBottom: 12 },
   timeline: {},

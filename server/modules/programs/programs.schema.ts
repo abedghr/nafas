@@ -72,3 +72,9 @@ export const DayStatusSchema = z.object({
   durationMin: z.number().int().min(0).max(1440).nullish(),
   logId: z.string().uuid().nullish(),
 });
+
+// Compact, client-computed report context fed to the AI. Numbers only — kept
+// permissive (passthrough) since it is the user's own derived stats, not trusted input.
+export const ReportContextSchema = z.object({
+  language: z.string().max(8).optional(),
+}).passthrough();

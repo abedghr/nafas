@@ -51,6 +51,8 @@ export const workoutApi = {
   enroll: (programId: string, startDate: string) => apiFetch("/enrollments", { method: "POST", auth: true, body: { programId, startDate } }),
   updateEnrollment: (id: string, body: { startDate?: string; status?: string; dayEdits?: Record<string, { added?: unknown[]; removed?: string[] }>; dayOrder?: string[] }) =>
     apiFetch(`/enrollments/${id}`, { method: "PATCH", auth: true, body }),
+  generateReport: (id: string, body: Record<string, unknown>) =>
+    apiFetch(`/enrollments/${id}/report`, { method: "POST", auth: true, body }),
   deleteEnrollment: (id: string) => apiFetch(`/enrollments/${id}`, { method: "DELETE", auth: true }),
   setEnrollmentDay: (id: string, body: { weekIndex: number; dayIndex: number; sessionIndex?: number; status: "done" | "skipped" | "rest"; completedDate?: string | null; durationMin?: number | null; logId?: string | null }) =>
     apiFetch(`/enrollments/${id}/days`, { method: "POST", auth: true, body }),

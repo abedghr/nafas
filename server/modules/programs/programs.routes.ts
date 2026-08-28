@@ -4,7 +4,9 @@ import { registry } from "../../core/openapi";
 import { requireAuth } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { programsService } from "./programs.service";
-import { ProgramCreateSchema, ShareCreateSchema, ClaimSchema, EnrollSchema, EnrollUpdateSchema, DayStatusSchema } from "./programs.schema";
+import { generateEndReport } from "./programs.ai";
+import { geminiConfigured } from "../../core/gemini";
+import { ProgramCreateSchema, ShareCreateSchema, ClaimSchema, EnrollSchema, EnrollUpdateSchema, DayStatusSchema, ReportContextSchema } from "./programs.schema";
 
 export const programsRouter = Router();
 programsRouter.use(requireAuth);
@@ -88,6 +90,20 @@ programsRouter.post("/enrollments", validate({ body: EnrollSchema }), async (req
 registry.registerPath({ method: "patch", path: "/api/enrollments/{id}", tags: ["Programs"], summary: "Update an enrollment", security: sec, request: { params: enrollIdParam, body: body(EnrollUpdateSchema) }, responses: { 200: json(z.any()) } });
 programsRouter.patch("/enrollments/:id", validate({ params: enrollIdParam, body: EnrollUpdateSchema }), async (req, res) => {
   const r = await programsService.updateEnrollment(req.user!.sub, String(req.params.id), req.body);
+  if (!r) return res.status(404).json({ code: "NOT_FOUND", message: "" });
+  res.json(r);
+});
+
+registry.registerPath({ method: "post", path: "/api/enrollments/{id}/report", tags: ["Programs"], summary: "Generate the AI end-of-program report", security: sec, request: { params: enrollIdParam, body: body(ReportContextSchema) }, responses: { 200: json(z.any()) } });
+programsRouter.post("/enrollments/:id/report", validate({ params: enrollIdParam, body: ReportContextSchema }), async (req, res) => {
+  if (!geminiConfigured()) return res.status(501).json({ code: "AI_UNAVAILABLE", message: "AI is not configured." });
+  let report;
+  try {
+    report = await generateEndReport(req.body as Record<string, unknown>);
+  } catch (e: any) {
+    return res.status(502).json({ code: "AI_FAILED", message: String(e?.message || e) });
+  }
+  const r = await programsService.saveEndReport(req.user!.sub, String(req.params.id), report);
   if (!r) return res.status(404).json({ code: "NOT_FOUND", message: "" });
   res.json(r);
 });

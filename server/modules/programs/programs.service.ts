@@ -244,6 +244,14 @@ export const programsService = {
     return this._enrollmentWithDays(row);
   },
 
+  async saveEndReport(userId: string, id: string, report: { generatedAt: string; summary: string; highlights: string[]; suggestions: string[] }) {
+    const [e] = await db.select().from(programEnrollments).where(and(eq(programEnrollments.id, id), eq(programEnrollments.userId, userId)));
+    if (!e) return null;
+    await db.update(programEnrollments).set({ endReport: report }).where(eq(programEnrollments.id, id));
+    const [row] = await db.select().from(programEnrollments).where(eq(programEnrollments.id, id));
+    return this._enrollmentWithDays(row);
+  },
+
   async removeEnrollment(userId: string, id: string) {
     await db.delete(programEnrollments).where(and(eq(programEnrollments.id, id), eq(programEnrollments.userId, userId)));
     return { ok: true };
