@@ -152,6 +152,9 @@ export interface ProgramDay {
   templateId?: string | null;
   name?: string;                  // inline workout name (when not using a template)
   exercises?: TemplateExercise[]; // inline workout exercises (either this or templateId)
+  // a day can hold 1+ sessions (morning run + evening calisthenics). Read via
+  // daySessions() (lib/program-sessions) which falls back to the legacy fields above.
+  sessions?: { id: string; label?: string; name?: string; templateId?: string | null; exercises?: TemplateExercise[] }[];
   label: string;
   notes: string;
 }
@@ -758,6 +761,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     days: (p.days ?? []).map(d => ({
       weekIndex: d.weekIndex, dayIndex: d.dayIndex, restDay: !!d.restDay,
       templateId: d.templateId ?? null, name: d.name ?? '', exercises: d.exercises ?? [],
+      sessions: d.sessions ?? [],
       label: d.label ?? '', notes: d.notes ?? '',
     })),
     weekMeta: (p.weekMeta ?? []).map(m => ({ index: m.index, name: m.name ?? '', notes: m.notes ?? '' })),

@@ -51,10 +51,13 @@ export const programDays = pgTable("program_days", {
   dayIndex: integer("day_index").notNull(),
   restDay: boolean("rest_day").notNull().default(false),
   templateId: uuid("template_id"),
-  // inline workout for this day (when not using a saved template): name + exercises
-  // (same shape as a template's exercises). Either templateId OR exercises may be set.
+  // LEGACY single-workout fields (kept for back-compat; new data lives in `sessions`).
+  // Read via daySessions(): sessions[] if present, else a single session synthesized here.
   name: varchar("name", { length: 96 }).notNull().default(""),
   exercises: jsonb("exercises").$type<unknown[]>().notNull().default([]),
+  // A day can hold 1+ sessions (e.g. morning run + evening calisthenics). Each session:
+  // { id, label?, name, templateId?|exercises[] }. Empty = fall back to the legacy fields.
+  sessions: jsonb("sessions").$type<unknown[]>().notNull().default([]),
   label: varchar("label", { length: 96 }).notNull().default(""),
   notes: text("notes").notNull().default(""),
 }, (t) => ({
@@ -88,6 +91,7 @@ export const programDayCompletions = pgTable("program_day_completions", {
   enrollmentId: uuid("enrollment_id").notNull().references(() => programEnrollments.id, { onDelete: "cascade" }),
   weekIndex: integer("week_index").notNull(),
   dayIndex: integer("day_index").notNull(),
+  sessionIndex: integer("session_index").notNull().default(0), // which session in the day (0 = the/only one)
   status: varchar("status", { length: 16 }).notNull(), // done | skipped
   completedDate: timestamp("completed_date"),
   durationMin: integer("duration_min"), // workout length in minutes (manual entry or from the log)
@@ -95,5 +99,5 @@ export const programDayCompletions = pgTable("program_day_completions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => ({
   enrollIdx: index("pdc_enroll_idx").on(t.enrollmentId),
-  cellUniq: uniqueIndex("pdc_cell_uniq").on(t.enrollmentId, t.weekIndex, t.dayIndex),
+  cellUniq: uniqueIndex("pdc_cell_uniq").on(t.enrollmentId, t.weekIndex, t.dayIndex, t.sessionIndex),
 }));

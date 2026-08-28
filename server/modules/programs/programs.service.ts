@@ -17,6 +17,7 @@ async function replaceDays(programId: string, days: ProgramCreate["days"]) {
       programId, weekIndex: d.weekIndex, dayIndex: d.dayIndex,
       restDay: !!d.restDay, templateId: d.templateId ?? null,
       name: d.name ?? "", exercises: d.exercises ?? [],
+      sessions: (d as any).sessions ?? [],
       label: d.label ?? "", notes: d.notes ?? "",
     })));
   }
@@ -198,7 +199,7 @@ export const programsService = {
       await db.insert(programDays).values(days.map((d) => ({
         programId: row.id, weekIndex: d.weekIndex, dayIndex: d.dayIndex,
         restDay: d.restDay, templateId: d.templateId,
-        name: d.name, exercises: d.exercises, label: d.label, notes: d.notes,
+        name: d.name, exercises: d.exercises, sessions: d.sessions ?? [], label: d.label, notes: d.notes,
       })));
     }
     return row.id;
@@ -249,31 +250,33 @@ export const programsService = {
   },
 
   // Upsert a (week, day) completion. Ownership checked via the enrollment.
-  async setDay(userId: string, enrollmentId: string, d: { weekIndex: number; dayIndex: number; status: string; completedDate?: string | null; durationMin?: number | null; logId?: string | null }) {
+  async setDay(userId: string, enrollmentId: string, d: { weekIndex: number; dayIndex: number; sessionIndex?: number; status: string; completedDate?: string | null; durationMin?: number | null; logId?: string | null }) {
     const [e] = await db.select().from(programEnrollments).where(and(eq(programEnrollments.id, enrollmentId), eq(programEnrollments.userId, userId)));
     if (!e) return null;
+    const sessionIndex = d.sessionIndex ?? 0;
     await db.insert(programDayCompletions)
       .values({
-        enrollmentId, weekIndex: d.weekIndex, dayIndex: d.dayIndex, status: d.status,
+        enrollmentId, weekIndex: d.weekIndex, dayIndex: d.dayIndex, sessionIndex, status: d.status,
         completedDate: d.completedDate ? new Date(d.completedDate) : new Date(),
         durationMin: d.durationMin ?? null,
         logId: d.logId ?? null,
       })
       .onConflictDoUpdate({
-        target: [programDayCompletions.enrollmentId, programDayCompletions.weekIndex, programDayCompletions.dayIndex],
+        target: [programDayCompletions.enrollmentId, programDayCompletions.weekIndex, programDayCompletions.dayIndex, programDayCompletions.sessionIndex],
         set: { status: d.status, completedDate: d.completedDate ? new Date(d.completedDate) : new Date(), durationMin: d.durationMin ?? null, logId: d.logId ?? null },
       });
     const [row] = await db.select().from(programEnrollments).where(eq(programEnrollments.id, enrollmentId));
     return this._enrollmentWithDays(row);
   },
 
-  async clearDay(userId: string, enrollmentId: string, weekIndex: number, dayIndex: number) {
+  async clearDay(userId: string, enrollmentId: string, weekIndex: number, dayIndex: number, sessionIndex?: number) {
     const [e] = await db.select().from(programEnrollments).where(and(eq(programEnrollments.id, enrollmentId), eq(programEnrollments.userId, userId)));
     if (!e) return null;
     await db.delete(programDayCompletions).where(and(
       eq(programDayCompletions.enrollmentId, enrollmentId),
       eq(programDayCompletions.weekIndex, weekIndex),
       eq(programDayCompletions.dayIndex, dayIndex),
+      ...(sessionIndex != null ? [eq(programDayCompletions.sessionIndex, sessionIndex)] : []),
     ));
     const [row] = await db.select().from(programEnrollments).where(eq(programEnrollments.id, enrollmentId));
     return this._enrollmentWithDays(row);

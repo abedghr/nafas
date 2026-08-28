@@ -1,12 +1,23 @@
 import { z } from "zod";
 
+// one session within a day (e.g. morning run, evening calisthenics)
+export const SessionInputSchema = z.object({
+  id: z.string().default(""),
+  label: z.string().default(""),          // "Morning" / "Evening" / free
+  name: z.string().default(""),           // workout name (training type)
+  templateId: z.string().uuid().nullish(),
+  exercises: z.array(z.any()).default([]),
+});
+
 export const ProgramDayInputSchema = z.object({
   weekIndex: z.number().int().min(0),
   dayIndex: z.number().int().min(0).max(6),
   restDay: z.boolean().default(false),
+  // LEGACY single-workout fields (still accepted; new clients send `sessions`)
   templateId: z.string().uuid().nullish(),
   name: z.string().default(""),
   exercises: z.array(z.any()).default([]), // inline workout (same shape as template exercises)
+  sessions: z.array(SessionInputSchema).optional(), // 1+ sessions; empty/absent = use legacy fields
   label: z.string().default(""),
   notes: z.string().default(""),
 });
@@ -55,6 +66,7 @@ export const EnrollUpdateSchema = z.object({
 export const DayStatusSchema = z.object({
   weekIndex: z.number().int().min(0),
   dayIndex: z.number().int().min(0).max(6),
+  sessionIndex: z.number().int().min(0).default(0), // which session in the day
   status: z.enum(["done", "skipped", "rest"]),
   completedDate: z.string().nullish(),
   durationMin: z.number().int().min(0).max(1440).nullish(),
