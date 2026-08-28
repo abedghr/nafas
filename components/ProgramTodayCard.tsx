@@ -69,6 +69,15 @@ export default function ProgramTodayCard() {
               <Text style={[s.kicker, { color: theme.textMuted }]}>{pos.finishedPlan ? t('programs.planComplete', { defaultValue: 'Plan complete' }) : t('programs.today', { defaultValue: 'TODAY' })}</Text>
               <Text style={[s.todayName, { color: theme.text }]} numberOfLines={1}>{today.day.restDay ? t('programs.restDay') : (today.day.name || today.day.label || t('programs.rest', { defaultValue: 'Rest day' }))}</Text>
             </View>
+            {runnable && (
+              <Pressable
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay({ ...today.day, exercises: resolveDayExercises(activeEnrollment, today.weekIndex, today.dayIndex, (today.day.exercises as any[]) || []) }); }}
+                hitSlop={8} style={[s.menuBtn, { backgroundColor: theme.cardAlt }]}
+                accessibilityLabel={t('workoutPrep.viewAsText', { defaultValue: 'View as text' })}
+              >
+                <Ionicons name="reader-outline" size={16} color={Colors.electric} />
+              </Pressable>
+            )}
             <Pressable onPress={() => { Haptics.selectionAsync(); setMarking(false); setSwapping(false); setSkipping(false); setSheetOpen(true); }} hitSlop={8} style={[s.menuBtn, { backgroundColor: theme.cardAlt }]}>
               <Ionicons name="ellipsis-horizontal" size={16} color={theme.textSecondary} />
             </Pressable>

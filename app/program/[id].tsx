@@ -479,11 +479,18 @@ export default function ProgramBuilderScreen() {
           const isToday = !!todayPos && !isEdit && !todayPos.finishedPlan && todayPos.week === w && todayPos.dayIndex === dIdx;
           const statusCol = cStatus === 'done' ? Colors.semantic.success : cStatus === 'skipped' ? Colors.semantic.warn : cStatus === 'rest' ? theme.textSecondary : null;
           const dateStr = enrolled && !isEdit ? dateForOrdinal(enrolled, ord).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
+          // enrolled: only the active (today) day is startable. Future days open their
+          // text preview; to play a different day, act on the active day (skip / swap).
+          const viewText = inlineCount > 0
+            ? () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay({ ...day, exercises: resolveDayExercises(enrolled, w, dIdx, (day.exercises as any[]) || []) } as any); }
+            : undefined;
           const onRow = isEdit
             ? () => openDay(w, dIdx)
-            : (enrolled && planned)
+            : (enrolled && planned && isToday)
               ? () => { Haptics.selectionAsync(); setMarking(false); setMarkDur(''); setDayAction({ week: w, day: dIdx }); }
-              : (planned ? () => startDay(day) : undefined);
+              : (enrolled && planned)
+                ? viewText
+                : (planned ? () => startDay(day) : undefined);
           const sub = [
             dateStr,
             day.restDay ? '' : inlineCount > 0 ? t('programs.exercisesN', { n: inlineCount }) : day.label ? day.label : t('programs.tapToBuild', { defaultValue: 'Tap to build' }),
@@ -539,6 +546,11 @@ export default function ProgramBuilderScreen() {
                 <View style={[s.statusChip, { backgroundColor: statusCol! + '22' }]}>
                   <Ionicons name={cStatus === 'done' ? 'checkmark-circle' : cStatus === 'skipped' ? 'close-circle' : 'moon'} size={13} color={statusCol!} />
                   <Text style={[s.statusChipText, { color: statusCol! }]}>{t(`programs.${cStatus}`, { defaultValue: cStatus })}</Text>
+                </View>
+              ) : planned && enrolled && !isEdit && !isToday ? (
+                <View style={[s.statusChip, { backgroundColor: theme.cardAlt }]}>
+                  <Ionicons name="lock-closed" size={12} color={theme.textMuted} />
+                  <Text style={[s.statusChipText, { color: theme.textMuted }]}>{t('programs.upcoming', { defaultValue: 'Upcoming' })}</Text>
                 </View>
               ) : planned ? (
                 <View style={[s.startBtn, { backgroundColor: Colors.electric }]}>

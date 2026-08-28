@@ -357,6 +357,34 @@ export default function CoachScreen() {
                 </Animated.View>
               )}
 
+              {/* This week — first, the at-a-glance stats */}
+              <Text style={[s.sectionTitle, { color: theme.text, marginTop: 4 }]}>{t('workoutTab.thisWeek', { defaultValue: 'This week' })}</Text>
+              <Animated.View entering={FadeInDown.duration(500).delay(60)}>
+                <View style={[s.ringsCard, { backgroundColor: theme.card }]}>
+                  <ActivityRings
+                    size={116}
+                    rings={[
+                      { value: Math.min(1, weeklyWorkouts / 5), color: Colors.ring.green },
+                      { value: Math.min(1, weeklyVolumeFromLogs / 20000), color: Colors.ring.amber },
+                      { value: Math.min(1, streak / 7), color: Colors.ring.blue },
+                    ]}
+                  />
+                  <View style={s.ringsLegend}>
+                    {[
+                      { color: Colors.ring.green, node: <CountUp value={weeklyWorkouts} style={s.legendVal} />, label: t('workoutTab.statThisWeek') },
+                      { color: Colors.ring.amber, node: <CountUp value={weeklyVolumeFromLogs} format={(n) => formatVolume(n, weightUnit)} style={s.legendVal} />, label: t('workoutTab.statVolume') },
+                      { color: Colors.ring.blue, node: <CountUp value={streak} format={(n) => `${Math.round(n)}d`} style={s.legendVal} />, label: t('workoutTab.statStreak') },
+                    ].map((r, i) => (
+                      <View key={i} style={s.legendRow}>
+                        <View style={[s.legendDot, { backgroundColor: r.color }]} />
+                        {r.node}
+                        <Text style={[s.legendLabel, { color: theme.textMuted }]} numberOfLines={1}>{r.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </Animated.View>
+
               {/* today's program card only when enrolled — the 'Programs' tile below covers
                   navigation when there's no active program (no redundant banner) */}
               {activeEnrollment && (
@@ -384,33 +412,6 @@ export default function CoachScreen() {
                   <Text style={[s.quickTileTitle, { color: theme.text }]} numberOfLines={1}>{t('workoutTab.myWorkouts')}</Text>
                   <Text style={[s.quickTileSub, { color: theme.textMuted }]} numberOfLines={1}>{t('workoutTab.myWorkoutsSub', { defaultValue: 'Saved & history' })}</Text>
                 </Pressable>
-              </Animated.View>
-
-              <Text style={[s.sectionTitle, { color: theme.text, marginTop: 4 }]}>{t('workoutTab.thisWeek', { defaultValue: 'This week' })}</Text>
-              <Animated.View entering={FadeInDown.duration(500).delay(120)}>
-                <View style={[s.ringsCard, { backgroundColor: theme.card }]}>
-                  <ActivityRings
-                    size={116}
-                    rings={[
-                      { value: Math.min(1, weeklyWorkouts / 5), color: Colors.ring.green },
-                      { value: Math.min(1, weeklyVolumeFromLogs / 20000), color: Colors.ring.amber },
-                      { value: Math.min(1, streak / 7), color: Colors.ring.blue },
-                    ]}
-                  />
-                  <View style={s.ringsLegend}>
-                    {[
-                      { color: Colors.ring.green, node: <CountUp value={weeklyWorkouts} style={s.legendVal} />, label: t('workoutTab.statThisWeek') },
-                      { color: Colors.ring.amber, node: <CountUp value={weeklyVolumeFromLogs} format={(n) => formatVolume(n, weightUnit)} style={s.legendVal} />, label: t('workoutTab.statVolume') },
-                      { color: Colors.ring.blue, node: <CountUp value={streak} format={(n) => `${Math.round(n)}d`} style={s.legendVal} />, label: t('workoutTab.statStreak') },
-                    ].map((r, i) => (
-                      <View key={i} style={s.legendRow}>
-                        <View style={[s.legendDot, { backgroundColor: r.color }]} />
-                        {r.node}
-                        <Text style={[s.legendLabel, { color: theme.textMuted }]} numberOfLines={1}>{r.label}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
               </Animated.View>
 
               {prs.length > 0 && (
