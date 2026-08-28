@@ -16,7 +16,7 @@ import { daySessions } from '@/lib/program-sessions';
 
 export default function ProgramTodayCard() {
   const { t } = useTranslation();
-  const { isDark, programs, activeEnrollment, setEnrollmentDay, clearEnrollmentDay, updateEnrollmentLocal } = useApp();
+  const { isDark, programs, activeEnrollment, setEnrollmentDay, clearEnrollmentDay, updateEnrollmentLocal, endEnrollment } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
 
   const program = useMemo(() => programs.find((p: any) => p.id === activeEnrollment?.programId), [programs, activeEnrollment]);
@@ -69,6 +69,21 @@ export default function ProgramTodayCard() {
           <View style={[s.progTrack, { backgroundColor: theme.cardAlt }]}><View style={[s.progFill, { width: `${pct}%`, backgroundColor: Colors.electric }]} /></View>
           <Text style={[s.pct, { color: Colors.electric }]}>{pct}%</Text>
         </View>
+
+        {/* plan complete → finish + view report */}
+        {pos.finishedPlan && (
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); endEnrollment(activeEnrollment.id, 'finished'); router.push(`/program-report/${activeEnrollment.id}` as any); }}
+            style={({ pressed }) => [s.finishBanner, { backgroundColor: Colors.electric, opacity: pressed ? 0.92 : 1 }]}
+          >
+            <Ionicons name="trophy" size={18} color="#04120B" />
+            <View style={{ flex: 1 }}>
+              <Text style={s.finishBannerTitle}>{t('programs.planCompleteTitle', { defaultValue: 'Program complete' })}</Text>
+              <Text style={s.finishBannerSub}>{t('programs.viewReport', { defaultValue: 'See your full journey report' })}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#04120B" />
+          </Pressable>
+        )}
 
         {/* today block */}
         {today && (() => {
@@ -221,6 +236,9 @@ const s = StyleSheet.create({
   badge: { width: 24, height: 24, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   name: { ...Type.bodyMed, fontWeight: '700', flex: 1 },
   count: { ...Type.caption, fontFamily: Fonts.monoBold },
+  finishBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12 },
+  finishBannerTitle: { fontSize: 14, fontFamily: Fonts.bold, color: '#04120B' },
+  finishBannerSub: { fontSize: 12, fontFamily: Fonts.medium, color: '#04120B', opacity: 0.8, marginTop: 1 },
   progRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   progTrack: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
   progFill: { height: 6, borderRadius: 3 },

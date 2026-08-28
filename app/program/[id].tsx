@@ -390,7 +390,12 @@ export default function ProgramBuilderScreen() {
                   <Ionicons name="flag" size={16} color={Colors.electric} />
                   <Text style={[s.dayTitle, { flex: 1, color: theme.text }]}>{t('programs.activeProgram', { defaultValue: 'Active program' })}</Text>
                   <Pressable
-                    onPress={async () => { if (await confirmDialog({ title: t('programs.endProgramConfirm', { defaultValue: 'End this program?' }), destructive: true })) endEnrollment(active.id); }}
+                    onPress={async () => {
+                      if (!await confirmDialog({ title: t('programs.endProgramConfirm', { defaultValue: 'End this program?' }), message: t('programs.endProgramMsg', { defaultValue: 'You will see your full journey report. This closes the program.' }), destructive: true, confirmText: t('programs.endProgram', { defaultValue: 'End' }) })) return;
+                      // completed all days → 'finished'; ended early → 'abandoned'
+                      endEnrollment(active.id, todayPos?.finishedPlan ? 'finished' : 'abandoned');
+                      router.push(`/program-report/${active.id}` as any);
+                    }}
                     hitSlop={8}
                     style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, flexDirection: 'row', alignItems: 'center', gap: 4 }]}
                   >
@@ -398,6 +403,21 @@ export default function ProgramBuilderScreen() {
                     <Text style={[s.useHintText, { color: theme.textMuted }]}>{t('programs.endProgram', { defaultValue: 'End' })}</Text>
                   </Pressable>
                 </View>
+
+                {/* all days decided → invite the user to close it out and see the report */}
+                {todayPos?.finishedPlan && (
+                  <Pressable
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); endEnrollment(active.id, 'finished'); router.push(`/program-report/${active.id}` as any); }}
+                    style={({ pressed }) => [s.finishBanner, { backgroundColor: Colors.electric, opacity: pressed ? 0.92 : 1 }]}
+                  >
+                    <Ionicons name="trophy" size={18} color="#04120B" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.finishBannerTitle}>{t('programs.planCompleteTitle', { defaultValue: 'Program complete' })}</Text>
+                      <Text style={s.finishBannerSub}>{t('programs.viewReport', { defaultValue: 'See your full journey report' })}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#04120B" />
+                  </Pressable>
+                )}
                 <DateTimeField
                   label={t('programs.startedOn', { defaultValue: 'Started on' })}
                   value={active.startDate}
@@ -433,18 +453,41 @@ export default function ProgramBuilderScreen() {
                   <Text style={[s.historyBtnText, { color: theme.textSecondary }]}>{t('programs.viewHistory', { defaultValue: 'View history' })}</Text>
                   <Ionicons name="chevron-forward" size={15} color={theme.textMuted} />
                 </Pressable>
+                <Pressable
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/program-report/${active.id}` as any); }}
+                  style={({ pressed }) => [s.historyBtn, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}
+                >
+                  <Ionicons name="stats-chart-outline" size={16} color={Colors.electric} />
+                  <Text style={[s.historyBtnText, { color: theme.textSecondary }]}>{t('programs.viewReport', { defaultValue: 'View report' })}</Text>
+                  <Ionicons name="chevron-forward" size={15} color={theme.textMuted} />
+                </Pressable>
               </View>
             );
           }
+          // idle: not the active program, but a past finished/abandoned run exists → link its report
+          const lastRun = (enrollments ?? []).filter(e => e.programId === program.id && e.status !== 'active')
+            .sort((a, b) => new Date(b.finishedAt || b.startDate).getTime() - new Date(a.finishedAt || a.startDate).getTime())[0];
           const canStart = orderedDays.length > 0;
           return (
-            <Pressable
-              onPress={() => { if (!canStart) { setMode('edit'); return; } Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); startProgram(program.id, new Date().toISOString()); }}
-              style={({ pressed }) => [s.startProgramBtn, { backgroundColor: canStart ? Colors.electric : theme.cardAlt, opacity: pressed ? 0.9 : 1 }]}
-            >
-              <Ionicons name={canStart ? 'flag' : 'add'} size={18} color={canStart ? '#04120B' : Colors.electric} />
-              <Text style={[s.startProgramText, canStart ? null : { color: Colors.electric }]}>{canStart ? t('programs.startProgram', { defaultValue: 'Start this program' }) : t('programs.addDaysFirst', { defaultValue: 'Add days first' })}</Text>
-            </Pressable>
+            <>
+              <Pressable
+                onPress={() => { if (!canStart) { setMode('edit'); return; } Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); startProgram(program.id, new Date().toISOString()); }}
+                style={({ pressed }) => [s.startProgramBtn, { backgroundColor: canStart ? Colors.electric : theme.cardAlt, opacity: pressed ? 0.9 : 1 }]}
+              >
+                <Ionicons name={canStart ? 'flag' : 'add'} size={18} color={canStart ? '#04120B' : Colors.electric} />
+                <Text style={[s.startProgramText, canStart ? null : { color: Colors.electric }]}>{canStart ? t('programs.startProgram', { defaultValue: 'Start this program' }) : t('programs.addDaysFirst', { defaultValue: 'Add days first' })}</Text>
+              </Pressable>
+              {lastRun && (
+                <Pressable
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/program-report/${lastRun.id}` as any); }}
+                  style={({ pressed }) => [s.historyBtn, { borderColor: theme.border, marginTop: 10, opacity: pressed ? 0.7 : 1 }]}
+                >
+                  <Ionicons name="stats-chart-outline" size={16} color={Colors.electric} />
+                  <Text style={[s.historyBtnText, { color: theme.textSecondary }]}>{t('programs.viewLastReport', { defaultValue: 'View last report' })}</Text>
+                  <Ionicons name="chevron-forward" size={15} color={theme.textMuted} />
+                </Pressable>
+              )}
+            </>
           );
         })()}
 
@@ -1071,6 +1114,9 @@ const s = StyleSheet.create({
   statLabel: { fontSize: 10, fontWeight: '600' },
   historyBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginTop: 2 },
   historyBtnText: { flex: 1, fontSize: 13.5, fontWeight: '600' },
+  finishBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14 },
+  finishBannerTitle: { fontSize: 15, fontWeight: '800', color: '#04120B' },
+  finishBannerSub: { fontSize: 12.5, fontWeight: '600', color: '#04120B', opacity: 0.8, marginTop: 1 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet: {
     height: '88%', borderTopLeftRadius: 24, borderTopRightRadius: 24,
