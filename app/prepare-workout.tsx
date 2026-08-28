@@ -16,6 +16,7 @@ import { componentToSetConfig } from '@/components/ComboBuilderModal';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
 import WorkoutBuilder, { type PrepExercise } from '@/components/WorkoutBuilder';
 import { resolveDayExercises } from '@/lib/program-schedule';
+import { daySessions } from '@/lib/program-sessions';
 import { Display, Button as UIButton } from '@/components/ui';
 import type { WorkoutType, WorkoutTemplate } from '@/lib/app-context';
 import { templateSig } from '@/lib/app-context';
@@ -162,7 +163,8 @@ function TemplatePickerModal({ visible, onClose, onSelect, onEdit, onDelete, tem
 export default function PrepareWorkoutScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { templateId, run, programId, weekIndex, dayIndex, enrollmentId, slotDay, subEnroll, subWeek, subDay } = useLocalSearchParams<{ templateId?: string; run?: string; programId?: string; weekIndex?: string; dayIndex?: string; enrollmentId?: string; slotDay?: string; subEnroll?: string; subWeek?: string; subDay?: string }>();
+  const { templateId, run, programId, weekIndex, dayIndex, session, enrollmentId, slotDay, subEnroll, subWeek, subDay } = useLocalSearchParams<{ templateId?: string; run?: string; programId?: string; weekIndex?: string; dayIndex?: string; session?: string; enrollmentId?: string; slotDay?: string; subEnroll?: string; subWeek?: string; subDay?: string }>();
+  const sessionIndex = session != null ? Number(session) : 0;
   const inProgram = !!programId;
   const isRunning = !!run; // running a program day (start live) vs authoring a program day (save only)
   const {
@@ -202,15 +204,19 @@ export default function PrepareWorkoutScreen() {
     const prog = programs.find(p => p.id === programId);
     if (!prog) return;
     const day = (prog.days ?? []).find(d => d.weekIndex === Number(weekIndex) && d.dayIndex === Number(dayIndex));
-    if (day?.exercises?.length) {
-      setWorkoutName(day.name || prog.name);
+    if (!day) return;
+    // load the specific SESSION of the day (a day can hold morning + evening sessions)
+    const sess = daySessions(day)[sessionIndex];
+    if (sess?.exercises?.length) {
+      setWorkoutName(sess.name || day.name || prog.name);
+      if (sess.name) setWorkoutType(sess.name as any);
       // apply this enrollment's flagged day edits (added/removed) on top of the template
       const enr = activeEnrollment && activeEnrollment.programId === programId ? activeEnrollment : null;
-      const resolved = resolveDayExercises(enr, Number(weekIndex), Number(dayIndex), day.exercises as any[]);
+      const resolved = resolveDayExercises(enr, Number(weekIndex), Number(dayIndex), sess.exercises as any[]);
       setExercises(resolved.map((e: any) => ({ ...e, uid: Crypto.randomUUID() })));
-    } else if (day?.templateId) {
-      const tmpl = workoutTemplates.find(t => t.id === day.templateId);
-      if (tmpl) { setWorkoutName(tmpl.name); setExercises(tmpl.exercises.map(e => ({ ...e, uid: Crypto.randomUUID() }))); }
+    } else if (sess?.templateId) {
+      const tmpl = workoutTemplates.find(t => t.id === sess.templateId);
+      if (tmpl) { setWorkoutName(tmpl.name); setWorkoutType((tmpl.workoutType as any) || null); setExercises(tmpl.exercises.map(e => ({ ...e, uid: Crypto.randomUUID() }))); }
     }
     // no editingId in program mode
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -353,10 +359,11 @@ export default function PrepareWorkoutScreen() {
         };
       }),
       ...(enrollmentId && slotDay != null ? { program: {
-        enrollmentId, weekIndex: Number(weekIndex), slotDay: Number(slotDay),
-        templateExerciseIds: (programs.find(p => p.id === programId)?.days ?? [])
-          .find(d => d.weekIndex === Number(weekIndex) && d.dayIndex === Number(slotDay))?.exercises
-          ?.map((e: any) => e.exerciseId) ?? [],
+        enrollmentId, weekIndex: Number(weekIndex), slotDay: Number(slotDay), sessionIndex,
+        templateExerciseIds: (() => {
+          const d = (programs.find(p => p.id === programId)?.days ?? []).find(x => x.weekIndex === Number(weekIndex) && x.dayIndex === Number(slotDay));
+          return d ? (daySessions(d)[sessionIndex]?.exercises ?? []).map((e: any) => e.exerciseId) : [];
+        })(),
       } } : subEnroll && subDay != null ? { program: {
         enrollmentId: subEnroll, weekIndex: Number(subWeek), slotDay: Number(subDay), substitute: true,
       } } : {}),
@@ -379,8 +386,17 @@ export default function PrepareWorkoutScreen() {
     }));
     const existing = (prog.days ?? []).find(x => x.weekIndex === w && x.dayIndex === d);
     const rest = (prog.days ?? []).filter(x => !(x.weekIndex === w && x.dayIndex === d));
+    // write into the day's session[sessionIndex], preserving its other sessions
+    const prevSessions = existing ? daySessions(existing) : [];
+    const sessions = [...prevSessions];
+    sessions[sessionIndex] = {
+      id: prevSessions[sessionIndex]?.id || Crypto.randomUUID(),
+      label: prevSessions[sessionIndex]?.label || '',
+      name: resolvedName || prevSessions[sessionIndex]?.name || '',
+      templateId: null, exercises: mapped as any,
+    };
     // the day's label IS the training type (resolvedName) — no separate label field needed
-    const day = { weekIndex: w, dayIndex: d, restDay: false, templateId: null, name: resolvedName || (existing?.name ?? ''), exercises: mapped as any, label: resolvedName || existing?.label || '', notes: existing?.notes ?? '' };
+    const day = { weekIndex: w, dayIndex: d, restDay: false, templateId: null, name: resolvedName || (existing?.name ?? ''), exercises: [] as any, sessions, label: resolvedName || existing?.label || '', notes: existing?.notes ?? '' };
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     updateProgram(programId, { name: prog.name, startDate: prog.startDate ?? null, weeks: prog.weeks, notes: prog.notes ?? '', days: [...rest, day] });
     alertDialog(t('programs.saveToProgram', { defaultValue: 'Saved to program' }), '');

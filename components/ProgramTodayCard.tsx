@@ -41,9 +41,9 @@ export default function ProgramTodayCard() {
   const unlocked = currentDayReachable(activeEnrollment, program);
   const locked = !unlocked;
 
-  const start = (sd: SeqDay) => {
+  const start = (sd: SeqDay, sessionIndex = pos.sessionIndex) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push(`/prepare-workout?programId=${program.id}&weekIndex=${sd.weekIndex}&dayIndex=${sd.dayIndex}&run=1&enrollmentId=${activeEnrollment.id}&slotDay=${sd.dayIndex}` as any);
+    router.push(`/prepare-workout?programId=${program.id}&weekIndex=${sd.weekIndex}&dayIndex=${sd.dayIndex}&session=${sessionIndex}&run=1&enrollmentId=${activeEnrollment.id}&slotDay=${sd.dayIndex}` as any);
   };
   const openDetail = () => router.push(`/program/${program.id}` as any);
 

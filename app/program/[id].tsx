@@ -188,7 +188,7 @@ export default function ProgramBuilderScreen() {
     reindexAndCommit(days);
   };
 
-  const startDay = (day: ProgramDay) => {
+  const startDay = (day: ProgramDay, sessionIndex = 0) => {
     if (!program) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // Always go through the programId path (resolves inline AND template days in
@@ -198,7 +198,7 @@ export default function ProgramBuilderScreen() {
     const enr = activeEnrollment && activeEnrollment.programId === program.id
       ? `&enrollmentId=${activeEnrollment.id}&slotDay=${day.dayIndex}`
       : '';
-    router.push((`/prepare-workout?programId=${program.id}&weekIndex=${day.weekIndex}&dayIndex=${day.dayIndex}&run=1${enr}`) as any);
+    router.push((`/prepare-workout?programId=${program.id}&weekIndex=${day.weekIndex}&dayIndex=${day.dayIndex}&session=${sessionIndex}&run=1${enr}`) as any);
   };
 
   // ── share (owner originals only) ──────────────────────────────────────────

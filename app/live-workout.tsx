@@ -2238,11 +2238,12 @@ export default function LiveWorkoutScreen() {
     // if this was a program day, mark it done on the enrollment (links the log for stats)
     if (session.program) {
       const p = session.program;
+      const sessionIndex = p.sessionIndex ?? 0;
       if (p.substitute) {
         // did a different workout instead → the planned day is skipped, log linked
-        setEnrollmentDay(p.enrollmentId, p.weekIndex, p.slotDay, 'skipped', { logId, durationMin: log.durationMinutes });
+        setEnrollmentDay(p.enrollmentId, p.weekIndex, p.slotDay, 'skipped', { logId, durationMin: log.durationMinutes, sessionIndex });
       } else {
-      setEnrollmentDay(p.enrollmentId, p.weekIndex, p.slotDay, 'done', { logId, durationMin: log.durationMinutes });
+      setEnrollmentDay(p.enrollmentId, p.weekIndex, p.slotDay, 'done', { logId, durationMin: log.durationMinutes, sessionIndex });
       // record add/remove deviations vs the program template, flagged for this enrollment
       const tmplIds = new Set(p.templateExerciseIds ?? []);
       const sessionIds = new Set(session.exercises.map((e) => e.exerciseId));
