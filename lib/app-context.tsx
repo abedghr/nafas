@@ -183,6 +183,7 @@ export type DayStatus = 'done' | 'skipped' | 'rest';
 export interface DayCompletion {
   weekIndex: number;
   dayIndex: number;
+  sessionIndex?: number;   // which session in the day (0 = the/only one)
   status: DayStatus;
   completedDate?: string | null;
   durationMin?: number | null;
@@ -423,8 +424,8 @@ interface AppContextValue {
   startProgram: (programId: string, startDate: string) => Promise<void>;
   endEnrollment: (id: string) => void;
   updateEnrollmentLocal: (id: string, patch: { startDate?: string; status?: Enrollment['status']; dayEdits?: Enrollment['dayEdits']; dayOrder?: string[] }) => void;
-  setEnrollmentDay: (id: string, weekIndex: number, dayIndex: number, status: DayStatus, opts?: { completedDate?: string; durationMin?: number; logId?: string }) => void;
-  clearEnrollmentDay: (id: string, weekIndex: number, dayIndex: number) => void;
+  setEnrollmentDay: (id: string, weekIndex: number, dayIndex: number, status: DayStatus, opts?: { completedDate?: string; durationMin?: number; logId?: string; sessionIndex?: number }) => void;
+  clearEnrollmentDay: (id: string, weekIndex: number, dayIndex: number, sessionIndex?: number) => void;
   setEnrollmentDayEdit: (id: string, weekIndex: number, dayIndex: number, edit: DayEdit) => void;
   workoutLogs: WorkoutLog[];
   addWorkoutLog: (log: Omit<WorkoutLog, 'id'> & { id?: string }) => string;
@@ -833,22 +834,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const setEnrollmentDay = useCallback((id: string, weekIndex: number, dayIndex: number, status: DayStatus, opts?: { completedDate?: string; durationMin?: number; logId?: string }) => {
+  const setEnrollmentDay = useCallback((id: string, weekIndex: number, dayIndex: number, status: DayStatus, opts?: { completedDate?: string; durationMin?: number; logId?: string; sessionIndex?: number }) => {
     const completedDate = opts?.completedDate ?? new Date().toISOString();
     const durationMin = opts?.durationMin ?? null;
+    const sessionIndex = opts?.sessionIndex ?? 0;
     setEnrollments(prev => prev.map(e => {
       if (e.id !== id) return e;
-      const rest = e.completions.filter(c => !(c.weekIndex === weekIndex && c.dayIndex === dayIndex));
-      return { ...e, completions: [...rest, { weekIndex, dayIndex, status, completedDate, durationMin, logId: opts?.logId ?? null }] };
+      const rest = e.completions.filter(c => !(c.weekIndex === weekIndex && c.dayIndex === dayIndex && (c.sessionIndex ?? 0) === sessionIndex));
+      return { ...e, completions: [...rest, { weekIndex, dayIndex, sessionIndex, status, completedDate, durationMin, logId: opts?.logId ?? null }] };
     }));
-    workoutApi.setEnrollmentDay(id, { weekIndex, dayIndex, status, completedDate, durationMin, logId: opts?.logId ?? null }).catch(() => {});
+    workoutApi.setEnrollmentDay(id, { weekIndex, dayIndex, sessionIndex, status, completedDate, durationMin, logId: opts?.logId ?? null }).catch(() => {});
   }, []);
 
-  const clearEnrollmentDay = useCallback((id: string, weekIndex: number, dayIndex: number) => {
+  const clearEnrollmentDay = useCallback((id: string, weekIndex: number, dayIndex: number, sessionIndex?: number) => {
     setEnrollments(prev => prev.map(e => e.id === id
-      ? { ...e, completions: e.completions.filter(c => !(c.weekIndex === weekIndex && c.dayIndex === dayIndex)) }
+      ? { ...e, completions: e.completions.filter(c => !(c.weekIndex === weekIndex && c.dayIndex === dayIndex && (sessionIndex == null || (c.sessionIndex ?? 0) === sessionIndex))) }
       : e));
-    workoutApi.clearEnrollmentDay(id, weekIndex, dayIndex).catch(() => {});
+    workoutApi.clearEnrollmentDay(id, weekIndex, dayIndex, sessionIndex).catch(() => {});
   }, []);
 
   const activeEnrollment = useMemo(() => enrollments.find(e => e.status === 'active') ?? null, [enrollments]);

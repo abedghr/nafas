@@ -2,6 +2,7 @@
 // weekday's workout is (after in-week swap overrides), each day's done/skipped
 // status, and simple per-program stats. Pure.
 import type { Program, ProgramDay, Enrollment, WorkoutLog } from './app-context';
+import { daySessions, sessionCount } from './program-sessions';
 
 const DAY = 24 * 3600 * 1000;
 export const WEEKDAY_KEYS = ['weekdayMon', 'weekdayTue', 'weekdayWed', 'weekdayThu', 'weekdayFri', 'weekdaySat', 'weekdaySun'] as const;
@@ -48,50 +49,101 @@ export function dateForOrdinal(enr: Enrollment, ordinal: number): Date {
   return new Date(startOfDay(new Date(enr.startDate)).getTime() + ordinal * DAY);
 }
 
-export interface Position { ordinal: number; week: number; dayIndex: number; started: boolean; finishedPlan: boolean }
+// sessionIndex = the first not-yet-decided session in the current day (0 for a
+// single-session day). finishedPlan when every day is fully decided.
+export interface Position { ordinal: number; week: number; dayIndex: number; sessionIndex: number; started: boolean; finishedPlan: boolean }
 
 const cellKey = (week: number, day: number) => `${week}-${day}`;
+const si = (c: any): number => c.sessionIndex ?? 0;
+const dayOf = (program: Program, week: number, day: number): ProgramDay | undefined =>
+  (program.days || []).find((d) => d.weekIndex === week && d.dayIndex === day);
 
-export function dayStatus(enr: Enrollment, week: number, day: number): 'done' | 'skipped' | 'rest' | null {
-  const c = enr.completions?.find((x) => x.weekIndex === week && x.dayIndex === day);
-  return c ? c.status : null;
+// status of ONE session within a day (per-session completion). 'rest' lives at day level.
+export function sessionStatus(enr: Enrollment, week: number, day: number, sessionIndex: number): 'done' | 'skipped' | null {
+  const c = enr.completions?.find((x) => x.weekIndex === week && x.dayIndex === day && si(x) === sessionIndex);
+  return c && (c.status === 'done' || c.status === 'skipped') ? c.status : null;
 }
 
-// Current day = first day in the sequence with no status yet (completion-based,
-// NOT calendar). finishedPlan when every day is done/skipped/rested.
+// index of the first undecided session in a day, or -1 if all decided / nothing to do.
+export function firstUndecidedSession(enr: Enrollment, program: Program, week: number, day: number): number {
+  const d = dayOf(program, week, day);
+  if (!d || d.restDay) return -1;
+  const n = sessionCount(d);
+  for (let i = 0; i < n; i++) if (!sessionStatus(enr, week, day, i)) return i;
+  return -1;
+}
+
+// a day is fully decided when: it's a rest day with a 'rest' completion; OR every
+// one of its sessions has a done/skipped completion; OR it has no sessions at all.
+export function dayDecided(enr: Enrollment, program: Program, week: number, day: number): boolean {
+  const d = dayOf(program, week, day);
+  if (!d) return true;
+  if (d.restDay) return !!enr.completions?.find((x) => x.weekIndex === week && x.dayIndex === day && x.status === 'rest');
+  const n = sessionCount(d);
+  if (n === 0) return true; // empty non-rest day → nothing to do, auto-advance
+  return firstUndecidedSession(enr, program, week, day) === -1;
+}
+
+// day-level rollup for the badge/list: rest / done (all done) / skipped (all
+// decided, some skipped) / partial (some sessions decided, some not) / null.
+export function dayAggStatus(enr: Enrollment, program: Program, week: number, day: number): 'done' | 'skipped' | 'rest' | 'partial' | null {
+  const d = dayOf(program, week, day);
+  if (!d) return null;
+  if (d.restDay) return enr.completions?.some((x) => x.weekIndex === week && x.dayIndex === day && x.status === 'rest') ? 'rest' : null;
+  const n = sessionCount(d);
+  if (n === 0) return null;
+  let done = 0, skipped = 0;
+  for (let i = 0; i < n; i++) { const s = sessionStatus(enr, week, day, i); if (s === 'done') done++; else if (s === 'skipped') skipped++; }
+  const decided = done + skipped;
+  if (decided === 0) return null;
+  if (decided < n) return 'partial';
+  return skipped > 0 && done === 0 ? 'skipped' : done > 0 && skipped === 0 ? 'done' : 'done'; // mixed decided → treat as done
+}
+
+// LEGACY: a single day status (completion-only). Kept for callers not yet
+// session-aware; for a proper multi-session rollup use dayAggStatus(program).
+export function dayStatus(enr: Enrollment, week: number, day: number): 'done' | 'skipped' | 'rest' | null {
+  const cs = enr.completions?.filter((x) => x.weekIndex === week && x.dayIndex === day) ?? [];
+  if (!cs.length) return null;
+  if (cs.some((c) => c.status === 'rest')) return 'rest';
+  if (cs.every((c) => c.status === 'done')) return 'done';
+  if (cs.some((c) => c.status === 'skipped')) return 'skipped';
+  return cs[0].status as any;
+}
+
+// Current position = first day not fully decided (completion-based, NOT calendar),
+// and within it the first undecided session. finishedPlan when all days decided.
 export function positionToday(enr: Enrollment, program: Program): Position {
   const seq = programSequence(program, enr);
-  const idx = seq.findIndex((s) => !dayStatus(enr, s.weekIndex, s.dayIndex));
+  const idx = seq.findIndex((s) => !dayDecided(enr, program, s.weekIndex, s.dayIndex));
   const finishedPlan = idx === -1 && seq.length > 0;
   const ordinal = idx === -1 ? Math.max(0, seq.length - 1) : idx;
   const cell = seq[ordinal];
-  return { ordinal, week: cell?.weekIndex ?? 0, dayIndex: cell?.dayIndex ?? 0, started: true, finishedPlan };
+  const sessionIndex = cell ? Math.max(0, firstUndecidedSession(enr, program, cell.weekIndex, cell.dayIndex)) : 0;
+  return { ordinal, week: cell?.weekIndex ?? 0, dayIndex: cell?.dayIndex ?? 0, sessionIndex, started: true, finishedPlan };
 }
 
-const sameCalendarDay = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-
-// Can the current (positionToday) day be started right now? True only when its
-// scheduled calendar date has arrived (past/today — so a backdated plan can be
-// caught up) AND no program workout has already been logged today (one program
-// session per calendar day). Future days stay locked: no running ahead of plan.
+// Can the current day be started right now? Its scheduled date must have arrived
+// (past/today — a backdated plan can be caught up). All sessions of the CURRENT
+// day are doable today (morning + evening); the NEXT day only becomes current
+// once this one is fully decided, and its date gates it — so no running ahead.
 export function currentDayReachable(enr: Enrollment, program: Program): boolean {
   const pos = positionToday(enr, program);
   if (pos.finishedPlan) return false;
   const due = startOfDay(dateForOrdinal(enr, pos.ordinal)).getTime();
   const now = startOfDay(new Date()).getTime();
-  if (due > now) return false;
-  const trainedToday = (enr.completions ?? []).some((c) => !!c.logId && !!c.completedDate && sameCalendarDay(new Date(c.completedDate), new Date()));
-  return !trainedToday;
+  return due <= now;
 }
 
+// progress counted in SESSION units: total = Σ (rest day = 1, else its session
+// count); decided = every done/skipped/rest completion.
 export interface Progress { done: number; skipped: number; rest: number; decided: number; total: number; pct: number }
 export function programProgress(enr: Enrollment, program: Program): Progress {
-  const total = programSequence(program).length;
+  const total = (program.days || []).reduce((n, d) => n + (d.restDay ? 1 : sessionCount(d)), 0);
   const done = enr.completions.filter((c) => c.status === 'done').length;
   const skipped = enr.completions.filter((c) => c.status === 'skipped').length;
   const rest = enr.completions.filter((c) => c.status === 'rest').length;
-  const decided = done + skipped + rest;
+  const decided = Math.min(total, done + skipped + rest);
   return { done, skipped, rest, decided, total, pct: total ? decided / total : 0 };
 }
 
@@ -111,9 +163,7 @@ export interface ProgramStats { done: number; skipped: number; rest: number; pla
 // counts, adherence (done of done+skipped; rest is neutral), volume + time from linked logs.
 export function programStats(enr: Enrollment, program: Program, logs: WorkoutLog[]): ProgramStats {
   let planned = 0;
-  for (const d of program.days || []) {
-    if (!d.restDay && ((d.exercises && d.exercises.length) || d.templateId)) planned++;
-  }
+  for (const d of program.days || []) planned += d.restDay ? 0 : sessionCount(d); // sessions, not days
   const done = enr.completions.filter((c) => c.status === 'done').length;
   const skipped = enr.completions.filter((c) => c.status === 'skipped').length;
   const rest = enr.completions.filter((c) => c.status === 'rest').length;

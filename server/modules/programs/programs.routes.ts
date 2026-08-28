@@ -106,7 +106,8 @@ programsRouter.post("/enrollments/:id/days", validate({ params: enrollIdParam, b
 
 registry.registerPath({ method: "delete", path: "/api/enrollments/{id}/days/{week}/{day}", tags: ["Programs"], summary: "Clear a day's status", security: sec, request: { params: dayParams }, responses: { 200: json(z.any()) } });
 programsRouter.delete("/enrollments/:id/days/:week/:day", validate({ params: dayParams }), async (req, res) => {
-  const r = await programsService.clearDay(req.user!.sub, String(req.params.id), Number(req.params.week), Number(req.params.day));
+  const session = req.query.session != null ? Number(req.query.session) : undefined;
+  const r = await programsService.clearDay(req.user!.sub, String(req.params.id), Number(req.params.week), Number(req.params.day), Number.isFinite(session as number) ? session : undefined);
   if (!r) return res.status(404).json({ code: "NOT_FOUND", message: "" });
   res.json(r);
 });
