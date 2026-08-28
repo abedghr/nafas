@@ -78,7 +78,12 @@ export default function ProgramTodayCard() {
                 <Ionicons name="reader-outline" size={16} color={Colors.electric} />
               </Pressable>
             )}
-            <Pressable onPress={() => { Haptics.selectionAsync(); setMarking(false); setSwapping(false); setSkipping(false); setSheetOpen(true); }} hitSlop={8} style={[s.menuBtn, { backgroundColor: theme.cardAlt }]}>
+            {/* today already trained → the shown day is tomorrow's; no actions until then */}
+            <Pressable
+              disabled={trainedToday}
+              onPress={() => { Haptics.selectionAsync(); setMarking(false); setSwapping(false); setSkipping(false); setSheetOpen(true); }}
+              hitSlop={8} style={[s.menuBtn, { backgroundColor: theme.cardAlt, opacity: trainedToday ? 0.4 : 1 }]}
+            >
               <Ionicons name="ellipsis-horizontal" size={16} color={theme.textSecondary} />
             </Pressable>
             {todayStatus ? (
@@ -144,7 +149,6 @@ export default function ProgramTodayCard() {
                     <SheetBtn icon="moon" color={theme.textSecondary} label={t('programs.restDayOpt', { defaultValue: 'Rest day' })} onPress={() => { setEnrollmentDay(activeEnrollment.id, today.weekIndex, today.dayIndex, 'rest'); setSheetOpen(false); }} theme={theme} />
                     {/* only marks the day skipped once a substitute is actually completed */}
                     <SheetBtn icon="add-circle-outline" color={Colors.electric} label={t('programs.buildDifferent', { defaultValue: 'Build a different workout' })} onPress={() => { setSheetOpen(false); router.push(`/prepare-workout?subEnroll=${activeEnrollment.id}&subWeek=${today.weekIndex}&subDay=${today.dayIndex}` as any); }} theme={theme} />
-                    <SheetBtn icon="close-circle" color={Colors.semantic.warn} label={t('programs.justSkip', { defaultValue: 'Just skip (nothing today)' })} onPress={() => { setEnrollmentDay(activeEnrollment.id, today.weekIndex, today.dayIndex, 'skipped'); setSheetOpen(false); }} theme={theme} />
                   </>
                 );
               }
