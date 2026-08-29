@@ -434,6 +434,7 @@ interface AppContextValue {
   startProgram: (programId: string, startDate: string) => Promise<void>;
   endEnrollment: (id: string, status?: 'finished' | 'abandoned') => void;
   updateEnrollmentLocal: (id: string, patch: { startDate?: string; status?: Enrollment['status']; dayEdits?: Enrollment['dayEdits']; dayOrder?: string[] }) => void;
+  updateRunStructure: (id: string, days: ProgramDay[]) => void;
   setEnrollmentDay: (id: string, weekIndex: number, dayIndex: number, status: DayStatus, opts?: { completedDate?: string; durationMin?: number; logId?: string; sessionIndex?: number }) => void;
   clearEnrollmentDay: (id: string, weekIndex: number, dayIndex: number, sessionIndex?: number) => void;
   setEnrollmentDayEdit: (id: string, weekIndex: number, dayIndex: number, edit: DayEdit) => void;
@@ -838,6 +839,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     workoutApi.updateEnrollment(id, patch).catch(() => {});
   }, []);
 
+  // rewrite an active run's frozen structure (edit-run: future days only, done days
+  // stay put). Persists to the enrollment snapshot; the template is untouched.
+  const updateRunStructure = useCallback((id: string, days: ProgramDay[]) => {
+    setEnrollments(prev => {
+      const next = prev.map(e => e.id === id && e.programSnapshot ? { ...e, programSnapshot: { ...e.programSnapshot, days } } : e);
+      const e = next.find(x => x.id === id);
+      if (e?.programSnapshot) workoutApi.updateEnrollment(id, { programSnapshot: e.programSnapshot as any }).catch(() => {});
+      return next;
+    });
+  }, []);
+
   // add/remove exercises on a program day for this enrollment (flagged deviation)
   const setEnrollmentDayEdit = useCallback((id: string, weekIndex: number, dayIndex: number, edit: DayEdit) => {
     const key = `${weekIndex}-${dayIndex}`;
@@ -1002,7 +1014,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     user, setUser, onboardingComplete, setOnboardingComplete,
     workouts, addWorkout, todayNutrition, foodNames, addMealItem, removeMealItem, setNutritionTargets,
     language, setLanguage, isDark, toggleTheme, weightUnit, setWeightUnit,
-    enrollments, activeEnrollment, programJustFinished, clearProgramFinished, refreshEnrollments, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, setEnrollmentDayEdit,
+    enrollments, activeEnrollment, programJustFinished, clearProgramFinished, refreshEnrollments, startProgram, endEnrollment, updateEnrollmentLocal, updateRunStructure, setEnrollmentDay, clearEnrollmentDay, setEnrollmentDayEdit,
     likedPosts, toggleLike, streak, weeklyWorkouts,
     inBodyTests, addInBodyTest, deleteInBodyTest,
     workoutTemplates, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate,
@@ -1012,7 +1024,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     exerciseLibrary, workoutTypes: workoutTypesData, muscleGroups: WORKOUT_MUSCLE_GROUPS,
     activeSession, setActiveSession,
     logout, deleteAccount,
-  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, weightUnit, setWeightUnit, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, deleteInBodyTest, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, programs, addProgram, updateProgram, deleteProgram, refreshPrograms, enrollments, activeEnrollment, programJustFinished, clearProgramFinished, refreshEnrollments, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, setEnrollmentDayEdit, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
+  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, weightUnit, setWeightUnit, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, deleteInBodyTest, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, programs, addProgram, updateProgram, deleteProgram, refreshPrograms, enrollments, activeEnrollment, programJustFinished, clearProgramFinished, refreshEnrollments, startProgram, endEnrollment, updateEnrollmentLocal, updateRunStructure, setEnrollmentDay, clearEnrollmentDay, setEnrollmentDayEdit, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
 
   if (!loaded) return null;
 

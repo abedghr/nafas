@@ -34,7 +34,7 @@ export default function ProgramBuilderScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>();
-  const { programs, updateProgram, deleteProgram, workoutTemplates, isDark, user, enrollments, activeEnrollment, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, workoutLogs, weightUnit } = useApp();
+  const { programs, updateProgram, deleteProgram, workoutTemplates, isDark, user, enrollments, activeEnrollment, startProgram, endEnrollment, updateEnrollmentLocal, updateRunStructure, setEnrollmentDay, clearEnrollmentDay, workoutLogs, weightUnit } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
@@ -84,6 +84,21 @@ export default function ProgramBuilderScreen() {
   const addSession = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDSessions(prev => [...prev, { id: Crypto.randomUUID(), label: '', type: null, exercises: [] }]); };
   const removeSession = (i: number) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDSessions(prev => prev.filter((_, idx) => idx !== i)); };
 
+  // ── template vs run context ──────────────────────────────────────────────
+  // The program screen is the reusable TEMPLATE. When a run is active it instead
+  // shows that RUN (its frozen snapshot); editing then rewrites the run's future
+  // days (done days locked), while "Manage main program" switches to the template
+  // where Edit + Share live and edits apply to the next run.
+  const [mode, setMode] = useState<'view' | 'edit'>(edit ? 'edit' : 'view');
+  const [templateView, setTemplateView] = useState(false);
+  const isEdit = mode === 'edit';
+  const enrolled = program && activeEnrollment && activeEnrollment.programId === program.id ? activeEnrollment : null;
+  const hasRun = !!enrolled;
+  const templateCtx = !hasRun || templateView;        // showing/editing the template
+  const runEdit = isEdit && hasRun && !templateView;  // editing the active run's snapshot
+  const shownProgram = (templateCtx ? program : (enrolled?.programSnapshot ?? program)) as typeof program;
+  const editDays = (): ProgramDay[] => (runEdit ? (enrolled?.programSnapshot?.days ?? []) : (program?.days ?? [])) as ProgramDay[];
+
   const commit = useCallback((patch: Partial<Omit<Program, 'id' | 'userId'>>) => {
     if (!program) return;
     updateProgram(program.id, {
@@ -97,21 +112,28 @@ export default function ProgramBuilderScreen() {
     });
   }, [program, updateProgram]);
 
-  // upsert a day by (weekIndex, dayIndex) into the days array
-  const upsertDay = useCallback((day: ProgramDay) => {
-    if (!program) return;
-    const rest = (program.days ?? []).filter(d => !(d.weekIndex === day.weekIndex && d.dayIndex === day.dayIndex));
-    commit({ days: [...rest, day] });
-  }, [program, commit]);
+  // route a days-array write to the template (updateProgram) or the run (snapshot).
+  const commitDays = (days: ProgramDay[]) => {
+    if (runEdit && enrolled) updateRunStructure(enrolled.id, days);
+    else commit({ days });
+  };
 
-  const removeDay = useCallback((week: number, dayIdx: number) => {
-    if (!program) return;
-    commit({ days: (program.days ?? []).filter(d => !(d.weekIndex === week && d.dayIndex === dayIdx)) });
-  }, [program, commit]);
+  // upsert a day by (weekIndex, dayIndex) into the current days source
+  const upsertDay = (day: ProgramDay) => {
+    const rest = editDays().filter(d => !(d.weekIndex === day.weekIndex && d.dayIndex === day.dayIndex));
+    commitDays([...rest, day]);
+  };
 
-  const findDay = useCallback((week: number, dayIdx: number) =>
-    (program?.days ?? []).find(d => d.weekIndex === week && d.dayIndex === dayIdx),
-  [program]);
+  const removeDay = (week: number, dayIdx: number) => {
+    commitDays(editDays().filter(d => !(d.weekIndex === week && d.dayIndex === dayIdx)));
+  };
+
+  const findDay = (week: number, dayIdx: number) =>
+    (shownProgram?.days ?? []).find(d => d.weekIndex === week && d.dayIndex === dayIdx);
+
+  // a run's day is locked in run-edit once it's decided (done/skipped/rest/partial).
+  const dayLocked = (week: number, dayIdx: number) =>
+    runEdit && !!enrolled && !!shownProgram && dayAggStatus(enrolled, shownProgram, week, dayIdx) != null;
 
   const templateName = useCallback((templateId?: string | null) =>
     templateId ? workoutTemplates.find(tp => tp.id === templateId)?.name : undefined,
@@ -156,38 +178,39 @@ export default function ProgramBuilderScreen() {
 
   // Days are a flat sequence; position = weekIndex*7 + dayIndex. Any mutation
   // re-indexes to keep positions contiguous (Day 1..N).
-  const reindexAndCommit = useCallback((days: ProgramDay[]) => {
+  const reindexAndCommit = (days: ProgramDay[]) => {
     const sorted = [...days].sort((a, b) => (a.weekIndex * 7 + a.dayIndex) - (b.weekIndex * 7 + b.dayIndex));
     const norm = sorted.map((d, i) => ({ ...d, weekIndex: Math.floor(i / 7), dayIndex: i % 7 }));
-    commit({ days: norm, weeks: Math.max(1, Math.ceil(norm.length / 7)), weekMeta: [] });
-  }, [commit]);
+    if (runEdit && enrolled) updateRunStructure(enrolled.id, norm);
+    else commit({ days: norm, weeks: Math.max(1, Math.ceil(norm.length / 7)), weekMeta: [] });
+  };
 
   const addDay = () => {
-    if (!program) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const n = (program.days ?? []).length;
+    const n = editDays().length;
     openDay(Math.floor(n / 7), n % 7); // blank editor at the next position; Save creates it
   };
 
   const deleteDayAt = async (week: number, day: number) => {
-    if (!program) return;
+    if (dayLocked(week, day)) return; // can't delete a completed run day
     const d = findDay(week, day);
-    if (d && (d.restDay || (d.exercises?.length ?? 0) > 0 || d.templateId)) {
+    if (d && (d.restDay || (d.exercises?.length ?? 0) > 0 || d.templateId || (d.sessions?.length ?? 0) > 0)) {
       const ok = await confirmDialog({ title: t('programs.deleteDay', { defaultValue: 'Delete this day?' }), destructive: true, confirmText: t('programs.delete'), cancelText: t('programs.cancel') });
       if (!ok) return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    reindexAndCommit((program.days ?? []).filter(x => !(x.weekIndex === week && x.dayIndex === day)));
+    reindexAndCommit(editDays().filter(x => !(x.weekIndex === week && x.dayIndex === day)));
   };
 
   const moveDay = (ordinal: number, dir: -1 | 1) => {
-    if (!program) return;
-    const seq = programSequence(program);
+    const seq = programSequence(shownProgram as any);
     const j = ordinal + dir;
     if (j < 0 || j >= seq.length) return;
-    Haptics.selectionAsync();
     const a = seq[ordinal], b = seq[j];
-    const days = (program.days ?? []).map(d => {
+    // in run-edit, keep completed days anchored — don't swap a locked day
+    if (dayLocked(a.weekIndex, a.dayIndex) || dayLocked(b.weekIndex, b.dayIndex)) return;
+    Haptics.selectionAsync();
+    const days = editDays().map(d => {
       if (d.weekIndex === a.weekIndex && d.dayIndex === a.dayIndex) return { ...d, weekIndex: b.weekIndex, dayIndex: b.dayIndex };
       if (d.weekIndex === b.weekIndex && d.dayIndex === b.dayIndex) return { ...d, weekIndex: a.weekIndex, dayIndex: a.dayIndex };
       return d;
@@ -219,10 +242,6 @@ export default function ProgramBuilderScreen() {
     if (received) return false;
     return p.canShare === true || !p.userId || p.userId === user?.id;
   }, [program, user]);
-
-  // view = use the program (start each day); edit = author it. Default to use.
-  const [mode, setMode] = useState<'view' | 'edit'>(edit ? 'edit' : 'view');
-  const isEdit = mode === 'edit';
 
   const [shareOpen, setShareOpen] = useState(false);
   const [shareQuery, setShareQuery] = useState('');
@@ -306,21 +325,18 @@ export default function ProgramBuilderScreen() {
     );
   }
 
-  // enrollment overlay for the week grid: highlight today + show done/skipped
-  const enrolled = activeEnrollment && activeEnrollment.programId === program.id ? activeEnrollment : null;
-  // An active run follows the structure frozen at start (snapshot). VIEW mode shows
-  // that run; EDIT mode edits the live template (changes only affect future runs).
-  const runProgram = (enrolled && !isEdit && enrolled.programSnapshot ? enrolled.programSnapshot : program) as typeof program;
-  const todayPos = enrolled ? positionToday(enrolled, runProgram) : null;
+  // enrollment overlay for the day list: highlight today + show done/skipped.
+  // shownProgram is the run's snapshot (run context) or the template (template context).
+  const todayPos = enrolled && !templateCtx ? positionToday(enrolled, shownProgram as any) : null;
   // The current day is only startable when its scheduled date has arrived (past
   // days are catch-up-able; future days stay locked — no running ahead).
-  const currentUnlocked = enrolled ? currentDayReachable(enrolled, runProgram) : false;
-  const orderedDays = programSequence(runProgram, isEdit ? null : enrolled);
+  const currentUnlocked = enrolled && !templateCtx ? currentDayReachable(enrolled, shownProgram as any) : false;
+  const orderedDays = programSequence(shownProgram as any, isEdit || templateCtx ? null : enrolled);
 
   return (
     <View style={[s.container, { backgroundColor: theme.background }]}>
       <View style={[s.header, { paddingTop: topPad + 8 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={s.backBtn}>
+        <Pressable onPress={() => { if (templateView && hasRun) { setMode('view'); setTemplateView(false); } else router.back(); }} hitSlop={12} style={s.backBtn}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
         <Text style={[s.headerTitle, { color: theme.text }]} numberOfLines={1}>{program.name}</Text>
@@ -333,7 +349,7 @@ export default function ProgramBuilderScreen() {
           >
             <Ionicons name={isEdit ? 'checkmark' : 'create-outline'} size={22} color={isEdit ? Colors.electric : theme.text} />
           </Pressable>
-          {shareable && !isEdit && (
+          {templateCtx && shareable && !isEdit && (
             <Pressable onPress={openShare} hitSlop={12} accessibilityLabel={t('programs.share', { defaultValue: 'Share' })} style={({ pressed }) => [s.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
               <Ionicons name="share-social-outline" size={22} color={Colors.electric} />
             </Pressable>
@@ -346,8 +362,18 @@ export default function ProgramBuilderScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: insets.bottom + 60 }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* program meta */}
-        {isEdit ? (
+        {/* viewing the template while a run is active */}
+        {hasRun && templateView && (
+          <Pressable
+            onPress={() => { Haptics.selectionAsync(); setMode('view'); setTemplateView(false); }}
+            style={({ pressed }) => [s.editNote, { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.85 : 1 }]}
+          >
+            <Ionicons name="arrow-back-circle-outline" size={17} color={Colors.electric} />
+            <Text style={[s.editNoteText, { color: theme.textSecondary }]}>{t('programs.viewingMain', { defaultValue: 'Main program — edits apply to future runs. Tap to go back to your active run.' })}</Text>
+          </Pressable>
+        )}
+        {/* program meta (name/notes edit only on the template) */}
+        {isEdit && templateCtx ? (
           <View style={[s.metaCard, { backgroundColor: theme.card }]}>
             <Text style={[s.fieldLabel, { color: theme.textSecondary }]}>{t('programs.programName')}</Text>
             <TextInput
@@ -410,8 +436,8 @@ export default function ProgramBuilderScreen() {
           })()
         )}
 
-        {/* start / active enrollment */}
-        {!isEdit && (() => {
+        {/* start / active enrollment (run context; hidden while managing the template) */}
+        {!isEdit && !templateView && (() => {
           const active = activeEnrollment && activeEnrollment.programId === program.id ? activeEnrollment : null;
           if (active) {
             return (
@@ -455,7 +481,7 @@ export default function ProgramBuilderScreen() {
                   <Text style={[s.startedVal, { color: theme.text }]}>{new Date(active.startDate).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text>
                 </View>
                 {(() => {
-                  const st = programStats(active, runProgram, workoutLogs);
+                  const st = programStats(active, shownProgram as any, workoutLogs);
                   const time = st.minutes >= 60 ? `${Math.floor(st.minutes / 60)}h ${st.minutes % 60}m` : `${st.minutes}m`;
                   const tiles = [
                     { label: t('programs.statDone', { defaultValue: 'Done' }), value: String(st.done), color: Colors.semantic.success },
@@ -518,8 +544,25 @@ export default function ProgramBuilderScreen() {
           );
         })()}
 
-        {/* owner: who has this program */}
-        {!isEdit && shareable && (
+        {/* run context: jump to the reusable template (edit structure / share) */}
+        {hasRun && !templateView && !isEdit && (
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMode('view'); setTemplateView(true); }}
+            style={({ pressed }) => [s.manageRow, { backgroundColor: theme.card, opacity: pressed ? 0.9 : 1 }]}
+          >
+            <View style={[s.detailIcon, { backgroundColor: Colors.electric + '18' }]}>
+              <Ionicons name="construct-outline" size={18} color={Colors.electric} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.detailTitle, { color: theme.text }]}>{t('programs.manageMain', { defaultValue: 'Main program' })}</Text>
+              <Text style={[s.detailSub, { color: theme.textMuted }]}>{t('programs.manageMainSub', { defaultValue: 'Edit the plan or share it — affects future runs' })}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
+          </Pressable>
+        )}
+
+        {/* owner: who has this program (template context only) */}
+        {templateCtx && !isEdit && shareable && (
           <Pressable
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(('/program-shares/' + program.id) as any); }}
             style={({ pressed }) => [s.manageRow, { backgroundColor: theme.card, opacity: pressed ? 0.9 : 1 }]}
@@ -535,8 +578,14 @@ export default function ProgramBuilderScreen() {
           </Pressable>
         )}
 
-        {/* editing while a run is active: edits only affect future runs */}
-        {isEdit && enrolled && (
+        {/* edit banners */}
+        {runEdit && (
+          <View style={[s.editNote, { backgroundColor: Colors.semantic.warn + '18', borderColor: Colors.semantic.warn + '55' }]}>
+            <Ionicons name="lock-closed" size={16} color={Colors.semantic.warn} />
+            <Text style={[s.editNoteText, { color: theme.textSecondary }]}>{t('programs.editRunNote', { defaultValue: 'Editing this run. Completed days are locked; changes apply to the days ahead.' })}</Text>
+          </View>
+        )}
+        {isEdit && templateView && hasRun && (
           <View style={[s.editNote, { backgroundColor: Colors.semantic.info + '18', borderColor: Colors.semantic.info + '55' }]}>
             <Ionicons name="information-circle" size={17} color={Colors.semantic.info} />
             <Text style={[s.editNoteText, { color: theme.textSecondary }]}>{t('programs.editActiveNote', { defaultValue: 'Your active run keeps the plan it started with. These edits apply to your next run.' })}</Text>
@@ -560,12 +609,12 @@ export default function ProgramBuilderScreen() {
           const title = day.restDay
             ? t('programs.restDay')
             : (day.name || day.label || (sCount > 0 ? t('programs.buildWorkout') : t('programs.emptyDay', { defaultValue: 'Empty day' })));
-          const cStatus = enrolled && !isEdit ? dayAggStatus(enrolled, runProgram, w, dIdx) : null;
+          const cStatus = enrolled && !isEdit ? dayAggStatus(enrolled, shownProgram as any, w, dIdx) : null;
           const isCurrent = !!todayPos && !isEdit && !todayPos.finishedPlan && todayPos.week === w && todayPos.dayIndex === dIdx;
           // "today" (highlighted + startable) only when the current day is also
           // due by the calendar; a current-but-future day renders locked.
           const isToday = isCurrent && currentUnlocked;
-          const undecidedIdx = enrolled && !isEdit ? firstUndecidedSession(enrolled, runProgram, w, dIdx) : (planned ? 0 : -1);
+          const undecidedIdx = enrolled && !isEdit ? firstUndecidedSession(enrolled, shownProgram as any, w, dIdx) : (planned ? 0 : -1);
           const canStartToday = planned && isToday && undecidedIdx !== -1;
           const statusCol = cStatus === 'done' ? Colors.semantic.success : cStatus === 'skipped' ? Colors.semantic.warn : cStatus === 'partial' ? Colors.electric : cStatus === 'rest' ? theme.textSecondary : null;
           const dateStr = enrolled && !isEdit ? dateForOrdinal(enrolled, ord).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
@@ -574,8 +623,9 @@ export default function ProgramBuilderScreen() {
           const viewText = inlineCount > 0
             ? () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay({ ...day, exercises: resolveDayExercises(enrolled, w, dIdx, (day.exercises as any[]) || []) } as any); }
             : undefined;
+          const locked = dayLocked(w, dIdx); // run-edit: a completed day can't be changed
           const onRow = isEdit
-            ? () => openDay(w, dIdx)
+            ? (locked ? undefined : () => openDay(w, dIdx))
             : (enrolled && planned && isToday)
               ? () => { Haptics.selectionAsync(); setMarking(false); setMarkDur(''); setDayAction({ week: w, day: dIdx }); }
               // enrolled-but-locked, or before the program is started: preview
@@ -631,11 +681,17 @@ export default function ProgramBuilderScreen() {
                 </Pressable>
               )}
               {isEdit ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Pressable onPress={() => moveDay(ord, -1)} disabled={ord === 0} hitSlop={4} style={{ padding: 3, opacity: ord === 0 ? 0.3 : 1 }}><Ionicons name="chevron-up" size={18} color={theme.textSecondary} /></Pressable>
-                  <Pressable onPress={() => moveDay(ord, 1)} disabled={ord === orderedDays.length - 1} hitSlop={4} style={{ padding: 3, opacity: ord === orderedDays.length - 1 ? 0.3 : 1 }}><Ionicons name="chevron-down" size={18} color={theme.textSecondary} /></Pressable>
-                  <Pressable onPress={() => deleteDayAt(w, dIdx)} hitSlop={4} style={{ padding: 3 }}><Ionicons name="trash-outline" size={17} color={theme.textMuted} /></Pressable>
-                </View>
+                locked ? (
+                  <View style={[s.lockChip, { backgroundColor: theme.cardAlt }]} accessibilityLabel={t('programs.completedLocked', { defaultValue: 'Completed — locked' })}>
+                    <Ionicons name="lock-closed" size={14} color={Colors.semantic.success} />
+                  </View>
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Pressable onPress={() => moveDay(ord, -1)} disabled={ord === 0} hitSlop={4} style={{ padding: 3, opacity: ord === 0 ? 0.3 : 1 }}><Ionicons name="chevron-up" size={18} color={theme.textSecondary} /></Pressable>
+                    <Pressable onPress={() => moveDay(ord, 1)} disabled={ord === orderedDays.length - 1} hitSlop={4} style={{ padding: 3, opacity: ord === orderedDays.length - 1 ? 0.3 : 1 }}><Ionicons name="chevron-down" size={18} color={theme.textSecondary} /></Pressable>
+                    <Pressable onPress={() => deleteDayAt(w, dIdx)} hitSlop={4} style={{ padding: 3 }}><Ionicons name="trash-outline" size={17} color={theme.textMuted} /></Pressable>
+                  </View>
+                )
               ) : canStartToday ? (
                 <View style={[s.startBtn, { backgroundColor: Colors.electric }]}>
                   <Ionicons name="play" size={11} color="#04120B" />
@@ -672,8 +728,8 @@ export default function ProgramBuilderScreen() {
           </Pressable>
         )}
 
-        {/* delete program — edit mode only, confirm required (kept off the list so it isn't a one-tap action) */}
-        {isEdit && (
+        {/* delete program — template edit only (never while editing a run) */}
+        {isEdit && templateCtx && (
           <Pressable
             onPress={async () => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -732,12 +788,12 @@ export default function ProgramBuilderScreen() {
         <Pressable style={s.actionOverlay} onPress={() => setDayAction(null)}>
           <Pressable style={[s.actionSheet, { backgroundColor: theme.background }]} onPress={(e) => e.stopPropagation()}>
             {dayAction && enrolled && (() => {
-              const d = (runProgram?.days ?? []).find((x: any) => x.weekIndex === dayAction.week && x.dayIndex === dayAction.day);
-              const st = dayAggStatus(enrolled, runProgram, dayAction.week, dayAction.day);
+              const d = (shownProgram?.days ?? []).find((x: any) => x.weekIndex === dayAction.week && x.dayIndex === dayAction.day);
+              const st = dayAggStatus(enrolled, shownProgram as any, dayAction.week, dayAction.day);
               const sess = d ? daySessions(d) : [];
               const multiSess = sess.length > 1;
               // act on the first still-undecided session; if all decided, fall back to session 0
-              const undec = firstUndecidedSession(enrolled, runProgram, dayAction.week, dayAction.day);
+              const undec = firstUndecidedSession(enrolled, shownProgram as any, dayAction.week, dayAction.day);
               const si = undec === -1 ? 0 : undec;
               const curSess = sess[si];
               const commitDone = () => {

@@ -62,6 +62,8 @@ export const EnrollUpdateSchema = z.object({
   dayEdits: z.record(z.object({ added: z.array(z.any()).optional(), removed: z.array(z.string()).optional() })).optional(),
   // per-enrollment day order: array of "<week>-<day>" keys
   dayOrder: z.array(z.string()).optional(),
+  // the run's frozen structure — editing an active run rewrites its future days here
+  programSnapshot: z.object({ id: z.string().optional(), name: z.string(), weeks: z.number().optional(), days: z.array(z.any()) }).optional(),
 });
 export const DayStatusSchema = z.object({
   weekIndex: z.number().int().min(0),

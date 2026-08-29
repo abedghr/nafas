@@ -234,7 +234,7 @@ export const programsService = {
     return this._enrollmentWithDays(row);
   },
 
-  async updateEnrollment(userId: string, id: string, patch: { startDate?: string; status?: string; dayEdits?: Record<string, { added?: unknown[]; removed?: string[] }>; dayOrder?: string[] }) {
+  async updateEnrollment(userId: string, id: string, patch: { startDate?: string; status?: string; dayEdits?: Record<string, { added?: unknown[]; removed?: string[] }>; dayOrder?: string[]; programSnapshot?: { id?: string; name: string; weeks?: number; days: unknown[] } }) {
     const [e] = await db.select().from(programEnrollments).where(and(eq(programEnrollments.id, id), eq(programEnrollments.userId, userId)));
     if (!e) return null;
     // freeze a program snapshot the first time a run ends, so history survives
@@ -249,7 +249,7 @@ export const programsService = {
       ...(patch.status ? { status: patch.status, ...(patch.status !== "active" ? { finishedAt: new Date() } : {}) } : {}),
       ...(patch.dayEdits ? { dayEdits: patch.dayEdits } : {}),
       ...(patch.dayOrder ? { dayOrder: patch.dayOrder } : {}),
-      ...(snapshot ? { programSnapshot: snapshot } : {}),
+      ...(patch.programSnapshot ? { programSnapshot: patch.programSnapshot } : (snapshot ? { programSnapshot: snapshot } : {})),
     }).where(eq(programEnrollments.id, id));
     const [row] = await db.select().from(programEnrollments).where(eq(programEnrollments.id, id));
     return this._enrollmentWithDays(row);

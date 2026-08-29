@@ -49,7 +49,7 @@ export const workoutApi = {
   // program enrollment / scheduling
   enrollments: () => apiFetch<{ data: any[] }>("/enrollments", { auth: true }).then((r) => r.data),
   enroll: (programId: string, startDate: string) => apiFetch("/enrollments", { method: "POST", auth: true, body: { programId, startDate } }),
-  updateEnrollment: (id: string, body: { startDate?: string; status?: string; dayEdits?: Record<string, { added?: unknown[]; removed?: string[] }>; dayOrder?: string[] }) =>
+  updateEnrollment: (id: string, body: { startDate?: string; status?: string; dayEdits?: Record<string, { added?: unknown[]; removed?: string[] }>; dayOrder?: string[]; programSnapshot?: { id?: string; name: string; weeks?: number; days: unknown[] } }) =>
     apiFetch(`/enrollments/${id}`, { method: "PATCH", auth: true, body }),
   generateReport: (id: string, body: Record<string, unknown>) =>
     apiFetch(`/enrollments/${id}/report`, { method: "POST", auth: true, body }),
