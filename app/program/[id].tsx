@@ -14,6 +14,7 @@ import { workoutApi } from '@/src/features/workout/api';
 import { confirmDialog } from '@/lib/dialog';
 import DateTimeField from '@/components/DateTimeField';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
+import ProgramCompleteModal from '@/components/ProgramCompleteModal';
 import WorkoutBuilder, { type PrepExercise } from '@/components/WorkoutBuilder';
 import { daySessions } from '@/lib/program-sessions';
 
@@ -66,6 +67,7 @@ export default function ProgramBuilderScreen() {
   const [textDay, setTextDay] = useState<ProgramDay | null>(null);
   // enrolled-day action sheet (start / done+duration / skip / clear)
   const [dayAction, setDayAction] = useState<{ week: number; day: number } | null>(null);
+  const [completeModal, setCompleteModal] = useState<{ enrollmentId: string; name: string; completed: boolean } | null>(null);
   const [marking, setMarking] = useState(false);
   const [markDur, setMarkDur] = useState('');
 
@@ -393,8 +395,9 @@ export default function ProgramBuilderScreen() {
                     onPress={async () => {
                       if (!await confirmDialog({ title: t('programs.endProgramConfirm', { defaultValue: 'End this program?' }), message: t('programs.endProgramMsg', { defaultValue: 'You will see your full journey report. This closes the program.' }), destructive: true, confirmText: t('programs.endProgram', { defaultValue: 'End' }) })) return;
                       // completed all days → 'finished'; ended early → 'abandoned'
-                      endEnrollment(active.id, todayPos?.finishedPlan ? 'finished' : 'abandoned');
-                      router.push(`/program-report/${active.id}` as any);
+                      const completed = !!todayPos?.finishedPlan;
+                      endEnrollment(active.id, completed ? 'finished' : 'abandoned');
+                      setCompleteModal({ enrollmentId: active.id, name: program.name, completed });
                     }}
                     hitSlop={8}
                     style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, flexDirection: 'row', alignItems: 'center', gap: 4 }]}
@@ -407,7 +410,7 @@ export default function ProgramBuilderScreen() {
                 {/* all days decided → invite the user to close it out and see the report */}
                 {todayPos?.finishedPlan && (
                   <Pressable
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); endEnrollment(active.id, 'finished'); router.push(`/program-report/${active.id}` as any); }}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); endEnrollment(active.id, 'finished'); setCompleteModal({ enrollmentId: active.id, name: program.name, completed: true }); }}
                     style={({ pressed }) => [s.finishBanner, { backgroundColor: Colors.electric, opacity: pressed ? 0.92 : 1 }]}
                   >
                     <Ionicons name="trophy" size={18} color="#04120B" />
@@ -657,6 +660,15 @@ export default function ProgramBuilderScreen() {
         onClose={() => setTextDay(null)}
         title={textDay?.name || t('programs.buildWorkout')}
         exercises={(textDay?.exercises as any[]) || []}
+      />
+
+      <ProgramCompleteModal
+        visible={!!completeModal}
+        programName={completeModal?.name || ''}
+        completed={!!completeModal?.completed}
+        onView={() => { const id = completeModal?.enrollmentId; setCompleteModal(null); if (id) router.push(`/program-report/${id}` as any); }}
+        onClose={() => setCompleteModal(null)}
+        theme={theme}
       />
 
       {/* enrolled-day action sheet */}

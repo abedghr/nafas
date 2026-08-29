@@ -212,6 +212,7 @@ export const extraEn = {
     planCompleteTitle: "Program complete", viewReport: "View report", viewLastReport: "View last report",
     endProgramMsg: "You will see your full journey report. This closes the program.",
     finishModalTitle: "Program complete!", finishModalBody: "You finished \"{{name}}\". See your full journey and your coach's analysis.", later: "Later",
+    endedModalTitle: "Program ended", endedModalBody: "You ended \"{{name}}\". See how it went and your coach's analysis.", viewStats: "View statistics",
   },
   history: {
     title: "Program history", empty: "No finished programs yet. Complete or end a program to see it here.",
@@ -482,6 +483,7 @@ export const extraAr = {
     planCompleteTitle: "اكتمل البرنامج", viewReport: "عرض التقرير", viewLastReport: "عرض آخر تقرير",
     endProgramMsg: "سترى تقرير رحلتك الكامل. هذا ينهي البرنامج.",
     finishModalTitle: "اكتمل البرنامج!", finishModalBody: "أنهيت \"{{name}}\". اطّلع على رحلتك الكاملة وتحليل مدرّبك.", later: "لاحقًا",
+    endedModalTitle: "أُنهي البرنامج", endedModalBody: "أنهيت \"{{name}}\". اطّلع على النتيجة وتحليل مدرّبك.", viewStats: "عرض الإحصائيات",
   },
   history: {
     title: "سجلّ البرامج", empty: "لا برامج منتهية بعد. أكمل برنامجًا أو أنهه لتراه هنا.",
