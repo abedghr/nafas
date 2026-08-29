@@ -1,7 +1,7 @@
 // Compact "my program" card for the workout dashboard: program name + a thin
 // progress bar + today's workout with a Start button and a small actions menu.
 // Deliberately small — the full day list lives on the program screen.
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -12,12 +12,11 @@ import Colors from '@/constants/colors';
 import { Type, Fonts } from '@/constants/typography';
 import { programSequence, positionToday, dayStatus, programProgress, resolveDayExercises, swapDayOrder, currentDayReachable, type SeqDay } from '@/lib/program-schedule';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
-import ProgramCompleteModal from '@/components/ProgramCompleteModal';
 import { daySessions } from '@/lib/program-sessions';
 
 export default function ProgramTodayCard() {
   const { t } = useTranslation();
-  const { isDark, programs, activeEnrollment, setEnrollmentDay, clearEnrollmentDay, updateEnrollmentLocal, endEnrollment } = useApp();
+  const { isDark, programs, activeEnrollment, setEnrollmentDay, clearEnrollmentDay, updateEnrollmentLocal } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
 
   const program = useMemo(() => programs.find((p: any) => p.id === activeEnrollment?.programId), [programs, activeEnrollment]);
@@ -27,20 +26,10 @@ export default function ProgramTodayCard() {
   const [skipping, setSkipping] = useState(false);
   const [dur, setDur] = useState('');
   const [textDay, setTextDay] = useState<any | null>(null);
-  const [finishModal, setFinishModal] = useState(false);
 
-  // pop a congrats modal the moment the last day gets decided (once per run).
-  const finishAckRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!activeEnrollment || !program) return;
-    const p = positionToday(activeEnrollment, program);
-    if (p.finishedPlan && activeEnrollment.status === 'active' && finishAckRef.current !== activeEnrollment.id) {
-      finishAckRef.current = activeEnrollment.id;
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setFinishModal(true);
-    }
-  }, [activeEnrollment, program]);
-
+  // Completion is handled globally: marking the last day auto-finishes the run
+  // (app-context), which drops it from activeEnrollment and pops the modal on the
+  // dashboard. So this card only ever shows an in-progress program.
   if (!activeEnrollment || !program) return null;
 
   const seq = programSequence(program, activeEnrollment);
@@ -83,21 +72,6 @@ export default function ProgramTodayCard() {
           <View style={[s.progTrack, { backgroundColor: theme.cardAlt }]}><View style={[s.progFill, { width: `${pct}%`, backgroundColor: Colors.electric }]} /></View>
           <Text style={[s.pct, { color: Colors.electric }]}>{pct}%</Text>
         </View>
-
-        {/* plan complete → finish + view report */}
-        {pos.finishedPlan && (
-          <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); endEnrollment(activeEnrollment.id, 'finished'); router.push(`/program-report/${activeEnrollment.id}` as any); }}
-            style={({ pressed }) => [s.finishBanner, { backgroundColor: Colors.electric, opacity: pressed ? 0.92 : 1 }]}
-          >
-            <Ionicons name="trophy" size={18} color="#04120B" />
-            <View style={{ flex: 1 }}>
-              <Text style={s.finishBannerTitle}>{t('programs.planCompleteTitle', { defaultValue: 'Program complete' })}</Text>
-              <Text style={s.finishBannerSub}>{t('programs.viewReport', { defaultValue: 'See your full journey report' })}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#04120B" />
-          </Pressable>
-        )}
 
         {/* today block */}
         {today && (() => {
@@ -232,14 +206,6 @@ export default function ProgramTodayCard() {
 
       <WorkoutTextModal visible={textDay !== null} onClose={() => setTextDay(null)} title={textDay?.name || t('programs.buildWorkout')} exercises={(textDay?.exercises as any[]) || []} />
 
-      <ProgramCompleteModal
-        visible={finishModal}
-        programName={program.name}
-        completed
-        onView={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setFinishModal(false); endEnrollment(activeEnrollment.id, 'finished'); router.push(`/program-report/${activeEnrollment.id}` as any); }}
-        onClose={() => setFinishModal(false)}
-        theme={theme}
-      />
     </View>
   );
 }
@@ -259,9 +225,6 @@ const s = StyleSheet.create({
   badge: { width: 24, height: 24, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   name: { ...Type.bodyMed, fontWeight: '700', flex: 1 },
   count: { ...Type.caption, fontFamily: Fonts.monoBold },
-  finishBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12 },
-  finishBannerTitle: { fontSize: 14, fontFamily: Fonts.bold, color: '#04120B' },
-  finishBannerSub: { fontSize: 12, fontFamily: Fonts.medium, color: '#04120B', opacity: 0.8, marginTop: 1 },
   progRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   progTrack: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
   progFill: { height: 6, borderRadius: 3 },

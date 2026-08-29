@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useMemo, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { I18nManager, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 import { authApi } from '@/src/features/auth/api';
 import { setOnAuthExpired } from '@/src/lib/api';
 import { mapMeToProfile, clearSession } from '@/src/features/auth/session';
+import { positionToday } from './program-schedule';
 import { tokens } from '@/src/lib/auth-tokens';
 import { workoutApi, mapExercise, MUSCLE_GROUPS as WORKOUT_MUSCLE_GROUPS } from '@/src/features/workout/api';
 import { setWorkoutLibrary } from '@/src/features/workout/library-cache';
@@ -427,6 +428,8 @@ interface AppContextValue {
   refreshPrograms: () => void;
   enrollments: Enrollment[];
   activeEnrollment: Enrollment | null;
+  programJustFinished: { enrollmentId: string; programName: string } | null;
+  clearProgramFinished: () => void;
   refreshEnrollments: () => void;
   startProgram: (programId: string, startDate: string) => Promise<void>;
   endEnrollment: (id: string, status?: 'finished' | 'abandoned') => void;
@@ -499,6 +502,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [workoutTemplates, setWorkoutTemplates] = useState<WorkoutTemplate[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  // set when a run auto-finishes (last day decided); drives the global completion modal
+  const [programJustFinished, setProgramJustFinished] = useState<{ enrollmentId: string; programName: string } | null>(null);
+  const programsRef = useRef<Program[]>([]);
+  useEffect(() => { programsRef.current = programs; }, [programs]);
+  const clearProgramFinished = useCallback(() => setProgramJustFinished(null), []);
   const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([]);
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [activeSession, setActiveSessionState] = useState<ActiveSession | null>(null);
@@ -847,11 +855,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const completedDate = opts?.completedDate ?? new Date().toISOString();
     const durationMin = opts?.durationMin ?? null;
     const sessionIndex = opts?.sessionIndex ?? 0;
-    setEnrollments(prev => prev.map(e => {
-      if (e.id !== id) return e;
-      const rest = e.completions.filter(c => !(c.weekIndex === weekIndex && c.dayIndex === dayIndex && (c.sessionIndex ?? 0) === sessionIndex));
-      return { ...e, completions: [...rest, { weekIndex, dayIndex, sessionIndex, status, completedDate, durationMin, logId: opts?.logId ?? null }] };
-    }));
+    setEnrollments(prev => {
+      const next = prev.map(e => {
+        if (e.id !== id) return e;
+        const rest = e.completions.filter(c => !(c.weekIndex === weekIndex && c.dayIndex === dayIndex && (c.sessionIndex ?? 0) === sessionIndex));
+        return { ...e, completions: [...rest, { weekIndex, dayIndex, sessionIndex, status, completedDate, durationMin, logId: opts?.logId ?? null }] };
+      });
+      // auto-finish: if this completion decided the last remaining day, the run is
+      // done — retire it from "active" and pop the completion modal.
+      const e = next.find(x => x.id === id);
+      const program = e ? programsRef.current.find(p => p.id === e.programId) : undefined;
+      if (e && e.status === 'active' && program && positionToday(e, program).finishedPlan) {
+        workoutApi.updateEnrollment(id, { status: 'finished' }).catch(() => {});
+        setProgramJustFinished({ enrollmentId: id, programName: program.name });
+        return next.map(x => x.id === id ? { ...x, status: 'finished' as const, finishedAt: new Date().toISOString() } : x);
+      }
+      return next;
+    });
     workoutApi.setEnrollmentDay(id, { weekIndex, dayIndex, sessionIndex, status, completedDate, durationMin, logId: opts?.logId ?? null }).catch(() => {});
   }, []);
 
@@ -982,7 +1002,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     user, setUser, onboardingComplete, setOnboardingComplete,
     workouts, addWorkout, todayNutrition, foodNames, addMealItem, removeMealItem, setNutritionTargets,
     language, setLanguage, isDark, toggleTheme, weightUnit, setWeightUnit,
-    enrollments, activeEnrollment, refreshEnrollments, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, setEnrollmentDayEdit,
+    enrollments, activeEnrollment, programJustFinished, clearProgramFinished, refreshEnrollments, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, setEnrollmentDayEdit,
     likedPosts, toggleLike, streak, weeklyWorkouts,
     inBodyTests, addInBodyTest, deleteInBodyTest,
     workoutTemplates, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate,
@@ -992,7 +1012,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     exerciseLibrary, workoutTypes: workoutTypesData, muscleGroups: WORKOUT_MUSCLE_GROUPS,
     activeSession, setActiveSession,
     logout, deleteAccount,
-  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, weightUnit, setWeightUnit, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, deleteInBodyTest, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, programs, addProgram, updateProgram, deleteProgram, refreshPrograms, enrollments, activeEnrollment, refreshEnrollments, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, setEnrollmentDayEdit, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
+  }), [user, onboardingComplete, workouts, todayNutrition, foodNames, setNutritionTargets, language, isDark, weightUnit, setWeightUnit, likedPosts, streak, weeklyWorkouts, inBodyTests, workoutTemplates, workoutLogs, customExercises, exerciseLibrary, workoutTypesData, activeSession, setUser, setOnboardingComplete, addWorkout, addMealItem, setLanguage, toggleTheme, toggleLike, addInBodyTest, deleteInBodyTest, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, programs, addProgram, updateProgram, deleteProgram, refreshPrograms, enrollments, activeEnrollment, programJustFinished, clearProgramFinished, refreshEnrollments, startProgram, endEnrollment, updateEnrollmentLocal, setEnrollmentDay, clearEnrollmentDay, setEnrollmentDayEdit, addWorkoutLog, deleteWorkoutLog, addCustomExercise, setActiveSession, logout, deleteAccount]);
 
   if (!loaded) return null;
 

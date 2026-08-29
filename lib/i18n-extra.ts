@@ -212,7 +212,7 @@ export const extraEn = {
     planCompleteTitle: "Program complete", viewReport: "View report", viewLastReport: "View last report",
     endProgramMsg: "You will see your full journey report. This closes the program.",
     finishModalTitle: "Program complete!", finishModalBody: "You finished \"{{name}}\". See your full journey and your coach's analysis.", later: "Later",
-    endedModalTitle: "Program ended", endedModalBody: "You ended \"{{name}}\". See how it went and your coach's analysis.", viewStats: "View statistics",
+    endedModalTitle: "Program ended", endedModalBody: "You ended \"{{name}}\". See how it went and your coach's analysis.", viewStats: "View statistics", lastProgram: "Last",
   },
   history: {
     title: "Program history", empty: "No finished programs yet. Complete or end a program to see it here.",
@@ -221,6 +221,7 @@ export const extraEn = {
     title: "Program report", notFound: "This program run could not be found.",
     completed: "Completed", endedEarly: "Ended early", active: "Active",
     complete: "complete", nDays: "{{n}} days", doneOfPlanned: "{{done}} of {{total}} sessions trained",
+    hlPerfect: "Perfect finish — every session done", hlStrong: "Strong finish", hlSolid: "Solid effort", hlRoom: "Room to grow next time", hlEnded: "Ended after {{done}} of {{total}} sessions", same: "same",
     done: "Done", substituted: "Swapped", skipped: "Skipped", rest: "Rest",
     streak: "Best streak", onTime: "On time", volume: "Volume", minutes: "Minutes",
     weekly: "Week by week", wk: "W{{n}}", peakWeak: "Strongest in week {{peak}}, weakest in week {{weak}}.",
@@ -483,7 +484,7 @@ export const extraAr = {
     planCompleteTitle: "اكتمل البرنامج", viewReport: "عرض التقرير", viewLastReport: "عرض آخر تقرير",
     endProgramMsg: "سترى تقرير رحلتك الكامل. هذا ينهي البرنامج.",
     finishModalTitle: "اكتمل البرنامج!", finishModalBody: "أنهيت \"{{name}}\". اطّلع على رحلتك الكاملة وتحليل مدرّبك.", later: "لاحقًا",
-    endedModalTitle: "أُنهي البرنامج", endedModalBody: "أنهيت \"{{name}}\". اطّلع على النتيجة وتحليل مدرّبك.", viewStats: "عرض الإحصائيات",
+    endedModalTitle: "أُنهي البرنامج", endedModalBody: "أنهيت \"{{name}}\". اطّلع على النتيجة وتحليل مدرّبك.", viewStats: "عرض الإحصائيات", lastProgram: "الأخير",
   },
   history: {
     title: "سجلّ البرامج", empty: "لا برامج منتهية بعد. أكمل برنامجًا أو أنهه لتراه هنا.",
@@ -492,6 +493,7 @@ export const extraAr = {
     title: "تقرير البرنامج", notFound: "تعذّر العثور على هذه الدورة من البرنامج.",
     completed: "مكتمل", endedEarly: "أُنهي مبكرًا", active: "نشط",
     complete: "مكتمل", nDays: "{{n}} يوم", doneOfPlanned: "تدرّبت في {{done}} من {{total}} جلسة",
+    hlPerfect: "إنهاء مثالي — كل الجلسات منجزة", hlStrong: "إنهاء قوي", hlSolid: "جهد جيد", hlRoom: "مجال للتحسّن في المرة القادمة", hlEnded: "أُنهي بعد {{done}} من {{total}} جلسة", same: "بلا تغيير",
     done: "منجزة", substituted: "مُبدَلة", skipped: "متروكة", rest: "راحة",
     streak: "أطول تتابع", onTime: "في الموعد", volume: "الحِمل", minutes: "دقائق",
     weekly: "أسبوعًا بأسبوع", wk: "أ{{n}}", peakWeak: "الأقوى في الأسبوع {{peak}}، والأضعف في الأسبوع {{weak}}.",

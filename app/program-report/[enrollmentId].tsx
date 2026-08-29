@@ -120,6 +120,16 @@ export default function ProgramReportScreen() {
 
   const r = report;
   const grade = gradeOf(r.completionRate);
+  // ring + grade colour track the completion band (green strong → amber → red)
+  const bandColor = r.completionRate >= 0.75 ? Colors.electric : r.completionRate >= 0.4 ? Colors.semantic.warn : Colors.semantic.danger;
+  // one-line human verdict under the ring
+  const headline = r.status === 'abandoned'
+    ? t('report.hlEnded', { done: r.done + r.substituted, total: r.plannedSessions, defaultValue: `Ended after ${r.done + r.substituted} of ${r.plannedSessions} sessions` })
+    : r.completionRate >= 0.95 ? t('report.hlPerfect', { defaultValue: 'Perfect finish — every session done' })
+    : r.completionRate >= 0.85 ? t('report.hlStrong', { defaultValue: 'Strong finish' })
+    : r.completionRate >= 0.6 ? t('report.hlSolid', { defaultValue: 'Solid effort' })
+    : t('report.hlRoom', { defaultValue: 'Room to grow next time' });
+  const volLabel = r.totalVolumeKg >= 1000 ? `${(r.totalVolumeKg / 1000).toFixed(1)}t` : `${r.totalVolumeKg}kg`;
   // completion ring geometry
   const R = 54, SW = 12, C = 2 * Math.PI * R;
   const ringOffset = C * (1 - r.completionRate);
@@ -166,7 +176,7 @@ export default function ProgramReportScreen() {
             <Svg width={(R + SW) * 2} height={(R + SW) * 2}>
               <Circle cx={R + SW} cy={R + SW} r={R} stroke={theme.border} strokeWidth={SW} fill="none" />
               <Circle
-                cx={R + SW} cy={R + SW} r={R} stroke={Colors.electric} strokeWidth={SW} fill="none"
+                cx={R + SW} cy={R + SW} r={R} stroke={bandColor} strokeWidth={SW} fill="none"
                 strokeDasharray={C} strokeDashoffset={ringOffset} strokeLinecap="round"
                 transform={`rotate(-90 ${R + SW} ${R + SW})`}
               />
@@ -175,12 +185,13 @@ export default function ProgramReportScreen() {
               <Text style={[s.ringPct, { color: theme.text }]}>{pct(r.completionRate)}</Text>
               <Text style={[s.ringLabel, { color: theme.textMuted }]}>{t('report.complete', { defaultValue: 'complete' })}</Text>
             </View>
-            <View style={[s.gradeBadge, { backgroundColor: Colors.electric }]}>
+            <View style={[s.gradeBadge, { backgroundColor: bandColor }]}>
               <Text style={s.gradeText}>{grade}</Text>
             </View>
           </View>
 
-          <Text style={[s.heroSub, { color: theme.textSecondary }]}>
+          <Text style={[s.headline, { color: theme.text }]}>{headline}</Text>
+          <Text style={[s.heroSub, { color: theme.textMuted }]}>
             {t('report.doneOfPlanned', { done: r.done + r.substituted, total: r.plannedSessions, defaultValue: `${r.done + r.substituted} of ${r.plannedSessions} sessions trained` })}
           </Text>
         </View>
@@ -193,7 +204,7 @@ export default function ProgramReportScreen() {
           {stat(t('report.rest', { defaultValue: 'Rest' }), String(r.rest), theme.textSecondary, 'moon')}
           {stat(t('report.streak', { defaultValue: 'Best streak' }), String(r.longestStreak), Colors.accent, 'flame')}
           {stat(t('report.onTime', { defaultValue: 'On time' }), pct(r.onTimeRate), Colors.semantic.info, 'time')}
-          {stat(t('report.volume', { defaultValue: 'Volume' }), `${(r.totalVolumeKg / 1000).toFixed(1)}t`, Colors.electric, 'barbell')}
+          {stat(t('report.volume', { defaultValue: 'Volume' }), volLabel, Colors.electric, 'barbell')}
           {stat(t('report.minutes', { defaultValue: 'Minutes' }), String(r.totalMinutes), Colors.semantic.info, 'stopwatch')}
         </View>
 
@@ -255,7 +266,10 @@ export default function ProgramReportScreen() {
         {comparison && comparison.previous && (
           <View style={[s.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={s.cmpHead}>
-              <Text style={[s.sectionTitle, { color: theme.text, marginBottom: 0 }]}>{t('report.vsLast', { defaultValue: 'vs your last run' })}</Text>
+              <View style={{ flexShrink: 1 }}>
+                <Text style={[s.sectionTitle, { color: theme.text, marginBottom: 0 }]}>{t('report.vsLast', { defaultValue: 'vs your last run' })}</Text>
+                <Text style={[s.cmpSub, { color: theme.textMuted }]}>{fmtDate(comparison.previous.startDate)} · {pct(comparison.previous.completionRate)}</Text>
+              </View>
               <View style={[s.rankPill, { backgroundColor: Colors.electric + '22' }]}>
                 <Ionicons name="trophy" size={12} color={Colors.electric} />
                 <Text style={[s.rankText, { color: Colors.electric }]}>{t('report.rank', { n: comparison.rankByCompletion, total: comparison.totalRuns, defaultValue: `#${comparison.rankByCompletion} of ${comparison.totalRuns}` })}</Text>
@@ -265,15 +279,19 @@ export default function ProgramReportScreen() {
               { label: t('report.completion', { defaultValue: 'Completion' }), d: comparison.deltaCompletion, fmt: (x: number) => `${x > 0 ? '+' : ''}${Math.round(x * 100)}%` },
               { label: t('report.adherence', { defaultValue: 'Adherence' }), d: comparison.deltaAdherence, fmt: (x: number) => `${x > 0 ? '+' : ''}${Math.round(x * 100)}%` },
               { label: t('report.volume', { defaultValue: 'Volume' }), d: comparison.deltaVolume, fmt: (x: number) => `${x > 0 ? '+' : ''}${Math.round(x)} kg` },
-            ].map((row) => row.d != null && (
-              <View key={row.label} style={s.cmpRow}>
-                <Text style={[s.cmpLabel, { color: theme.textSecondary }]}>{row.label}</Text>
-                <View style={s.cmpDelta}>
-                  <Ionicons name={row.d >= 0 ? 'arrow-up' : 'arrow-down'} size={13} color={row.d >= 0 ? Colors.electric : Colors.semantic.danger} />
-                  <Text style={[s.cmpVal, { color: row.d >= 0 ? Colors.electric : Colors.semantic.danger }]}>{row.fmt(row.d)}</Text>
+            ].map((row) => row.d != null && (() => {
+              const zero = Math.abs(row.d) < (row.label === t('report.volume', { defaultValue: 'Volume' }) ? 1 : 0.005);
+              const col = zero ? theme.textMuted : row.d > 0 ? Colors.electric : Colors.semantic.danger;
+              return (
+                <View key={row.label} style={s.cmpRow}>
+                  <Text style={[s.cmpLabel, { color: theme.textSecondary }]}>{row.label}</Text>
+                  <View style={s.cmpDelta}>
+                    <Ionicons name={zero ? 'remove' : row.d > 0 ? 'arrow-up' : 'arrow-down'} size={13} color={col} />
+                    <Text style={[s.cmpVal, { color: col }]}>{zero ? t('report.same', { defaultValue: 'same' }) : row.fmt(row.d)}</Text>
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })())}
           </View>
         )}
 
@@ -381,7 +399,9 @@ const s = StyleSheet.create({
   ringLabel: { fontSize: 12, fontFamily: Fonts.regular, marginTop: -2 },
   gradeBadge: { position: 'absolute', bottom: -2, right: '50%', marginRight: -58, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   gradeText: { fontSize: 16, fontFamily: Fonts.bold, color: '#04120B' },
-  heroSub: { fontSize: 14, fontFamily: Fonts.medium, marginTop: 14, textAlign: 'center' },
+  headline: { fontSize: 16, fontFamily: Fonts.semibold, marginTop: 16, textAlign: 'center' },
+  heroSub: { fontSize: 13, fontFamily: Fonts.regular, marginTop: 4, textAlign: 'center' },
+  cmpSub: { fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
   statCard: { width: '47.5%', borderRadius: 16, borderWidth: 1, padding: 14, flexGrow: 1 },

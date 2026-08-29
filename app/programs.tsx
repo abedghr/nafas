@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, Platform, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +16,14 @@ import Colors from '@/constants/colors';
 export default function ProgramsScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { programs, addProgram, deleteProgram, refreshPrograms, activeEnrollment, isDark } = useApp();
+  const { programs, addProgram, deleteProgram, refreshPrograms, activeEnrollment, enrollments, isDark } = useApp();
+  // most recently ended run → tag its program as the "last" one the user followed
+  const lastProgramId = useMemo(() => {
+    const ended = (enrollments ?? []).filter((e) => e.status !== 'active' && e.programId);
+    if (!ended.length) return null;
+    ended.sort((a, b) => new Date(b.finishedAt || b.startDate).getTime() - new Date(a.finishedAt || a.startDate).getTime());
+    return ended[0].programId;
+  }, [enrollments]);
   const theme = isDark ? Colors.dark : Colors.light;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
@@ -188,12 +195,17 @@ export default function ProgramsScreen() {
                     <View style={{ flex: 1 }}>
                       <View style={s.nameRow}>
                         <Display variant="d3" color={theme.text} numberOfLines={1} style={{ flexShrink: 1 }}>{p.name}</Display>
-                        {isActive && (
+                        {isActive ? (
                           <View style={[s.activePill, { backgroundColor: Colors.electric }]}>
                             <View style={s.activeDot} />
                             <Text style={s.activePillText}>{t('programs.active', { defaultValue: 'Active' })}</Text>
                           </View>
-                        )}
+                        ) : p.id === lastProgramId ? (
+                          <View style={[s.lastPill, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}>
+                            <Ionicons name="time-outline" size={11} color={theme.textSecondary} />
+                            <Text style={[s.lastPillText, { color: theme.textSecondary }]}>{t('programs.lastProgram', { defaultValue: 'Last' })}</Text>
+                          </View>
+                        ) : null}
                       </View>
                       <View style={s.chipRow}>
                         <Chip label={t('programs.daysCount', { n: totalDays, defaultValue: `${totalDays} days` })} icon="calendar-outline" />
@@ -249,6 +261,8 @@ const s = StyleSheet.create({
   activePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#03110D' },
   activePillText: { fontFamily: Fonts.bold, fontSize: 11, color: '#03110D', letterSpacing: 0.3 },
+  lastPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth },
+  lastPillText: { fontFamily: Fonts.semibold, fontSize: 11, letterSpacing: 0.3 },
   filterRow: { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
   filterPill: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, borderWidth: 1 },
   filterPillText: { fontFamily: Fonts.semibold, fontSize: 13 },

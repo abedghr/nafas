@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import ProgramTodayCard from '@/components/ProgramTodayCard';
 import ProgramOverviewModal from '@/components/ProgramOverviewModal';
+import ProgramCompleteModal from '@/components/ProgramCompleteModal';
 import { AppHeader, StatTile, ActivityRings, CountUp, Button } from '@/components/ui';
 import { Fonts, Type } from '@/constants/typography';
 import { toDisplayWeight, unitLabel, type WeightUnit } from '@/lib/units';
@@ -228,7 +229,7 @@ function RecentWorkoutCard({ log, index }: { log: any; index: number }) {
 export default function CoachScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { isDark, workouts, weeklyWorkouts, streak, user, workoutLogs, activeSession, weightUnit, programs, activeEnrollment } = useApp();
+  const { isDark, workouts, weeklyWorkouts, streak, user, workoutLogs, activeSession, weightUnit, programs, activeEnrollment, programJustFinished, clearProgramFinished } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const [activeTab, setActiveTab] = useState<'dashboard' | 'insights'>('dashboard');
   const [showStart, setShowStart] = useState(false);
@@ -597,6 +598,16 @@ export default function CoachScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* program auto-completed → celebrate + jump to statistics */}
+      <ProgramCompleteModal
+        visible={!!programJustFinished}
+        programName={programJustFinished?.programName || ''}
+        completed
+        onView={() => { const id = programJustFinished?.enrollmentId; clearProgramFinished(); if (id) router.push(`/program-report/${id}` as any); }}
+        onClose={clearProgramFinished}
+        theme={theme}
+      />
     </View>
   );
 }
