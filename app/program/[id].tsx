@@ -69,6 +69,8 @@ export default function ProgramBuilderScreen() {
   const [dayAction, setDayAction] = useState<{ week: number; day: number } | null>(null);
   const [completeModal, setCompleteModal] = useState<{ enrollmentId: string; name: string; completed: boolean } | null>(null);
   const [descOpen, setDescOpen] = useState(false);
+  const [startSheet, setStartSheet] = useState(false);
+  const [startPick, setStartPick] = useState<string | null>(new Date().toISOString());
   const [marking, setMarking] = useState(false);
   const [markDur, setMarkDur] = useState('');
 
@@ -447,14 +449,11 @@ export default function ProgramBuilderScreen() {
                     <Ionicons name="chevron-forward" size={18} color="#04120B" />
                   </Pressable>
                 )}
-                <DateTimeField
-                  label={t('programs.startedOn', { defaultValue: 'Started on' })}
-                  value={active.startDate}
-                  onChange={(iso) => iso && updateEnrollmentLocal(active.id, { startDate: iso })}
-                  theme={theme}
-                  maxDate={new Date()}
-                />
-                <Text style={[s.viewNotes, { color: theme.textMuted, marginTop: 0 }]}>{t('programs.backfillHint', { defaultValue: 'The start can be today or earlier. Backdate it to mark days you already trained; Day 1 falls on the start date and each day follows the next.' })}</Text>
+                <View style={[s.startedRow, { backgroundColor: theme.cardAlt }]}>
+                  <Ionicons name="calendar-outline" size={16} color={theme.textSecondary} />
+                  <Text style={[s.startedLabel, { color: theme.textMuted }]}>{t('programs.startedOn', { defaultValue: 'Started on' })}</Text>
+                  <Text style={[s.startedVal, { color: theme.text }]}>{new Date(active.startDate).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+                </View>
                 {(() => {
                   const st = programStats(active, runProgram, workoutLogs);
                   const time = st.minutes >= 60 ? `${Math.floor(st.minutes / 60)}h ${st.minutes % 60}m` : `${st.minutes}m`;
@@ -496,7 +495,7 @@ export default function ProgramBuilderScreen() {
           return (
             <>
               <Pressable
-                onPress={() => { if (!canStart) { setMode('edit'); return; } Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); startProgram(program.id, new Date().toISOString()); }}
+                onPress={() => { if (!canStart) { setMode('edit'); return; } Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setStartPick(new Date().toISOString()); setStartSheet(true); }}
                 style={({ pressed }) => [s.startProgramBtn, { backgroundColor: canStart ? Colors.electric : theme.cardAlt, opacity: pressed ? 0.9 : 1 }]}
               >
                 <Ionicons name={canStart ? 'flag' : 'add'} size={18} color={canStart ? '#04120B' : Colors.electric} />
@@ -708,6 +707,25 @@ export default function ProgramBuilderScreen() {
         onClose={() => setCompleteModal(null)}
         theme={theme}
       />
+
+      {/* start sheet: pick the start date once, then it's locked for the run */}
+      <Modal visible={startSheet} transparent animationType="fade" onRequestClose={() => setStartSheet(false)}>
+        <Pressable style={s.startSheetOverlay} onPress={() => setStartSheet(false)}>
+          <Pressable style={[s.startSheetCard, { backgroundColor: theme.background }]} onPress={(e) => e.stopPropagation()}>
+            <View style={s.sheetHandleWrap}><View style={[s.sheetHandle, { backgroundColor: theme.border }]} /></View>
+            <Text style={[s.startSheetTitle, { color: theme.text }]}>{t('programs.whenStart', { defaultValue: 'When did you start?' })}</Text>
+            <Text style={[s.startSheetSub, { color: theme.textMuted }]}>{t('programs.whenStartSub', { defaultValue: 'Today, or backdate to count days you already trained. This is fixed once the program starts.' })}</Text>
+            <DateTimeField label={t('programs.startedOn', { defaultValue: 'Started on' })} value={startPick} onChange={setStartPick} theme={theme} dateOnly maxDate={new Date()} />
+            <Pressable
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setStartSheet(false); startProgram(program.id, startPick || new Date().toISOString()); }}
+              style={({ pressed }) => [s.startProgramBtn, { backgroundColor: Colors.electric, marginTop: 16, marginBottom: 0, opacity: pressed ? 0.9 : 1 }]}
+            >
+              <Ionicons name="flag" size={18} color="#04120B" />
+              <Text style={s.startProgramText}>{t('programs.startProgram', { defaultValue: 'Start this program' })}</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* enrolled-day action sheet */}
       <Modal visible={dayAction !== null} transparent animationType="fade" onRequestClose={() => setDayAction(null)}>
@@ -1127,7 +1145,7 @@ const s = StyleSheet.create({
   weekCard: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12 },
   weekTitle: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, marginTop: 2 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  manageRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 12, marginBottom: 12 },
+  manageRow: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 14, padding: 14, marginBottom: 12 },
   viewSummary: { borderRadius: 16, padding: 16, marginBottom: 12, gap: 12 },
   metaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   metaChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
@@ -1168,8 +1186,15 @@ const s = StyleSheet.create({
   statLabel: { fontSize: 10, fontWeight: '600' },
   editNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
   editNoteText: { flex: 1, fontSize: 12.5, fontWeight: '500', lineHeight: 18 },
-  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 14 },
-  detailIcon: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 14, borderRadius: 14 },
+  detailIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  startedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12 },
+  startedLabel: { fontSize: 13, fontWeight: '600' },
+  startedVal: { flex: 1, textAlign: 'right', fontSize: 13.5, fontWeight: '700' },
+  startSheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  startSheetCard: { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingBottom: 34 },
+  startSheetTitle: { fontSize: 18, fontWeight: '800', marginBottom: 4 },
+  startSheetSub: { fontSize: 13, fontWeight: '500', lineHeight: 19, marginBottom: 16 },
   detailTitle: { fontSize: 14.5, fontWeight: '700' },
   detailSub: { fontSize: 12, fontWeight: '500', marginTop: 1 },
   finishBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14 },
