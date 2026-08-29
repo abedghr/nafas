@@ -103,8 +103,8 @@ export default function ProgramsScreen() {
           <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/program-history' as any); }} hitSlop={12} style={[s.backBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Ionicons name="time-outline" size={20} color={theme.text} />
           </Pressable>
-          <Pressable onPress={() => setClaimOpen(true)} hitSlop={12} style={[s.backBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Ionicons name="enter-outline" size={20} color={Colors.electric} />
+          <Pressable onPress={() => setClaimOpen(true)} hitSlop={12} accessibilityLabel={t('programs.claim', { defaultValue: 'Claim a program' })} style={[s.backBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Ionicons name="gift-outline" size={20} color={Colors.electric} />
           </Pressable>
         </View>
       </View>
