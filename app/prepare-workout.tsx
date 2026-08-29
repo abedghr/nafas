@@ -169,8 +169,13 @@ export default function PrepareWorkoutScreen() {
   const isRunning = !!run; // running a program day (start live) vs authoring a program day (save only)
   const {
     workoutTemplates, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, setActiveSession,
-    user, programs, updateProgram, activeEnrollment, isDark,
+    user, programs, updateProgram, activeEnrollment, enrollments, isDark,
   } = useApp();
+  // A run follows the structure frozen when it started (snapshot). When launched
+  // from an enrollment, resolve days from that snapshot, not the (maybe-edited) template.
+  const runDaysSource = (): any =>
+    (enrollmentId && enrollments.find(e => e.id === enrollmentId)?.programSnapshot)
+    || programs.find(p => p.id === programId);
   const theme = isDark ? Colors.dark : Colors.light;
   // header/footer fades derived from the theme background (were hardcoded dark navy → a
   // black smear over the buttons in light mode)
@@ -201,9 +206,9 @@ export default function PrepareWorkoutScreen() {
   // program mode: load the day's inline workout (or its template) into the builder
   useEffect(() => {
     if (!programId) return;
-    const prog = programs.find(p => p.id === programId);
+    const prog = runDaysSource();
     if (!prog) return;
-    const day = (prog.days ?? []).find(d => d.weekIndex === Number(weekIndex) && d.dayIndex === Number(dayIndex));
+    const day = (prog.days ?? []).find((d: any) => d.weekIndex === Number(weekIndex) && d.dayIndex === Number(dayIndex));
     if (!day) return;
     // load the specific SESSION of the day (a day can hold morning + evening sessions)
     const sess = daySessions(day)[sessionIndex];
@@ -361,7 +366,7 @@ export default function PrepareWorkoutScreen() {
       ...(enrollmentId && slotDay != null ? { program: {
         enrollmentId, weekIndex: Number(weekIndex), slotDay: Number(slotDay), sessionIndex,
         templateExerciseIds: (() => {
-          const d = (programs.find(p => p.id === programId)?.days ?? []).find(x => x.weekIndex === Number(weekIndex) && x.dayIndex === Number(slotDay));
+          const d = (runDaysSource()?.days ?? []).find((x: any) => x.weekIndex === Number(weekIndex) && x.dayIndex === Number(slotDay));
           return d ? (daySessions(d)[sessionIndex]?.exercises ?? []).map((e: any) => e.exerciseId) : [];
         })(),
       } } : subEnroll && subDay != null ? { program: {

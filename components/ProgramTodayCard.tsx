@@ -19,7 +19,9 @@ export default function ProgramTodayCard() {
   const { isDark, programs, activeEnrollment, setEnrollmentDay, clearEnrollmentDay, updateEnrollmentLocal } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
 
-  const program = useMemo(() => programs.find((p: any) => p.id === activeEnrollment?.programId), [programs, activeEnrollment]);
+  // an active run follows the structure frozen at start (programSnapshot); the
+  // live template is only a fallback for runs started before snapshots existed.
+  const program = useMemo(() => (activeEnrollment?.programSnapshot as any) ?? programs.find((p: any) => p.id === activeEnrollment?.programId), [programs, activeEnrollment]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [marking, setMarking] = useState(false);
   const [swapping, setSwapping] = useState(false);

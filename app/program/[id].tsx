@@ -305,11 +305,14 @@ export default function ProgramBuilderScreen() {
 
   // enrollment overlay for the week grid: highlight today + show done/skipped
   const enrolled = activeEnrollment && activeEnrollment.programId === program.id ? activeEnrollment : null;
-  const todayPos = enrolled ? positionToday(enrolled, program) : null;
+  // An active run follows the structure frozen at start (snapshot). VIEW mode shows
+  // that run; EDIT mode edits the live template (changes only affect future runs).
+  const runProgram = (enrolled && !isEdit && enrolled.programSnapshot ? enrolled.programSnapshot : program) as typeof program;
+  const todayPos = enrolled ? positionToday(enrolled, runProgram) : null;
   // The current day is only startable when its scheduled date has arrived (past
   // days are catch-up-able; future days stay locked — no running ahead).
-  const currentUnlocked = enrolled ? currentDayReachable(enrolled, program) : false;
-  const orderedDays = programSequence(program, isEdit ? null : enrolled);
+  const currentUnlocked = enrolled ? currentDayReachable(enrolled, runProgram) : false;
+  const orderedDays = programSequence(runProgram, isEdit ? null : enrolled);
 
   return (
     <View style={[s.container, { backgroundColor: theme.background }]}>
@@ -430,7 +433,7 @@ export default function ProgramBuilderScreen() {
                 />
                 <Text style={[s.viewNotes, { color: theme.textMuted, marginTop: 0 }]}>{t('programs.backfillHint', { defaultValue: 'The start can be today or earlier. Backdate it to mark days you already trained; Day 1 falls on the start date and each day follows the next.' })}</Text>
                 {(() => {
-                  const st = programStats(active, program, workoutLogs);
+                  const st = programStats(active, runProgram, workoutLogs);
                   const time = st.minutes >= 60 ? `${Math.floor(st.minutes / 60)}h ${st.minutes % 60}m` : `${st.minutes}m`;
                   const tiles = [
                     { label: t('programs.statDone', { defaultValue: 'Done' }), value: String(st.done), color: Colors.semantic.success },
@@ -510,6 +513,14 @@ export default function ProgramBuilderScreen() {
           </Pressable>
         )}
 
+        {/* editing while a run is active: edits only affect future runs */}
+        {isEdit && enrolled && (
+          <View style={[s.editNote, { backgroundColor: Colors.semantic.info + '18', borderColor: Colors.semantic.info + '55' }]}>
+            <Ionicons name="information-circle" size={17} color={Colors.semantic.info} />
+            <Text style={[s.editNoteText, { color: theme.textSecondary }]}>{t('programs.editActiveNote', { defaultValue: 'Your active run keeps the plan it started with. These edits apply to your next run.' })}</Text>
+          </View>
+        )}
+
         {/* day list */}
         {orderedDays.length === 0 && !isEdit && (
           <View style={[s.viewSummary, { backgroundColor: theme.card, alignItems: 'center' }]}>
@@ -527,12 +538,12 @@ export default function ProgramBuilderScreen() {
           const title = day.restDay
             ? t('programs.restDay')
             : (day.name || day.label || (sCount > 0 ? t('programs.buildWorkout') : t('programs.emptyDay', { defaultValue: 'Empty day' })));
-          const cStatus = enrolled && !isEdit && program ? dayAggStatus(enrolled, program, w, dIdx) : null;
+          const cStatus = enrolled && !isEdit ? dayAggStatus(enrolled, runProgram, w, dIdx) : null;
           const isCurrent = !!todayPos && !isEdit && !todayPos.finishedPlan && todayPos.week === w && todayPos.dayIndex === dIdx;
           // "today" (highlighted + startable) only when the current day is also
           // due by the calendar; a current-but-future day renders locked.
           const isToday = isCurrent && currentUnlocked;
-          const undecidedIdx = enrolled && program && !isEdit ? firstUndecidedSession(enrolled, program, w, dIdx) : (planned ? 0 : -1);
+          const undecidedIdx = enrolled && !isEdit ? firstUndecidedSession(enrolled, runProgram, w, dIdx) : (planned ? 0 : -1);
           const canStartToday = planned && isToday && undecidedIdx !== -1;
           const statusCol = cStatus === 'done' ? Colors.semantic.success : cStatus === 'skipped' ? Colors.semantic.warn : cStatus === 'partial' ? Colors.electric : cStatus === 'rest' ? theme.textSecondary : null;
           const dateStr = enrolled && !isEdit ? dateForOrdinal(enrolled, ord).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
@@ -678,12 +689,12 @@ export default function ProgramBuilderScreen() {
         <Pressable style={s.actionOverlay} onPress={() => setDayAction(null)}>
           <Pressable style={[s.actionSheet, { backgroundColor: theme.background }]} onPress={(e) => e.stopPropagation()}>
             {dayAction && enrolled && (() => {
-              const d = findDay(dayAction.week, dayAction.day);
-              const st = program ? dayAggStatus(enrolled, program, dayAction.week, dayAction.day) : null;
+              const d = (runProgram?.days ?? []).find((x: any) => x.weekIndex === dayAction.week && x.dayIndex === dayAction.day);
+              const st = dayAggStatus(enrolled, runProgram, dayAction.week, dayAction.day);
               const sess = d ? daySessions(d) : [];
               const multiSess = sess.length > 1;
               // act on the first still-undecided session; if all decided, fall back to session 0
-              const undec = program ? firstUndecidedSession(enrolled, program, dayAction.week, dayAction.day) : 0;
+              const undec = firstUndecidedSession(enrolled, runProgram, dayAction.week, dayAction.day);
               const si = undec === -1 ? 0 : undec;
               const curSess = sess[si];
               const commitDone = () => {
@@ -1126,6 +1137,8 @@ const s = StyleSheet.create({
   statTile: { flex: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center', gap: 3 },
   statValue: { fontFamily: Fonts.monoBold, fontSize: 15 },
   statLabel: { fontSize: 10, fontWeight: '600' },
+  editNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
+  editNoteText: { flex: 1, fontSize: 12.5, fontWeight: '500', lineHeight: 18 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 14 },
   detailIcon: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   detailTitle: { fontSize: 14.5, fontWeight: '700' },

@@ -225,8 +225,11 @@ export const programsService = {
     if (!p) return null;
     await db.update(programEnrollments).set({ status: "abandoned" })
       .where(and(eq(programEnrollments.userId, userId), eq(programEnrollments.status, "active")));
+    // freeze the structure at start: the run follows this snapshot, so editing the
+    // template later never disturbs an in-progress run.
+    const snapshot = { id: p.id, name: p.name, weeks: (p as any).weeks, days: await daysFor(programId) };
     const [row] = await db.insert(programEnrollments)
-      .values({ userId, programId, startDate: new Date(startDate) })
+      .values({ userId, programId, startDate: new Date(startDate), programSnapshot: snapshot })
       .returning();
     return this._enrollmentWithDays(row);
   },
