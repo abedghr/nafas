@@ -548,7 +548,7 @@ export default function ProgramBuilderScreen() {
               {lastRun && (
                 <Pressable
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/program-report/${lastRun.id}` as any); }}
-                  style={({ pressed }) => [s.detailRow, { backgroundColor: theme.card, marginTop: 12, opacity: pressed ? 0.85 : 1 }]}
+                  style={({ pressed }) => [s.detailRow, { backgroundColor: theme.card, marginTop: 12, marginBottom: 12, opacity: pressed ? 0.85 : 1 }]}
                 >
                   <View style={[s.detailIcon, { backgroundColor: Colors.electric + '1F' }]}><Ionicons name="stats-chart" size={18} color={Colors.electric} /></View>
                   <View style={{ flex: 1 }}>
