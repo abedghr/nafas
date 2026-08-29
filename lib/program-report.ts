@@ -262,6 +262,70 @@ export function reportContext(r: ProgramReport, cmp: RunComparison | null, langu
   };
 }
 
+// ── history insights: aggregate stats over a set of finished runs ───────────
+export interface HistoryInsights {
+  runs: number;
+  completedRuns: number;
+  endedEarly: number;
+  avgCompletion: number;      // mean completionRate [0..1]
+  totalDone: number;          // done + substituted sessions
+  totalVolumeKg: number;
+  totalMinutes: number;
+  bestProgram: { name: string; avgCompletion: number; runs: number } | null;
+  strongest: { label: string; key: string; avgCompletion: number } | null;  // best month
+  weakest: { label: string; key: string; avgCompletion: number } | null;     // worst month
+  byMonth: { key: string; label: string; avgCompletion: number; runs: number }[]; // chronological
+  trend: { date: string; completion: number; completed: boolean; name: string }[]; // per run, chronological
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const monthKey = (isoStr: string) => { const d = new Date(isoStr); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+const monthLabel = (isoStr: string) => { const d = new Date(isoStr); return `${MONTHS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`; };
+const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+
+export function aggregateReports(reports: ProgramReport[]): HistoryInsights {
+  const runs = reports.length;
+  const completedRuns = reports.filter((r) => r.status === 'finished').length;
+  const avgCompletion = mean(reports.map((r) => r.completionRate));
+
+  // best program = highest average completion across its runs (tie → more runs)
+  const byName = new Map<string, number[]>();
+  for (const r of reports) { const a = byName.get(r.programName) || []; a.push(r.completionRate); byName.set(r.programName, a); }
+  let bestProgram: HistoryInsights['bestProgram'] = null;
+  for (const [name, rates] of byName) {
+    const avg = mean(rates);
+    if (!bestProgram || avg > bestProgram.avgCompletion || (avg === bestProgram.avgCompletion && rates.length > bestProgram.runs)) {
+      bestProgram = { name, avgCompletion: avg, runs: rates.length };
+    }
+  }
+
+  // per-calendar-month averages (keyed on each run's end date)
+  const monthMap = new Map<string, { label: string; rates: number[] }>();
+  for (const r of reports) { const k = monthKey(r.endDate); const m = monthMap.get(k) || { label: monthLabel(r.endDate), rates: [] }; m.rates.push(r.completionRate); monthMap.set(k, m); }
+  const byMonth = [...monthMap.entries()].map(([key, m]) => ({ key, label: m.label, avgCompletion: mean(m.rates), runs: m.rates.length })).sort((a, b) => a.key.localeCompare(b.key));
+  const strongest = byMonth.length ? byMonth.reduce((a, b) => (b.avgCompletion > a.avgCompletion ? b : a)) : null;
+  const weakest = byMonth.length ? byMonth.reduce((a, b) => (b.avgCompletion < a.avgCompletion ? b : a)) : null;
+
+  const trend = [...reports]
+    .sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime())
+    .map((r) => ({ date: r.endDate, completion: r.completionRate, completed: r.status === 'finished', name: r.programName }));
+
+  return {
+    runs,
+    completedRuns,
+    endedEarly: runs - completedRuns,
+    avgCompletion,
+    totalDone: reports.reduce((s, r) => s + r.done + r.substituted, 0),
+    totalVolumeKg: reports.reduce((s, r) => s + r.totalVolumeKg, 0),
+    totalMinutes: reports.reduce((s, r) => s + r.totalMinutes, 0),
+    bestProgram,
+    strongest: strongest ? { label: strongest.label, key: strongest.key, avgCompletion: strongest.avgCompletion } : null,
+    weakest: weakest ? { label: weakest.label, key: weakest.key, avgCompletion: weakest.avgCompletion } : null,
+    byMonth,
+    trend,
+  };
+}
+
 // A letter grade from the completion rate — used by the report hero.
 export function gradeOf(rate: number): string {
   if (rate >= 0.95) return 'A+';

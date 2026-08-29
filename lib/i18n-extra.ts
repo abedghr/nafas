@@ -216,6 +216,14 @@ export const extraEn = {
   },
   history: {
     title: "Program history", empty: "No finished programs yet. Complete or end a program to see it here.",
+    fAll: "All", fCompleted: "Completed", fEnded: "Ended early",
+    rAll: "All time", r30: "30d", r90: "90d", r365: "1y",
+    noneInFilter: "No programs match these filters.",
+    insights: "Insights", runs: "Runs", avgCompletion: "Avg completion", sessionsDone: "Sessions",
+    byMonth: "Completion by month",
+    bestProgram: "Your best fit: {{name}} ({{pct}} avg)",
+    strongest: "Strongest in {{month}} ({{pct}})",
+    weakest: "Dropped off in {{month}} ({{pct}})",
   },
   report: {
     title: "Program report", notFound: "This program run could not be found.",
@@ -488,6 +496,14 @@ export const extraAr = {
   },
   history: {
     title: "سجلّ البرامج", empty: "لا برامج منتهية بعد. أكمل برنامجًا أو أنهه لتراه هنا.",
+    fAll: "الكل", fCompleted: "مكتمل", fEnded: "أُنهي مبكرًا",
+    rAll: "كل الوقت", r30: "30 يوم", r90: "90 يوم", r365: "سنة",
+    noneInFilter: "لا برامج تطابق هذه المرشّحات.",
+    insights: "رؤى", runs: "دورات", avgCompletion: "متوسط الإكمال", sessionsDone: "جلسات",
+    byMonth: "الإكمال حسب الشهر",
+    bestProgram: "الأنسب لك: {{name}} (متوسط {{pct}})",
+    strongest: "الأقوى في {{month}} ({{pct}})",
+    weakest: "التراجع في {{month}} ({{pct}})",
   },
   report: {
     title: "تقرير البرنامج", notFound: "تعذّر العثور على هذه الدورة من البرنامج.",
