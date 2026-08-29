@@ -70,7 +70,9 @@ export const programDays = pgTable("program_days", {
 export const programEnrollments = pgTable("program_enrollments", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  programId: uuid("program_id").notNull().references(() => programs.id, { onDelete: "cascade" }),
+  // nullable + SET NULL: deleting a program must NOT wipe finished runs from history.
+  // The report then reads programSnapshot instead of the (gone) live program.
+  programId: uuid("program_id").references(() => programs.id, { onDelete: "set null" }),
   startDate: timestamp("start_date").notNull(),
   status: varchar("status", { length: 16 }).notNull().default("active"), // active | finished | abandoned
   // legacy weekday-swap map (unused since sequential/completion model)
@@ -85,6 +87,9 @@ export const programEnrollments = pgTable("program_enrollments", {
   // cached AI narrative for the end-of-program report (generated on demand).
   // Stats/journey are derived client-side from completions; only this is stored.
   endReport: jsonb("end_report").$type<{ generatedAt: string; summary: string; highlights: string[]; suggestions: string[] } | null>(),
+  // frozen copy of the program (name + days) taken when the run ends, so the
+  // report/history survive the source program being edited or deleted.
+  programSnapshot: jsonb("program_snapshot").$type<{ id?: string; name: string; weeks?: number; days: unknown[] } | null>(),
 }, (t) => ({ userIdx: index("enroll_user_idx").on(t.userId, t.status) }));
 
 // One (week, day) cell marked done or skipped within an enrollment. logId is a

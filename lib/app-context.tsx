@@ -194,7 +194,7 @@ export interface DayEdit { added?: TemplateExercise[]; removed?: string[] }
 export interface Enrollment {
   id: string;
   userId: string;
-  programId: string;
+  programId: string | null;                  // null once the source program is deleted
   startDate: string;
   status: 'active' | 'finished' | 'abandoned';
   dayEdits: Record<string, DayEdit>;
@@ -202,7 +202,10 @@ export interface Enrollment {
   completions: DayCompletion[];
   finishedAt?: string | null;               // set when status leaves 'active'
   endReport?: ProgramEndReportAI | null;     // cached AI narrative (see lib/program-report.ts)
+  programSnapshot?: ProgramSnapshot | null;  // frozen program at end-time; report reads this if the live program is gone
 }
+// A frozen copy of a program's structure, taken when a run ends.
+export interface ProgramSnapshot { id?: string; name: string; weeks?: number; days: ProgramDay[] }
 // AI narrative cached on the enrollment; stats/journey are derived, not stored.
 export interface ProgramEndReportAI { generatedAt: string; summary: string; highlights: string[]; suggestions: string[] }
 

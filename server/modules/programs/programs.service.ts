@@ -234,11 +234,19 @@ export const programsService = {
   async updateEnrollment(userId: string, id: string, patch: { startDate?: string; status?: string; dayEdits?: Record<string, { added?: unknown[]; removed?: string[] }>; dayOrder?: string[] }) {
     const [e] = await db.select().from(programEnrollments).where(and(eq(programEnrollments.id, id), eq(programEnrollments.userId, userId)));
     if (!e) return null;
+    // freeze a program snapshot the first time a run ends, so history survives
+    // the program being edited or deleted later.
+    let snapshot: { id?: string; name: string; weeks?: number; days: unknown[] } | undefined;
+    if (patch.status && patch.status !== "active" && !e.programSnapshot && e.programId) {
+      const [prog] = await db.select().from(programs).where(eq(programs.id, e.programId));
+      if (prog) snapshot = { id: prog.id, name: prog.name, weeks: (prog as any).weeks, days: await daysFor(e.programId) };
+    }
     await db.update(programEnrollments).set({
       ...(patch.startDate ? { startDate: new Date(patch.startDate) } : {}),
       ...(patch.status ? { status: patch.status, ...(patch.status !== "active" ? { finishedAt: new Date() } : {}) } : {}),
       ...(patch.dayEdits ? { dayEdits: patch.dayEdits } : {}),
       ...(patch.dayOrder ? { dayOrder: patch.dayOrder } : {}),
+      ...(snapshot ? { programSnapshot: snapshot } : {}),
     }).where(eq(programEnrollments.id, id));
     const [row] = await db.select().from(programEnrollments).where(eq(programEnrollments.id, id));
     return this._enrollmentWithDays(row);

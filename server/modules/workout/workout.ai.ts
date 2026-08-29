@@ -189,7 +189,7 @@ async function userContext(userId: string): Promise<string> {
   const logs = await db.select().from(workoutLogs).where(eq(workoutLogs.userId, userId)).orderBy(desc(workoutLogs.date)).limit(12);
   const [enr] = await db.select().from(programEnrollments).where(and(eq(programEnrollments.userId, userId), eq(programEnrollments.status, "active")));
   let activeName = "none";
-  if (enr) { const [p] = await db.select({ name: programs.name }).from(programs).where(eq(programs.id, enr.programId)); activeName = p?.name ?? "one"; }
+  if (enr?.programId) { const [p] = await db.select({ name: programs.name }).from(programs).where(eq(programs.id, enr.programId)); activeName = p?.name ?? "one"; }
   const progRows = await db.select({ name: programs.name }).from(programs).where(eq(programs.userId, userId)).limit(6);
   const [ibTarget] = await db.select().from(inbodyTargets).where(eq(inbodyTargets.userId, userId));
   const ib = await db.select().from(inbodyTests).where(eq(inbodyTests.userId, userId)).orderBy(desc(inbodyTests.date)).limit(3);

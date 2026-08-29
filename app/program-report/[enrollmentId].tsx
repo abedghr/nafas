@@ -30,7 +30,8 @@ export default function ProgramReportScreen() {
   const [aiError, setAiError] = useState<string | null>(null);
 
   const enr = enrollments.find((e) => e.id === enrollmentId);
-  const program = enr ? programs.find((p: any) => p.id === enr.programId) : undefined;
+  // live program, or the frozen snapshot if the program was edited/deleted
+  const program = enr ? ((programs.find((p: any) => p.id === enr.programId) ?? enr.programSnapshot) as any) : undefined;
 
   const report = useMemo<ProgramReport | null>(
     () => (enr && program ? buildReport(enr, program, workoutLogs) : null),
@@ -39,12 +40,16 @@ export default function ProgramReportScreen() {
 
   // other finished runs of the same program, for comparison
   const comparison = useMemo(() => {
-    if (!report || !program) return null;
+    if (!report || !program || !enr) return null;
     const others = enrollments
-      .filter((e) => e.programId === program.id && e.id !== enr!.id && e.status !== 'active')
-      .map((e) => buildReport(e, program, workoutLogs));
+      .filter((e) => e.id !== enr.id && e.status !== 'active' && e.programId && e.programId === enr.programId)
+      .map((e) => {
+        const p = programs.find((x: any) => x.id === e.programId) ?? e.programSnapshot;
+        return p ? buildReport(e, p as any, workoutLogs) : null;
+      })
+      .filter(Boolean) as ProgramReport[];
     return compareRuns(report, others);
-  }, [report, program, enrollments, workoutLogs, enr]);
+  }, [report, program, enr, enrollments, programs, workoutLogs]);
 
   const genReport = async () => {
     if (!report || !enr) return;

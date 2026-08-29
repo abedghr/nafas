@@ -24,8 +24,9 @@ export default function EndedProgramsScreen() {
     return (enrollments ?? [])
       .filter((e) => e.status !== 'active')
       .map((e) => {
-        const program = programs.find((p: any) => p.id === e.programId);
-        if (!program) return null;
+        // live program, or the frozen snapshot if it was edited/deleted
+        const program = (programs.find((p: any) => p.id === e.programId) ?? e.programSnapshot) as any;
+        if (!program) return null; // pre-snapshot legacy run whose program is gone — nothing to show
         const r = buildReport(e, program, workoutLogs);
         return { e, program, r };
       })
