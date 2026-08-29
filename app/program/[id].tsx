@@ -426,8 +426,9 @@ export default function ProgramBuilderScreen() {
                   value={active.startDate}
                   onChange={(iso) => iso && updateEnrollmentLocal(active.id, { startDate: iso })}
                   theme={theme}
+                  maxDate={new Date()}
                 />
-                <Text style={[s.viewNotes, { color: theme.textMuted, marginTop: 0 }]}>{t('programs.backfillHint', { defaultValue: 'Backdate the start, then tap past days on the Today card to mark them done.' })}</Text>
+                <Text style={[s.viewNotes, { color: theme.textMuted, marginTop: 0 }]}>{t('programs.backfillHint', { defaultValue: 'The start can be today or earlier. Backdate it to mark days you already trained; Day 1 falls on the start date and each day follows the next.' })}</Text>
                 {(() => {
                   const st = programStats(active, program, workoutLogs);
                   const time = st.minutes >= 60 ? `${Math.floor(st.minutes / 60)}h ${st.minutes % 60}m` : `${st.minutes}m`;
@@ -449,20 +450,15 @@ export default function ProgramBuilderScreen() {
                   );
                 })()}
                 <Pressable
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/program-history/${program.id}` as any); }}
-                  style={({ pressed }) => [s.historyBtn, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}
-                >
-                  <Ionicons name="time-outline" size={16} color={theme.textSecondary} />
-                  <Text style={[s.historyBtnText, { color: theme.textSecondary }]}>{t('programs.viewHistory', { defaultValue: 'View history' })}</Text>
-                  <Ionicons name="chevron-forward" size={15} color={theme.textMuted} />
-                </Pressable>
-                <Pressable
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/program-report/${active.id}` as any); }}
-                  style={({ pressed }) => [s.historyBtn, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}
+                  style={({ pressed }) => [s.detailRow, { backgroundColor: theme.cardAlt, opacity: pressed ? 0.85 : 1 }]}
                 >
-                  <Ionicons name="stats-chart-outline" size={16} color={Colors.electric} />
-                  <Text style={[s.historyBtnText, { color: theme.textSecondary }]}>{t('programs.viewReport', { defaultValue: 'View report' })}</Text>
-                  <Ionicons name="chevron-forward" size={15} color={theme.textMuted} />
+                  <View style={[s.detailIcon, { backgroundColor: Colors.electric + '1F' }]}><Ionicons name="stats-chart" size={18} color={Colors.electric} /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.detailTitle, { color: theme.text }]}>{t('programs.viewReport', { defaultValue: 'Progress report' })}</Text>
+                    <Text style={[s.detailSub, { color: theme.textMuted }]}>{t('programs.reportSub', { defaultValue: 'Stats, your journey and AI analysis' })}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
                 </Pressable>
               </View>
             );
@@ -483,11 +479,14 @@ export default function ProgramBuilderScreen() {
               {lastRun && (
                 <Pressable
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/program-report/${lastRun.id}` as any); }}
-                  style={({ pressed }) => [s.historyBtn, { borderColor: theme.border, marginTop: 10, opacity: pressed ? 0.7 : 1 }]}
+                  style={({ pressed }) => [s.detailRow, { backgroundColor: theme.card, marginTop: 12, opacity: pressed ? 0.85 : 1 }]}
                 >
-                  <Ionicons name="stats-chart-outline" size={16} color={Colors.electric} />
-                  <Text style={[s.historyBtnText, { color: theme.textSecondary }]}>{t('programs.viewLastReport', { defaultValue: 'View last report' })}</Text>
-                  <Ionicons name="chevron-forward" size={15} color={theme.textMuted} />
+                  <View style={[s.detailIcon, { backgroundColor: Colors.electric + '1F' }]}><Ionicons name="stats-chart" size={18} color={Colors.electric} /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.detailTitle, { color: theme.text }]}>{t('programs.viewLastReport', { defaultValue: 'View last report' })}</Text>
+                    <Text style={[s.detailSub, { color: theme.textMuted }]}>{t('programs.lastReportSub', { defaultValue: 'How your last run of this program went' })}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
                 </Pressable>
               )}
             </>
@@ -500,10 +499,13 @@ export default function ProgramBuilderScreen() {
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(('/program-shares/' + program.id) as any); }}
             style={({ pressed }) => [s.manageRow, { backgroundColor: theme.card, opacity: pressed ? 0.9 : 1 }]}
           >
-            <View style={[s.dayBadge, { width: 34, height: 34, backgroundColor: Colors.electric + '18' }]}>
-              <Ionicons name="people-outline" size={17} color={Colors.electric} />
+            <View style={[s.detailIcon, { backgroundColor: Colors.electric + '18' }]}>
+              <Ionicons name="people-outline" size={18} color={Colors.electric} />
             </View>
-            <Text style={[s.dayTitle, { flex: 1, color: theme.text }]}>{t('programs.whoHasThis', { defaultValue: 'Who has this' })}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.detailTitle, { color: theme.text }]}>{t('programs.whoHasThis', { defaultValue: 'Who has this' })}</Text>
+              <Text style={[s.detailSub, { color: theme.textMuted }]}>{t('programs.whoHasThisSub', { defaultValue: 'People you shared it with and their access' })}</Text>
+            </View>
             <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
           </Pressable>
         )}
@@ -1124,8 +1126,10 @@ const s = StyleSheet.create({
   statTile: { flex: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center', gap: 3 },
   statValue: { fontFamily: Fonts.monoBold, fontSize: 15 },
   statLabel: { fontSize: 10, fontWeight: '600' },
-  historyBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginTop: 2 },
-  historyBtnText: { flex: 1, fontSize: 13.5, fontWeight: '600' },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 14 },
+  detailIcon: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  detailTitle: { fontSize: 14.5, fontWeight: '700' },
+  detailSub: { fontSize: 12, fontWeight: '500', marginTop: 1 },
   finishBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14 },
   finishBannerTitle: { fontSize: 15, fontWeight: '800', color: '#04120B' },
   finishBannerSub: { fontSize: 12.5, fontWeight: '600', color: '#04120B', opacity: 0.8, marginTop: 1 },
