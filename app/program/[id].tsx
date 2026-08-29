@@ -366,10 +366,17 @@ export default function ProgramBuilderScreen() {
         {hasRun && templateView && (
           <Pressable
             onPress={() => { Haptics.selectionAsync(); setMode('view'); setTemplateView(false); }}
-            style={({ pressed }) => [s.editNote, { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.85 : 1 }]}
+            style={({ pressed }) => [s.templateBar, { backgroundColor: Colors.electric + '14', borderColor: Colors.electric + '44', opacity: pressed ? 0.9 : 1 }]}
           >
-            <Ionicons name="arrow-back-circle-outline" size={17} color={Colors.electric} />
-            <Text style={[s.editNoteText, { color: theme.textSecondary }]}>{t('programs.viewingMain', { defaultValue: 'Main program — edits apply to future runs. Tap to go back to your active run.' })}</Text>
+            <View style={[s.detailIcon, { backgroundColor: Colors.electric + '22' }]}><Ionicons name="albums" size={18} color={Colors.electric} /></View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[s.templateBarTitle, { color: theme.text }]}>{t('programs.templateBarTitle', { defaultValue: 'Program template' })}</Text>
+              <Text style={[s.templateBarSub, { color: theme.textMuted }]}>{t('programs.templateBarSub', { defaultValue: 'Changes here apply to future runs, not your active one' })}</Text>
+            </View>
+            <View style={[s.backToRun, { backgroundColor: theme.card }]}>
+              <Ionicons name="arrow-back" size={14} color={Colors.electric} />
+              <Text style={[s.backToRunText, { color: Colors.electric }]}>{t('programs.backToRun', { defaultValue: 'Run' })}</Text>
+            </View>
           </Pressable>
         )}
         {/* program meta (name/notes edit only on the template) */}
@@ -548,14 +555,19 @@ export default function ProgramBuilderScreen() {
         {hasRun && !templateView && !isEdit && (
           <Pressable
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMode('view'); setTemplateView(true); }}
-            style={({ pressed }) => [s.manageRow, { backgroundColor: theme.card, opacity: pressed ? 0.9 : 1 }]}
+            style={({ pressed }) => [s.manageRow, { backgroundColor: theme.card, borderColor: Colors.electric + '33', borderWidth: 1, opacity: pressed ? 0.9 : 1 }]}
           >
             <View style={[s.detailIcon, { backgroundColor: Colors.electric + '18' }]}>
-              <Ionicons name="construct-outline" size={18} color={Colors.electric} />
+              <Ionicons name="albums-outline" size={19} color={Colors.electric} />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.detailTitle, { color: theme.text }]}>{t('programs.manageMain', { defaultValue: 'Main program' })}</Text>
-              <Text style={[s.detailSub, { color: theme.textMuted }]}>{t('programs.manageMainSub', { defaultValue: 'Edit the plan or share it — affects future runs' })}</Text>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={[s.detailTitle, { color: theme.text }]} numberOfLines={1}>{t('programs.manageMain', { defaultValue: 'Program template' })}</Text>
+                <View style={[s.templateBadge, { backgroundColor: Colors.electric + '22' }]}>
+                  <Text style={[s.templateBadgeText, { color: Colors.electric }]}>{t('programs.templateTag', { defaultValue: 'TEMPLATE' })}</Text>
+                </View>
+              </View>
+              <Text style={[s.detailSub, { color: theme.textMuted }]}>{t('programs.manageMainSub', { defaultValue: 'The plan you start, edit and share. Changes apply to future runs.' })}</Text>
             </View>
             <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
           </Pressable>
@@ -1240,6 +1252,13 @@ const s = StyleSheet.create({
   statTile: { flex: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center', gap: 3 },
   statValue: { fontFamily: Fonts.monoBold, fontSize: 15 },
   statLabel: { fontSize: 10, fontWeight: '600' },
+  templateBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
+  templateBadgeText: { fontSize: 9.5, fontWeight: '800', letterSpacing: 0.6 },
+  templateBar: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, borderWidth: 1, marginBottom: 12 },
+  templateBarTitle: { fontSize: 14.5, fontWeight: '800' },
+  templateBarSub: { fontSize: 12, fontWeight: '500', marginTop: 1 },
+  backToRun: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999 },
+  backToRunText: { fontSize: 12.5, fontWeight: '700' },
   editNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
   editNoteText: { flex: 1, fontSize: 12.5, fontWeight: '500', lineHeight: 18 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 14, borderRadius: 14 },
