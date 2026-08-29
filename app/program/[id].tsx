@@ -68,6 +68,7 @@ export default function ProgramBuilderScreen() {
   // enrolled-day action sheet (start / done+duration / skip / clear)
   const [dayAction, setDayAction] = useState<{ week: number; day: number } | null>(null);
   const [completeModal, setCompleteModal] = useState<{ enrollmentId: string; name: string; completed: boolean } | null>(null);
+  const [descOpen, setDescOpen] = useState(false);
   const [marking, setMarking] = useState(false);
   const [markDur, setMarkDur] = useState('');
 
@@ -373,16 +374,38 @@ export default function ProgramBuilderScreen() {
             />
           </View>
         ) : (
-          <View style={[s.viewSummary, { backgroundColor: theme.card }]}>
-            <View style={s.weeksRow}>
-              <Text style={[s.weeksVal, { color: theme.text }]}>{t('programs.daysCount', { n: (program.days ?? []).length, defaultValue: `${(program.days ?? []).length} days` })}</Text>
-              <View style={[s.useHint, { backgroundColor: Colors.electric + '18' }]}>
-                <Ionicons name="play" size={11} color={Colors.electric} />
-                <Text style={[s.useHintText, { color: Colors.electric }]}>{t('programs.tapDayToStart', { defaultValue: 'Tap a day to start' })}</Text>
+          (() => {
+            const totalDays = (program.days ?? []).length;
+            const weeks = Math.max(1, (program as any).weeks || Math.ceil(totalDays / 7));
+            const trainingDays = (program.days ?? []).filter((d: any) => !d.restDay && daySessions(d).length > 0).length;
+            const chips = [
+              { icon: 'calendar-outline' as const, label: t('programs.daysCount', { n: totalDays, defaultValue: `${totalDays} days` }) },
+              { icon: 'albums-outline' as const, label: t('programs.weeksCount', { n: weeks, defaultValue: `${weeks} ${weeks === 1 ? 'week' : 'weeks'}` }) },
+              ...(trainingDays > 0 ? [{ icon: 'barbell-outline' as const, label: t('programs.trainingDaysCount', { n: trainingDays, defaultValue: `${trainingDays} training` }) }] : []),
+            ];
+            return (
+              <View style={[s.viewSummary, { backgroundColor: theme.card }]}>
+                <View style={s.metaChips}>
+                  {chips.map((c, i) => (
+                    <View key={i} style={[s.metaChip, { backgroundColor: theme.cardAlt }]}>
+                      <Ionicons name={c.icon} size={13} color={theme.textSecondary} />
+                      <Text style={[s.metaChipText, { color: theme.textSecondary }]}>{c.label}</Text>
+                    </View>
+                  ))}
+                </View>
+                {!!program.notes && (
+                  <View>
+                    <Text style={[s.viewNotes, { color: theme.textSecondary }]} numberOfLines={descOpen ? undefined : 3}>{program.notes}</Text>
+                    {program.notes.length > 140 && (
+                      <Pressable onPress={() => { Haptics.selectionAsync(); setDescOpen(v => !v); }} hitSlop={6} style={{ marginTop: 6 }}>
+                        <Text style={[s.readMore, { color: Colors.electric }]}>{descOpen ? t('programs.less', { defaultValue: 'Show less' }) : t('programs.more', { defaultValue: 'Read more' })}</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                )}
               </View>
-            </View>
-            {!!program.notes && <Text style={[s.viewNotes, { color: theme.textSecondary }]}>{program.notes}</Text>}
-          </View>
+            );
+          })()
         )}
 
         {/* start / active enrollment */}
@@ -575,7 +598,7 @@ export default function ProgramBuilderScreen() {
               style={({ pressed }) => [
                 s.dayRow2,
                 { backgroundColor: pressed && onRow ? theme.cardAlt : theme.card, borderColor: theme.border },
-                planned && { borderColor: Colors.electric + '40' },
+                enrolled && planned && { borderColor: Colors.electric + '33' },
                 statusCol && { borderColor: statusCol + '77' },
                 isToday && { borderColor: Colors.electric, borderWidth: 1.5 },
               ]}
@@ -624,12 +647,14 @@ export default function ProgramBuilderScreen() {
                   <Ionicons name={cStatus === 'done' ? 'checkmark-circle' : cStatus === 'skipped' ? 'close-circle' : cStatus === 'partial' ? 'ellipsis-horizontal-circle' : 'moon'} size={13} color={statusCol!} />
                   <Text style={[s.statusChipText, { color: statusCol! }]}>{t(`programs.${cStatus}`, { defaultValue: cStatus })}</Text>
                 </View>
-              ) : planned ? (
-                // locked: enrolled future day, or any day before the program is
-                // started. Lock icon only — no label (cleaner, less noise).
+              ) : enrolled && planned ? (
+                // enrolled future day → locked until its date arrives.
                 <View style={[s.lockChip, { backgroundColor: theme.cardAlt }]} accessibilityLabel={t('programs.upcoming', { defaultValue: 'Upcoming' })}>
                   <Ionicons name="lock-closed" size={14} color={theme.textMuted} />
                 </View>
+              ) : planned && onRow ? (
+                // not started yet → this is a preview; chevron, no lock.
+                <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
               ) : day.restDay ? (
                 <Ionicons name="moon" size={15} color={theme.textSecondary} />
               ) : null}
@@ -1103,11 +1128,15 @@ const s = StyleSheet.create({
   weekTitle: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, marginTop: 2 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   manageRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 12, marginBottom: 12 },
-  viewSummary: { borderRadius: 16, padding: 16, marginBottom: 12, gap: 8 },
+  viewSummary: { borderRadius: 16, padding: 16, marginBottom: 12, gap: 12 },
+  metaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  metaChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
+  metaChipText: { fontSize: 12.5, fontWeight: '600' },
   useHint: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   useHintText: { fontSize: 11.5, fontWeight: '700' },
-  viewNotes: { fontSize: 13, fontWeight: '500', lineHeight: 19 },
-  dayRow2: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 10, borderRadius: 12, borderWidth: 1, marginBottom: 6 },
+  viewNotes: { fontSize: 13.5, fontWeight: '500', lineHeight: 20 },
+  readMore: { fontSize: 12.5, fontWeight: '700' },
+  dayRow2: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, marginBottom: 8 },
   dayBadge: { width: 46, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   dayBadgeText: { fontSize: 12, fontWeight: '800' },
   dayTitle: { fontSize: 14, fontWeight: '600' },
