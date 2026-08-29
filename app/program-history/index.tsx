@@ -235,9 +235,9 @@ export default function EndedProgramsScreen() {
             <View style={s.sheetHandle}><View style={[s.sheetBar, { backgroundColor: theme.border }]} /></View>
             <Text style={[s.sheetTitle, { color: theme.text }]}>{t('history.dateFilter', { defaultValue: 'Date range' })}</Text>
             <View style={s.presetRow}>
-              {[[30, '30d'], [90, '90d'], [365, '1y']].map(([d, l]) => (
-                <Pressable key={l} onPress={() => { Haptics.selectionAsync(); setPreset(d as number); }} style={[s.preset, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                  <Text style={[s.presetText, { color: theme.textSecondary }]}>{t('history.lastN', { d, defaultValue: `Last ${l}` })}</Text>
+              {([[30, t('history.pMonth', { defaultValue: 'Last month' })], [90, t('history.p3Months', { defaultValue: 'Last 3 months' })], [365, t('history.pYear', { defaultValue: 'Last year' })]] as [number, string][]).map(([d, l]) => (
+                <Pressable key={d} onPress={() => { Haptics.selectionAsync(); setPreset(d); }} style={[s.preset, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                  <Text style={[s.presetText, { color: theme.textSecondary }]} numberOfLines={1}>{l}</Text>
                 </Pressable>
               ))}
             </View>

@@ -14,7 +14,7 @@ import { useApp } from '@/lib/app-context';
 import Colors from '@/constants/colors';
 import { Type, Fonts } from '@/constants/typography';
 import { Button } from '@/components/ui';
-import { buildReport, compareRuns, reportContext, gradeOf, type ProgramReport, type DayAgg } from '@/lib/program-report';
+import { buildReport, compareRuns, reportContext, type ProgramReport, type DayAgg } from '@/lib/program-report';
 import { workoutApi } from '@/src/features/workout/api';
 
 const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -119,8 +119,7 @@ export default function ProgramReportScreen() {
   }
 
   const r = report;
-  const grade = gradeOf(r.completionRate);
-  // ring + grade colour track the completion band (green strong → amber → red)
+  // ring colour tracks the completion band (green strong → amber → red)
   const bandColor = r.completionRate >= 0.75 ? Colors.electric : r.completionRate >= 0.4 ? Colors.semantic.warn : Colors.semantic.danger;
   // one-line human verdict under the ring
   const headline = r.status === 'abandoned'
@@ -185,14 +184,11 @@ export default function ProgramReportScreen() {
               <Text style={[s.ringPct, { color: theme.text }]}>{pct(r.completionRate)}</Text>
               <Text style={[s.ringLabel, { color: theme.textMuted }]}>{t('report.complete', { defaultValue: 'complete' })}</Text>
             </View>
-            <View style={[s.gradeBadge, { backgroundColor: bandColor }]}>
-              <Text style={s.gradeText}>{grade}</Text>
-            </View>
           </View>
 
           <Text style={[s.headline, { color: theme.text }]}>{headline}</Text>
           <Text style={[s.heroSub, { color: theme.textMuted }]}>
-            {t('report.doneOfPlanned', { done: r.done + r.substituted, total: r.plannedSessions, defaultValue: `${r.done + r.substituted} of ${r.plannedSessions} sessions trained` })}
+            {t('report.pctHelp', { done: r.done + r.substituted, total: r.plannedSessions, defaultValue: `${r.done + r.substituted} of ${r.plannedSessions} planned sessions done` })}
           </Text>
         </View>
 
@@ -397,8 +393,6 @@ const s = StyleSheet.create({
   ringCenter: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   ringPct: { fontSize: 34, fontFamily: Fonts.bold },
   ringLabel: { fontSize: 12, fontFamily: Fonts.regular, marginTop: -2 },
-  gradeBadge: { position: 'absolute', bottom: -2, right: '50%', marginRight: -58, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  gradeText: { fontSize: 16, fontFamily: Fonts.bold, color: '#04120B' },
   headline: { fontSize: 16, fontFamily: Fonts.semibold, marginTop: 16, textAlign: 'center' },
   heroSub: { fontSize: 13, fontFamily: Fonts.regular, marginTop: 4, textAlign: 'center' },
   cmpSub: { fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 },
