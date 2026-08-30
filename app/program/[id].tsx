@@ -335,6 +335,194 @@ export default function ProgramBuilderScreen() {
   const currentUnlocked = enrolled && runView ? currentDayReachable(enrolled, shownProgram as any) : false;
   const orderedDays = programSequence(shownProgram as any, runView && !isEdit ? enrolled : null);
 
+  // template view = the blueprint (not an opened run, not editing). There, the
+  // active-program card sits on top as its own card and every template-related
+  // block (stats, plan/day list, who-has-this) is grouped in one container.
+  const grouped = templateCtx && !isEdit;
+
+  // stats chips + notes — reused bare inside the template group, or in its own
+  // card when viewing an opened run.
+  const totalDays = (program.days ?? []).length;
+  const weeksCount = Math.max(1, (program as any).weeks || Math.ceil(totalDays / 7));
+  const trainingDays = (program.days ?? []).filter((d: any) => !d.restDay && daySessions(d).length > 0).length;
+  const metaChipsData = [
+    { icon: 'calendar-outline' as const, label: t('programs.daysCount', { n: totalDays, defaultValue: `${totalDays} days` }) },
+    { icon: 'albums-outline' as const, label: t('programs.weeksCount', { n: weeksCount, defaultValue: `${weeksCount} ${weeksCount === 1 ? 'week' : 'weeks'}` }) },
+    ...(trainingDays > 0 ? [{ icon: 'barbell-outline' as const, label: t('programs.trainingDaysCount', { n: trainingDays, defaultValue: `${trainingDays} training` }) }] : []),
+  ];
+  const statsChipsEl = (
+    <>
+      <View style={s.metaChips}>
+        {metaChipsData.map((c, i) => (
+          <View key={i} style={[s.metaChip, { backgroundColor: theme.cardAlt }]}>
+            <Ionicons name={c.icon} size={13} color={theme.textSecondary} />
+            <Text style={[s.metaChipText, { color: theme.textSecondary }]}>{c.label}</Text>
+          </View>
+        ))}
+      </View>
+      {!!program.notes && (
+        <View>
+          <Text style={[s.viewNotes, { color: theme.textSecondary }]} numberOfLines={descOpen ? undefined : 3}>{program.notes}</Text>
+          {program.notes.length > 140 && (
+            <Pressable onPress={() => { Haptics.selectionAsync(); setDescOpen(v => !v); }} hitSlop={6} style={{ marginTop: 6 }}>
+              <Text style={[s.readMore, { color: Colors.electric }]}>{descOpen ? t('programs.less', { defaultValue: 'Show less' }) : t('programs.more', { defaultValue: 'Read more' })}</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+    </>
+  );
+
+  // day list (empty-state + rows) — reused by the template group and the
+  // edit/run flows, so it lives in one variable.
+  const dayListEls = (
+    <>
+      {orderedDays.length === 0 && !isEdit && (
+        <View style={[s.viewSummary, { backgroundColor: theme.card, alignItems: 'center' }]}>
+          <Text style={[s.viewNotes, { color: theme.textMuted, marginTop: 0 }]}>{t('programs.noDaysYet', { defaultValue: 'No days in this program yet.' })}</Text>
+        </View>
+      )}
+      {orderedDays.map((sd) => {
+        const w = sd.weekIndex, dIdx = sd.dayIndex, ord = sd.ordinal, day = sd.day;
+        const sessions = day.restDay ? [] : daySessions(day);
+        const sCount = sessions.length;
+        const single = sCount === 1;
+        const firstExs = single ? (sessions[0].exercises?.length ?? 0) : 0;
+        const inlineCount = single ? firstExs : 0; // legacy peek path: single-session days only
+        const planned = !day.restDay && sCount > 0;
+        const title = day.restDay
+          ? t('programs.restDay')
+          : (day.name || day.label || (sCount > 0 ? t('programs.buildWorkout') : t('programs.emptyDay', { defaultValue: 'Empty day' })));
+        // run status/dates/locks apply only inside the opened run, not the template blueprint
+        const rowEnr = runView ? enrolled : null;
+        const cStatus = rowEnr && !isEdit ? dayAggStatus(rowEnr, shownProgram as any, w, dIdx) : null;
+        const isCurrent = !!todayPos && !isEdit && !todayPos.finishedPlan && todayPos.week === w && todayPos.dayIndex === dIdx;
+        // "today" (highlighted + startable) only when the current day is also
+        // due by the calendar; a current-but-future day renders locked.
+        const isToday = isCurrent && currentUnlocked;
+        const undecidedIdx = rowEnr && !isEdit ? firstUndecidedSession(rowEnr, shownProgram as any, w, dIdx) : (planned ? 0 : -1);
+        const canStartToday = planned && isToday && undecidedIdx !== -1;
+        const statusCol = cStatus === 'done' ? Colors.semantic.success : cStatus === 'skipped' ? Colors.semantic.warn : cStatus === 'partial' ? Colors.electric : cStatus === 'rest' ? theme.textSecondary : null;
+        const dateStr = rowEnr && !isEdit ? dateForOrdinal(rowEnr, ord).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
+        // enrolled: only the active (today) day is startable. Future days open their
+        // text preview; to play a different day, act on the active day (skip / swap).
+        const viewText = inlineCount > 0
+          ? () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay({ ...day, exercises: resolveDayExercises(rowEnr, w, dIdx, (day.exercises as any[]) || []) } as any); }
+          : undefined;
+        const locked = dayLocked(w, dIdx); // run-edit: a completed day can't be changed
+        const onRow = isEdit
+          ? (locked ? undefined : () => openDay(w, dIdx))
+          : (rowEnr && planned && isToday)
+            ? () => { Haptics.selectionAsync(); setMarking(false); setMarkDur(''); setDayAction({ week: w, day: dIdx }); }
+            // enrolled-but-locked, or before the program is started: preview
+            // only. No individual day is startable outside the active day.
+            : (planned ? viewText : undefined);
+        const sessNames = sessions.map((se, i) => se.name || se.label || t('programs.sessionN', { n: i + 1, defaultValue: `Session ${i + 1}` })).join(', ');
+        const sub = [
+          dateStr,
+          day.restDay ? ''
+            : sCount > 1 ? `${t('programs.sessionsN', { n: sCount, defaultValue: `${sCount} sessions` })}  ·  ${sessNames}`
+            : firstExs > 0 ? t('programs.exercisesN', { n: firstExs })
+            : day.label ? day.label : t('programs.tapToBuild', { defaultValue: 'Tap to build' }),
+        ].filter(Boolean).join('  ·  ');
+        return (
+          <Pressable
+            key={ord}
+            onPress={onRow}
+            disabled={!onRow}
+            style={({ pressed }) => [
+              s.dayRow2,
+              // grouped view: rows sit inside a theme.card container, so use cardAlt for contrast
+              { backgroundColor: pressed && onRow ? (grouped ? theme.card : theme.cardAlt) : (grouped ? theme.cardAlt : theme.card), borderColor: theme.border },
+              rowEnr && planned && { borderColor: Colors.electric + '33' },
+              statusCol && { borderColor: statusCol + '77' },
+              isToday && { borderColor: Colors.electric, borderWidth: 1.5 },
+            ]}
+          >
+            <View style={[s.dayBadge, {
+              backgroundColor: day.restDay ? theme.cardAlt : Colors.electric,
+              borderColor: day.restDay ? theme.border : 'transparent',
+              borderWidth: day.restDay ? 1 : 0,
+            }]}>
+              <Text style={[s.dayBadgeText, { color: day.restDay ? theme.textMuted : '#04120B' }]}>{`D${ord + 1}`}</Text>
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[s.dayTitle, { color: day.restDay ? theme.textSecondary : theme.text, flexShrink: 1 }]} numberOfLines={1}>{title}</Text>
+                {isToday && (
+                  <View style={[s.todayTag, { backgroundColor: Colors.electric }]}>
+                    <Text style={s.todayTagText}>{t('programs.today', { defaultValue: 'TODAY' })}</Text>
+                  </View>
+                )}
+              </View>
+              {!!sub && <Text style={[s.daySub, { color: theme.textMuted }]} numberOfLines={1}>{sub}</Text>}
+            </View>
+            {inlineCount > 0 && (
+              <Pressable
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay({ ...day, exercises: resolveDayExercises(enrolled, w, dIdx, (day.exercises as any[]) || []) } as any); }}
+                hitSlop={8}
+                style={({ pressed }) => [s.peekBtn, { backgroundColor: theme.cardAlt, opacity: pressed ? 0.6 : 1 }]}
+                accessibilityLabel={t('programs.viewAsText', { defaultValue: 'View as text' })}
+              >
+                <Ionicons name="list-outline" size={16} color={Colors.electric} />
+              </Pressable>
+            )}
+            {isEdit ? (
+              locked ? (
+                <View style={[s.lockChip, { backgroundColor: theme.cardAlt }]} accessibilityLabel={t('programs.completedLocked', { defaultValue: 'Completed — locked' })}>
+                  <Ionicons name="lock-closed" size={14} color={Colors.semantic.success} />
+                </View>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Pressable onPress={() => moveDay(ord, -1)} disabled={ord === 0} hitSlop={4} style={{ padding: 3, opacity: ord === 0 ? 0.3 : 1 }}><Ionicons name="chevron-up" size={18} color={theme.textSecondary} /></Pressable>
+                  <Pressable onPress={() => moveDay(ord, 1)} disabled={ord === orderedDays.length - 1} hitSlop={4} style={{ padding: 3, opacity: ord === orderedDays.length - 1 ? 0.3 : 1 }}><Ionicons name="chevron-down" size={18} color={theme.textSecondary} /></Pressable>
+                  <Pressable onPress={() => deleteDayAt(w, dIdx)} hitSlop={4} style={{ padding: 3 }}><Ionicons name="trash-outline" size={17} color={theme.textMuted} /></Pressable>
+                </View>
+              )
+            ) : canStartToday ? (
+              <View style={[s.startBtn, { backgroundColor: Colors.electric }]}>
+                <Ionicons name="play" size={11} color="#04120B" />
+                <Text style={[s.startBtnText, { color: '#04120B' }]}>{t('programs.startDay')}</Text>
+              </View>
+            ) : cStatus ? (
+              <View style={[s.statusChip, { backgroundColor: statusCol! + '22' }]}>
+                <Ionicons name={cStatus === 'done' ? 'checkmark-circle' : cStatus === 'skipped' ? 'close-circle' : cStatus === 'partial' ? 'ellipsis-horizontal-circle' : 'moon'} size={13} color={statusCol!} />
+                <Text style={[s.statusChipText, { color: statusCol! }]}>{t(`programs.${cStatus}`, { defaultValue: cStatus })}</Text>
+              </View>
+            ) : rowEnr && planned ? (
+              // enrolled future day → locked until its date arrives.
+              <View style={[s.lockChip, { backgroundColor: theme.cardAlt }]} accessibilityLabel={t('programs.upcoming', { defaultValue: 'Upcoming' })}>
+                <Ionicons name="lock-closed" size={14} color={theme.textMuted} />
+              </View>
+            ) : planned && onRow ? (
+              // not started yet → this is a preview; chevron, no lock.
+              <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+            ) : day.restDay ? (
+              <Ionicons name="moon" size={15} color={theme.textSecondary} />
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </>
+  );
+
+  // who-has-this, rendered inside the template group.
+  const whoHasEl = shareable ? (
+    <Pressable
+      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(('/program-shares/' + program.id) as any); }}
+      style={({ pressed }) => [s.manageRow, { backgroundColor: theme.cardAlt, opacity: pressed ? 0.9 : 1, marginBottom: 0 }]}
+    >
+      <View style={[s.detailIcon, { backgroundColor: Colors.electric + '18' }]}>
+        <Ionicons name="people-outline" size={18} color={Colors.electric} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[s.detailTitle, { color: theme.text }]}>{t('programs.whoHasThis', { defaultValue: 'Who has this' })}</Text>
+        <Text style={[s.detailSub, { color: theme.textMuted }]}>{t('programs.whoHasThisSub', { defaultValue: 'People you shared it with and their access' })}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
+    </Pressable>
+  ) : null;
+
   return (
     <View style={[s.container, { backgroundColor: theme.background }]}>
       <View style={[s.header, { paddingTop: topPad + 8 }]}>
@@ -372,7 +560,7 @@ export default function ProgramBuilderScreen() {
           >
             <View style={[s.detailIcon, { backgroundColor: Colors.electric + '22' }]}><Ionicons name="flag" size={18} color={Colors.electric} /></View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[s.templateBarTitle, { color: theme.text }]}>{t('programs.runBarTitle', { defaultValue: 'Your active run' })}</Text>
+              <Text style={[s.templateBarTitle, { color: theme.text }]}>{t('programs.runBarTitle', { defaultValue: 'Your active program' })}</Text>
               <Text style={[s.templateBarSub, { color: theme.textMuted }]}>{t('programs.runBarSub', { defaultValue: 'Start and mark days here. Editing changes this run only.' })}</Text>
             </View>
             <View style={[s.backToRun, { backgroundColor: theme.card }]}>
@@ -410,39 +598,10 @@ export default function ProgramBuilderScreen() {
               multiline
             />
           </View>
-        ) : (
-          (() => {
-            const totalDays = (program.days ?? []).length;
-            const weeks = Math.max(1, (program as any).weeks || Math.ceil(totalDays / 7));
-            const trainingDays = (program.days ?? []).filter((d: any) => !d.restDay && daySessions(d).length > 0).length;
-            const chips = [
-              { icon: 'calendar-outline' as const, label: t('programs.daysCount', { n: totalDays, defaultValue: `${totalDays} days` }) },
-              { icon: 'albums-outline' as const, label: t('programs.weeksCount', { n: weeks, defaultValue: `${weeks} ${weeks === 1 ? 'week' : 'weeks'}` }) },
-              ...(trainingDays > 0 ? [{ icon: 'barbell-outline' as const, label: t('programs.trainingDaysCount', { n: trainingDays, defaultValue: `${trainingDays} training` }) }] : []),
-            ];
-            return (
-              <View style={[s.viewSummary, { backgroundColor: theme.card }]}>
-                <View style={s.metaChips}>
-                  {chips.map((c, i) => (
-                    <View key={i} style={[s.metaChip, { backgroundColor: theme.cardAlt }]}>
-                      <Ionicons name={c.icon} size={13} color={theme.textSecondary} />
-                      <Text style={[s.metaChipText, { color: theme.textSecondary }]}>{c.label}</Text>
-                    </View>
-                  ))}
-                </View>
-                {!!program.notes && (
-                  <View>
-                    <Text style={[s.viewNotes, { color: theme.textSecondary }]} numberOfLines={descOpen ? undefined : 3}>{program.notes}</Text>
-                    {program.notes.length > 140 && (
-                      <Pressable onPress={() => { Haptics.selectionAsync(); setDescOpen(v => !v); }} hitSlop={6} style={{ marginTop: 6 }}>
-                        <Text style={[s.readMore, { color: Colors.electric }]}>{descOpen ? t('programs.less', { defaultValue: 'Show less' }) : t('programs.more', { defaultValue: 'Read more' })}</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                )}
-              </View>
-            );
-          })()
+        ) : grouped ? null : (
+          // opened run / run-edit: stats in their own card (template view moves
+          // these into the grouped container below)
+          <View style={[s.viewSummary, { backgroundColor: theme.card }]}>{statsChipsEl}</View>
         )}
 
         {/* the active run, shown as a card inside the template (core) screen */}
@@ -515,7 +674,7 @@ export default function ProgramBuilderScreen() {
                     style={({ pressed }) => [s.startProgramBtn, { backgroundColor: Colors.electric, marginBottom: 0, opacity: pressed ? 0.9 : 1 }]}
                   >
                     <Ionicons name="play" size={17} color="#04120B" />
-                    <Text style={s.startProgramText}>{t('programs.openRun', { defaultValue: 'Open active run' })}</Text>
+                    <Text style={s.startProgramText}>{t('programs.openRun', { defaultValue: 'Open active program' })}</Text>
                   </Pressable>
                 )}
                 <Pressable
@@ -562,21 +721,29 @@ export default function ProgramBuilderScreen() {
           );
         })()}
 
-        {/* owner: who has this program (template context only) */}
-        {templateCtx && !isEdit && shareable && (
-          <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(('/program-shares/' + program.id) as any); }}
-            style={({ pressed }) => [s.manageRow, { backgroundColor: theme.card, opacity: pressed ? 0.9 : 1 }]}
-          >
-            <View style={[s.detailIcon, { backgroundColor: Colors.electric + '18' }]}>
-              <Ionicons name="people-outline" size={18} color={Colors.electric} />
+        {/* template view: active program on top (own card), then ONE container
+            holding all template-related blocks — stats, plan/day list, who-has. */}
+        {grouped && (
+          <View style={[s.templateGroup, { backgroundColor: theme.card }]}>
+            <View style={s.templateGroupHead}>
+              <Ionicons name="document-text-outline" size={14} color={theme.textSecondary} />
+              <Text style={[s.templateGroupTitle, { color: theme.textSecondary }]}>{t('programs.templateTag', { defaultValue: 'TEMPLATE' })}</Text>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.detailTitle, { color: theme.text }]}>{t('programs.whoHasThis', { defaultValue: 'Who has this' })}</Text>
-              <Text style={[s.detailSub, { color: theme.textMuted }]}>{t('programs.whoHasThisSub', { defaultValue: 'People you shared it with and their access' })}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
-          </Pressable>
+            {statsChipsEl}
+            {orderedDays.length > 0 && (
+              <>
+                <View style={[s.groupDivider, { backgroundColor: theme.border }]} />
+                <Text style={[s.planHeadText, { color: theme.textSecondary, marginBottom: 8 }]}>{t('programs.planTitle', { defaultValue: 'Program plan' })}</Text>
+              </>
+            )}
+            {dayListEls}
+            {whoHasEl && (
+              <>
+                <View style={[s.groupDivider, { backgroundColor: theme.border, marginTop: 4 }]} />
+                {whoHasEl}
+              </>
+            )}
+          </View>
         )}
 
         {/* edit banners */}
@@ -593,142 +760,8 @@ export default function ProgramBuilderScreen() {
           </View>
         )}
 
-        {/* plan section header (template blueprint) */}
-        {templateCtx && !isEdit && orderedDays.length > 0 && (
-          <View style={s.planHead}>
-            <Text style={[s.planHeadText, { color: theme.textSecondary }]}>{t('programs.planTitle', { defaultValue: 'Program plan' })}</Text>
-            <View style={[s.templateBadge, { backgroundColor: Colors.electric + '22' }]}>
-              <Text style={[s.templateBadgeText, { color: Colors.electric }]}>{t('programs.templateTag', { defaultValue: 'TEMPLATE' })}</Text>
-            </View>
-          </View>
-        )}
-
-        {/* day list */}
-        {orderedDays.length === 0 && !isEdit && (
-          <View style={[s.viewSummary, { backgroundColor: theme.card, alignItems: 'center' }]}>
-            <Text style={[s.viewNotes, { color: theme.textMuted, marginTop: 0 }]}>{t('programs.noDaysYet', { defaultValue: 'No days in this program yet.' })}</Text>
-          </View>
-        )}
-        {orderedDays.map((sd) => {
-          const w = sd.weekIndex, dIdx = sd.dayIndex, ord = sd.ordinal, day = sd.day;
-          const sessions = day.restDay ? [] : daySessions(day);
-          const sCount = sessions.length;
-          const single = sCount === 1;
-          const firstExs = single ? (sessions[0].exercises?.length ?? 0) : 0;
-          const inlineCount = single ? firstExs : 0; // legacy peek path: single-session days only
-          const planned = !day.restDay && sCount > 0;
-          const title = day.restDay
-            ? t('programs.restDay')
-            : (day.name || day.label || (sCount > 0 ? t('programs.buildWorkout') : t('programs.emptyDay', { defaultValue: 'Empty day' })));
-          // run status/dates/locks apply only inside the opened run, not the template blueprint
-          const rowEnr = runView ? enrolled : null;
-          const cStatus = rowEnr && !isEdit ? dayAggStatus(rowEnr, shownProgram as any, w, dIdx) : null;
-          const isCurrent = !!todayPos && !isEdit && !todayPos.finishedPlan && todayPos.week === w && todayPos.dayIndex === dIdx;
-          // "today" (highlighted + startable) only when the current day is also
-          // due by the calendar; a current-but-future day renders locked.
-          const isToday = isCurrent && currentUnlocked;
-          const undecidedIdx = rowEnr && !isEdit ? firstUndecidedSession(rowEnr, shownProgram as any, w, dIdx) : (planned ? 0 : -1);
-          const canStartToday = planned && isToday && undecidedIdx !== -1;
-          const statusCol = cStatus === 'done' ? Colors.semantic.success : cStatus === 'skipped' ? Colors.semantic.warn : cStatus === 'partial' ? Colors.electric : cStatus === 'rest' ? theme.textSecondary : null;
-          const dateStr = rowEnr && !isEdit ? dateForOrdinal(rowEnr, ord).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
-          // enrolled: only the active (today) day is startable. Future days open their
-          // text preview; to play a different day, act on the active day (skip / swap).
-          const viewText = inlineCount > 0
-            ? () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay({ ...day, exercises: resolveDayExercises(rowEnr, w, dIdx, (day.exercises as any[]) || []) } as any); }
-            : undefined;
-          const locked = dayLocked(w, dIdx); // run-edit: a completed day can't be changed
-          const onRow = isEdit
-            ? (locked ? undefined : () => openDay(w, dIdx))
-            : (rowEnr && planned && isToday)
-              ? () => { Haptics.selectionAsync(); setMarking(false); setMarkDur(''); setDayAction({ week: w, day: dIdx }); }
-              // enrolled-but-locked, or before the program is started: preview
-              // only. No individual day is startable outside the active day.
-              : (planned ? viewText : undefined);
-          const sessNames = sessions.map((se, i) => se.name || se.label || t('programs.sessionN', { n: i + 1, defaultValue: `Session ${i + 1}` })).join(', ');
-          const sub = [
-            dateStr,
-            day.restDay ? ''
-              : sCount > 1 ? `${t('programs.sessionsN', { n: sCount, defaultValue: `${sCount} sessions` })}  ·  ${sessNames}`
-              : firstExs > 0 ? t('programs.exercisesN', { n: firstExs })
-              : day.label ? day.label : t('programs.tapToBuild', { defaultValue: 'Tap to build' }),
-          ].filter(Boolean).join('  ·  ');
-          return (
-            <Pressable
-              key={ord}
-              onPress={onRow}
-              disabled={!onRow}
-              style={({ pressed }) => [
-                s.dayRow2,
-                { backgroundColor: pressed && onRow ? theme.cardAlt : theme.card, borderColor: theme.border },
-                rowEnr && planned && { borderColor: Colors.electric + '33' },
-                statusCol && { borderColor: statusCol + '77' },
-                isToday && { borderColor: Colors.electric, borderWidth: 1.5 },
-              ]}
-            >
-              <View style={[s.dayBadge, {
-                backgroundColor: day.restDay ? theme.cardAlt : Colors.electric,
-                borderColor: day.restDay ? theme.border : 'transparent',
-                borderWidth: day.restDay ? 1 : 0,
-              }]}>
-                <Text style={[s.dayBadgeText, { color: day.restDay ? theme.textMuted : '#04120B' }]}>{`D${ord + 1}`}</Text>
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={[s.dayTitle, { color: day.restDay ? theme.textSecondary : theme.text, flexShrink: 1 }]} numberOfLines={1}>{title}</Text>
-                  {isToday && (
-                    <View style={[s.todayTag, { backgroundColor: Colors.electric }]}>
-                      <Text style={s.todayTagText}>{t('programs.today', { defaultValue: 'TODAY' })}</Text>
-                    </View>
-                  )}
-                </View>
-                {!!sub && <Text style={[s.daySub, { color: theme.textMuted }]} numberOfLines={1}>{sub}</Text>}
-              </View>
-              {inlineCount > 0 && (
-                <Pressable
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTextDay({ ...day, exercises: resolveDayExercises(enrolled, w, dIdx, (day.exercises as any[]) || []) } as any); }}
-                  hitSlop={8}
-                  style={({ pressed }) => [s.peekBtn, { backgroundColor: theme.cardAlt, opacity: pressed ? 0.6 : 1 }]}
-                  accessibilityLabel={t('programs.viewAsText', { defaultValue: 'View as text' })}
-                >
-                  <Ionicons name="list-outline" size={16} color={Colors.electric} />
-                </Pressable>
-              )}
-              {isEdit ? (
-                locked ? (
-                  <View style={[s.lockChip, { backgroundColor: theme.cardAlt }]} accessibilityLabel={t('programs.completedLocked', { defaultValue: 'Completed — locked' })}>
-                    <Ionicons name="lock-closed" size={14} color={Colors.semantic.success} />
-                  </View>
-                ) : (
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Pressable onPress={() => moveDay(ord, -1)} disabled={ord === 0} hitSlop={4} style={{ padding: 3, opacity: ord === 0 ? 0.3 : 1 }}><Ionicons name="chevron-up" size={18} color={theme.textSecondary} /></Pressable>
-                    <Pressable onPress={() => moveDay(ord, 1)} disabled={ord === orderedDays.length - 1} hitSlop={4} style={{ padding: 3, opacity: ord === orderedDays.length - 1 ? 0.3 : 1 }}><Ionicons name="chevron-down" size={18} color={theme.textSecondary} /></Pressable>
-                    <Pressable onPress={() => deleteDayAt(w, dIdx)} hitSlop={4} style={{ padding: 3 }}><Ionicons name="trash-outline" size={17} color={theme.textMuted} /></Pressable>
-                  </View>
-                )
-              ) : canStartToday ? (
-                <View style={[s.startBtn, { backgroundColor: Colors.electric }]}>
-                  <Ionicons name="play" size={11} color="#04120B" />
-                  <Text style={[s.startBtnText, { color: '#04120B' }]}>{t('programs.startDay')}</Text>
-                </View>
-              ) : cStatus ? (
-                <View style={[s.statusChip, { backgroundColor: statusCol! + '22' }]}>
-                  <Ionicons name={cStatus === 'done' ? 'checkmark-circle' : cStatus === 'skipped' ? 'close-circle' : cStatus === 'partial' ? 'ellipsis-horizontal-circle' : 'moon'} size={13} color={statusCol!} />
-                  <Text style={[s.statusChipText, { color: statusCol! }]}>{t(`programs.${cStatus}`, { defaultValue: cStatus })}</Text>
-                </View>
-              ) : rowEnr && planned ? (
-                // enrolled future day → locked until its date arrives.
-                <View style={[s.lockChip, { backgroundColor: theme.cardAlt }]} accessibilityLabel={t('programs.upcoming', { defaultValue: 'Upcoming' })}>
-                  <Ionicons name="lock-closed" size={14} color={theme.textMuted} />
-                </View>
-              ) : planned && onRow ? (
-                // not started yet → this is a preview; chevron, no lock.
-                <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
-              ) : day.restDay ? (
-                <Ionicons name="moon" size={15} color={theme.textSecondary} />
-              ) : null}
-            </Pressable>
-          );
-        })}
+        {/* standalone day list for edit / opened run (grouped view renders it in the container above) */}
+        {!grouped && dayListEls}
 
         {/* add day — edit mode only */}
         {isEdit && (
@@ -1216,6 +1249,11 @@ const s = StyleSheet.create({
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   manageRow: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 14, padding: 14, marginBottom: 12 },
   viewSummary: { borderRadius: 16, padding: 16, marginBottom: 12, gap: 12 },
+  // one container holding every template block (stats, plan/day list, who-has)
+  templateGroup: { borderRadius: 16, padding: 14, marginBottom: 16, gap: 12 },
+  templateGroupHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  templateGroupTitle: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
+  groupDivider: { height: StyleSheet.hairlineWidth, marginVertical: 2, opacity: 0.7 },
   metaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   metaChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   metaChipText: { fontSize: 12.5, fontWeight: '600' },
