@@ -611,22 +611,8 @@ export default function ProgramBuilderScreen() {
             return (
               <View style={[s.metaCard, { backgroundColor: theme.card, gap: 12 }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="flag" size={16} color={Colors.electric} />
-                  <Text style={[s.dayTitle, { flex: 1, color: theme.text }]}>{t('programs.activeProgram', { defaultValue: 'Active program' })}</Text>
-                  <Pressable
-                    onPress={async () => {
-                      if (!await confirmDialog({ title: t('programs.endProgramConfirm', { defaultValue: 'End this program?' }), message: t('programs.endProgramMsg', { defaultValue: 'You will see your full journey report. This closes the program.' }), destructive: true, confirmText: t('programs.endProgram', { defaultValue: 'End' }) })) return;
-                      // completed all days → 'finished'; ended early → 'abandoned'
-                      const completed = !!todayPos?.finishedPlan;
-                      endEnrollment(active.id, completed ? 'finished' : 'abandoned');
-                      setCompleteModal({ enrollmentId: active.id, name: program.name, completed });
-                    }}
-                    hitSlop={8}
-                    style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, flexDirection: 'row', alignItems: 'center', gap: 4 }]}
-                  >
-                    <Ionicons name="stop-circle-outline" size={16} color={theme.textMuted} />
-                    <Text style={[s.useHintText, { color: theme.textMuted }]}>{t('programs.endProgram', { defaultValue: 'End' })}</Text>
-                  </Pressable>
+                  <View style={[s.activeDot2, { backgroundColor: Colors.electric }]} />
+                  <Text style={[s.activeCardTitle, { color: theme.text }]}>{t('programs.activeProgram', { defaultValue: 'Active program' })}</Text>
                 </View>
 
                 {/* all days decided → invite the user to close it out and see the report */}
@@ -688,6 +674,21 @@ export default function ProgramBuilderScreen() {
                   </View>
                   <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
                 </Pressable>
+
+                {!todayPos?.finishedPlan && (
+                  <Pressable
+                    onPress={async () => {
+                      if (!await confirmDialog({ title: t('programs.endProgramConfirm', { defaultValue: 'End this program?' }), message: t('programs.endProgramMsg', { defaultValue: 'You will see your full journey report. This closes the program.' }), destructive: true, confirmText: t('programs.endProgram', { defaultValue: 'End program' }), cancelText: t('programs.cancel', { defaultValue: 'Cancel' }) })) return;
+                      const completed = !!todayPos?.finishedPlan;
+                      endEnrollment(active.id, completed ? 'finished' : 'abandoned');
+                      setCompleteModal({ enrollmentId: active.id, name: program.name, completed });
+                    }}
+                    style={({ pressed }) => [s.endBtn, { borderColor: Colors.semantic.danger + '55', backgroundColor: Colors.semantic.danger + '12', opacity: pressed ? 0.8 : 1 }]}
+                  >
+                    <Ionicons name="stop-circle" size={17} color={Colors.semantic.danger} />
+                    <Text style={[s.endBtnText, { color: Colors.semantic.danger }]}>{t('programs.endProgram', { defaultValue: 'End program' })}</Text>
+                  </Pressable>
+                )}
               </View>
             );
           }
@@ -730,6 +731,13 @@ export default function ProgramBuilderScreen() {
               <Text style={[s.templateGroupTitle, { color: theme.textSecondary }]}>{t('programs.templateTag', { defaultValue: 'TEMPLATE' })}</Text>
             </View>
             {statsChipsEl}
+            {/* who-has above the plan — the day list can get long */}
+            {whoHasEl && (
+              <>
+                <View style={[s.groupDivider, { backgroundColor: theme.border }]} />
+                {whoHasEl}
+              </>
+            )}
             {orderedDays.length > 0 && (
               <>
                 <View style={[s.groupDivider, { backgroundColor: theme.border }]} />
@@ -737,12 +745,6 @@ export default function ProgramBuilderScreen() {
               </>
             )}
             {dayListEls}
-            {whoHasEl && (
-              <>
-                <View style={[s.groupDivider, { backgroundColor: theme.border, marginTop: 4 }]} />
-                {whoHasEl}
-              </>
-            )}
           </View>
         )}
 
@@ -1313,6 +1315,10 @@ const s = StyleSheet.create({
   startSheetSub: { fontSize: 13, fontWeight: '500', lineHeight: 19, marginBottom: 16 },
   detailTitle: { fontSize: 14.5, fontWeight: '700' },
   detailSub: { fontSize: 12, fontWeight: '500', marginTop: 1 },
+  activeDot2: { width: 9, height: 9, borderRadius: 5 },
+  activeCardTitle: { fontSize: 15.5, fontWeight: '800' },
+  endBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 12, borderRadius: 12, borderWidth: 1 },
+  endBtnText: { fontSize: 14, fontWeight: '700' },
   finishBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14 },
   finishBannerTitle: { fontSize: 15, fontWeight: '800', color: '#04120B' },
   finishBannerSub: { fontSize: 12.5, fontWeight: '600', color: '#04120B', opacity: 0.8, marginTop: 1 },
