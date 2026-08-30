@@ -83,6 +83,11 @@ export default function ProgramTodayCard() {
           const sessTag = multi
             ? `  ·  ${t('programs.sessionOfN', { n: pos.sessionIndex + 1, total: sessions.length, defaultValue: `Session ${pos.sessionIndex + 1}/${sessions.length}` })}${curSession?.label ? `  ·  ${curSession.label}` : ''}`
             : (exCount > 0 ? `  ·  ${t('programs.exercisesN', { n: exCount })}` : '');
+          // on a rest day, preview what's next so the card stays useful
+          const nextSd = seq[pos.ordinal + 1];
+          const nextName = nextSd
+            ? (nextSd.day.restDay ? t('programs.restDay') : (daySessions(nextSd.day)[0]?.name || nextSd.day.name || nextSd.day.label || t('programs.workout', { defaultValue: 'Workout' })))
+            : null;
           return (
           <View style={[s.todayBlock, { borderTopColor: theme.border }]}>
             <View style={s.todayHeadRow}>
@@ -93,7 +98,16 @@ export default function ProgramTodayCard() {
                 <View style={[s.statusDot, { backgroundColor: statusCol }]} />
               )}
             </View>
-            <Text style={[s.todayName, { color: theme.text }]} numberOfLines={2}>{today.day.restDay ? t('programs.restDay') : (curName || t('programs.rest', { defaultValue: 'Rest day' }))}</Text>
+            <View style={s.todayNameRow}>
+              {today.day.restDay && <Ionicons name="moon" size={18} color={Colors.accent} />}
+              <Text style={[s.todayName, { color: theme.text, flexShrink: 1 }]} numberOfLines={2}>{today.day.restDay ? t('programs.restDay') : (curName || t('programs.rest', { defaultValue: 'Rest day' }))}</Text>
+            </View>
+            {today.day.restDay && nextName && (
+              <View style={s.tomorrowRow}>
+                <Ionicons name="arrow-forward" size={12} color={theme.textMuted} />
+                <Text style={[s.tomorrowText, { color: theme.textSecondary }]} numberOfLines={1}>{t('programs.tomorrow', { defaultValue: 'Tomorrow' })} · {nextName}</Text>
+              </View>
+            )}
 
             <View style={s.actionsRow}>
               <View style={s.leftActions}>
@@ -235,7 +249,10 @@ const s = StyleSheet.create({
   todayHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   kicker: { ...Type.caption, letterSpacing: 1, textTransform: 'uppercase', fontSize: 9.5, flex: 1 },
   statusDot: { width: 7, height: 7, borderRadius: 4 },
+  todayNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   todayName: { ...Type.h2, fontWeight: '700', lineHeight: 24 },
+  tomorrowRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+  tomorrowText: { fontFamily: Fonts.medium, fontSize: 12.5, flexShrink: 1 },
   menuBtn: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   actionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 2 },
   leftActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
