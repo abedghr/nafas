@@ -523,6 +523,64 @@ export default function ProgramBuilderScreen() {
     </Pressable>
   ) : null;
 
+  // ── active-program summary pieces, reused in the template card AND the run view ──
+  const endActiveProgram = async () => {
+    if (!enrolled) return;
+    if (!await confirmDialog({ title: t('programs.endProgramConfirm', { defaultValue: 'End this program?' }), message: t('programs.endProgramMsg', { defaultValue: 'You will see your full journey report. This closes the program.' }), destructive: true, confirmText: t('programs.endProgram', { defaultValue: 'End program' }), cancelText: t('programs.cancel', { defaultValue: 'Cancel' }) })) return;
+    const completed = !!todayPos?.finishedPlan;
+    endEnrollment(enrolled.id, completed ? 'finished' : 'abandoned');
+    setCompleteModal({ enrollmentId: enrolled.id, name: program.name, completed });
+  };
+  const runStatsEl = enrolled ? (() => {
+    const st = programStats(enrolled, (enrolled.programSnapshot ?? program) as any, workoutLogs);
+    const time = st.minutes >= 60 ? `${Math.floor(st.minutes / 60)}h ${st.minutes % 60}m` : `${st.minutes}m`;
+    const tiles = [
+      { label: t('programs.statDone', { defaultValue: 'Done' }), value: String(st.done), color: Colors.semantic.success },
+      { label: t('programs.statSkipped', { defaultValue: 'Skipped' }), value: String(st.skipped), color: Colors.semantic.warn },
+      { label: t('programs.statAdherence', { defaultValue: 'Adherence' }), value: `${st.adherencePct}%`, color: Colors.electric },
+      { label: t('programs.statTime', { defaultValue: 'Time' }), value: time, color: theme.text },
+    ];
+    return (
+      <>
+        <View style={[s.startedRow, { backgroundColor: theme.cardAlt }]}>
+          <Ionicons name="calendar-outline" size={16} color={theme.textSecondary} />
+          <Text style={[s.startedLabel, { color: theme.textMuted }]}>{t('programs.startedOn', { defaultValue: 'Started on' })}</Text>
+          <Text style={[s.startedVal, { color: theme.text }]}>{new Date(enrolled.startDate).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+        </View>
+        <View style={s.statsRow}>
+          {tiles.map((ti, i) => (
+            <View key={i} style={[s.statTile, { backgroundColor: theme.cardAlt }]}>
+              <Text style={[s.statValue, { color: ti.color }]} numberOfLines={1}>{ti.value}</Text>
+              <Text style={[s.statLabel, { color: theme.textMuted }]}>{ti.label}</Text>
+            </View>
+          ))}
+        </View>
+      </>
+    );
+  })() : null;
+  const reportRowEl = enrolled ? (
+    <Pressable
+      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/program-report/${enrolled.id}` as any); }}
+      style={({ pressed }) => [s.detailRow, { backgroundColor: theme.cardAlt, opacity: pressed ? 0.85 : 1 }]}
+    >
+      <View style={[s.detailIcon, { backgroundColor: Colors.electric + '1F' }]}><Ionicons name="stats-chart" size={18} color={Colors.electric} /></View>
+      <View style={{ flex: 1 }}>
+        <Text style={[s.detailTitle, { color: theme.text }]}>{t('programs.viewReport', { defaultValue: 'Progress report' })}</Text>
+        <Text style={[s.detailSub, { color: theme.textMuted }]}>{t('programs.reportSub', { defaultValue: 'Stats, your journey and AI analysis' })}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
+    </Pressable>
+  ) : null;
+  const endBtnEl = enrolled && !todayPos?.finishedPlan ? (
+    <Pressable
+      onPress={endActiveProgram}
+      style={({ pressed }) => [s.endBtn, { borderColor: Colors.semantic.danger + '55', backgroundColor: Colors.semantic.danger + '12', opacity: pressed ? 0.8 : 1 }]}
+    >
+      <Ionicons name="stop-circle" size={17} color={Colors.semantic.danger} />
+      <Text style={[s.endBtnText, { color: Colors.semantic.danger }]}>{t('programs.endProgram', { defaultValue: 'End program' })}</Text>
+    </Pressable>
+  ) : null;
+
   return (
     <View style={[s.container, { backgroundColor: theme.background }]}>
       <View style={[s.header, { paddingTop: topPad + 8 }]}>
@@ -569,6 +627,16 @@ export default function ProgramBuilderScreen() {
             </View>
           </Pressable>
         )}
+
+        {/* run view: progress + stats + report + end for the active program */}
+        {hasRun && runView && !isEdit && (
+          <View style={[s.metaCard, { backgroundColor: theme.card, gap: 12 }]}>
+            {runStatsEl}
+            {reportRowEl}
+            {endBtnEl}
+          </View>
+        )}
+
         {/* program meta (name/notes edit only on the template) */}
         {isEdit && templateCtx ? (
           <View style={[s.metaCard, { backgroundColor: theme.card }]}>
@@ -598,9 +666,9 @@ export default function ProgramBuilderScreen() {
               multiline
             />
           </View>
-        ) : grouped ? null : (
-          // opened run / run-edit: stats in their own card (template view moves
-          // these into the grouped container below)
+        ) : grouped || (hasRun && runView) ? null : (
+          // run-edit only: template stats in their own card (grouped view + the
+          // opened run render their own summaries instead)
           <View style={[s.viewSummary, { backgroundColor: theme.card }]}>{statsChipsEl}</View>
         )}
 
@@ -629,31 +697,7 @@ export default function ProgramBuilderScreen() {
                     <Ionicons name="chevron-forward" size={18} color="#04120B" />
                   </Pressable>
                 )}
-                <View style={[s.startedRow, { backgroundColor: theme.cardAlt }]}>
-                  <Ionicons name="calendar-outline" size={16} color={theme.textSecondary} />
-                  <Text style={[s.startedLabel, { color: theme.textMuted }]}>{t('programs.startedOn', { defaultValue: 'Started on' })}</Text>
-                  <Text style={[s.startedVal, { color: theme.text }]}>{new Date(active.startDate).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text>
-                </View>
-                {(() => {
-                  const st = programStats(active, (active.programSnapshot ?? program) as any, workoutLogs);
-                  const time = st.minutes >= 60 ? `${Math.floor(st.minutes / 60)}h ${st.minutes % 60}m` : `${st.minutes}m`;
-                  const tiles = [
-                    { label: t('programs.statDone', { defaultValue: 'Done' }), value: String(st.done), color: Colors.semantic.success },
-                    { label: t('programs.statSkipped', { defaultValue: 'Skipped' }), value: String(st.skipped), color: Colors.semantic.warn },
-                    { label: t('programs.statAdherence', { defaultValue: 'Adherence' }), value: `${st.adherencePct}%`, color: Colors.electric },
-                    { label: t('programs.statTime', { defaultValue: 'Time' }), value: time, color: theme.text },
-                  ];
-                  return (
-                    <View style={s.statsRow}>
-                      {tiles.map((ti, i) => (
-                        <View key={i} style={[s.statTile, { backgroundColor: theme.cardAlt }]}>
-                          <Text style={[s.statValue, { color: ti.color }]} numberOfLines={1}>{ti.value}</Text>
-                          <Text style={[s.statLabel, { color: theme.textMuted }]}>{ti.label}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  );
-                })()}
+                {runStatsEl}
                 {!todayPos?.finishedPlan && (
                   <Pressable
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setRunView(true); }}
@@ -663,32 +707,8 @@ export default function ProgramBuilderScreen() {
                     <Text style={s.startProgramText}>{t('programs.openRun', { defaultValue: 'Open active program' })}</Text>
                   </Pressable>
                 )}
-                <Pressable
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/program-report/${active.id}` as any); }}
-                  style={({ pressed }) => [s.detailRow, { backgroundColor: theme.cardAlt, opacity: pressed ? 0.85 : 1 }]}
-                >
-                  <View style={[s.detailIcon, { backgroundColor: Colors.electric + '1F' }]}><Ionicons name="stats-chart" size={18} color={Colors.electric} /></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.detailTitle, { color: theme.text }]}>{t('programs.viewReport', { defaultValue: 'Progress report' })}</Text>
-                    <Text style={[s.detailSub, { color: theme.textMuted }]}>{t('programs.reportSub', { defaultValue: 'Stats, your journey and AI analysis' })}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
-                </Pressable>
-
-                {!todayPos?.finishedPlan && (
-                  <Pressable
-                    onPress={async () => {
-                      if (!await confirmDialog({ title: t('programs.endProgramConfirm', { defaultValue: 'End this program?' }), message: t('programs.endProgramMsg', { defaultValue: 'You will see your full journey report. This closes the program.' }), destructive: true, confirmText: t('programs.endProgram', { defaultValue: 'End program' }), cancelText: t('programs.cancel', { defaultValue: 'Cancel' }) })) return;
-                      const completed = !!todayPos?.finishedPlan;
-                      endEnrollment(active.id, completed ? 'finished' : 'abandoned');
-                      setCompleteModal({ enrollmentId: active.id, name: program.name, completed });
-                    }}
-                    style={({ pressed }) => [s.endBtn, { borderColor: Colors.semantic.danger + '55', backgroundColor: Colors.semantic.danger + '12', opacity: pressed ? 0.8 : 1 }]}
-                  >
-                    <Ionicons name="stop-circle" size={17} color={Colors.semantic.danger} />
-                    <Text style={[s.endBtnText, { color: Colors.semantic.danger }]}>{t('programs.endProgram', { defaultValue: 'End program' })}</Text>
-                  </Pressable>
-                )}
+                {reportRowEl}
+                {endBtnEl}
               </View>
             );
           }
