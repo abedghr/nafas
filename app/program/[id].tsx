@@ -25,7 +25,7 @@ const mapEx = (exercises: PrepExercise[]) => exercises.map(e => ({
   ...(e.combo ? { combo: true, unbroken: e.unbroken, components: e.components, comboRounds: e.comboRounds, mode: e.mode, intervalSeconds: e.intervalSeconds, timeCapSeconds: e.timeCapSeconds } : {}),
   ...(e.kind === 'intervals' ? { kind: 'intervals' as const, intervals: e.intervals } : {}),
 }));
-import { programStats, positionToday, dayAggStatus, firstUndecidedSession, ordinalOf, dateForOrdinal, resolveDayExercises, programSequence, currentDayReachable } from '@/lib/program-schedule';
+import { programStats, programProgress, positionToday, dayAggStatus, firstUndecidedSession, ordinalOf, dateForOrdinal, resolveDayExercises, programSequence, currentDayReachable } from '@/lib/program-schedule';
 import Colors from '@/constants/colors';
 import { Fonts } from '@/constants/typography';
 
@@ -558,6 +558,22 @@ export default function ProgramBuilderScreen() {
       </>
     );
   })() : null;
+  // a compact one-line progress for the template banner (full stats live in the run view)
+  const simpleProgressEl = enrolled ? (() => {
+    const p = programProgress(enrolled, (enrolled.programSnapshot ?? program) as any);
+    const pct = Math.round((p.pct ?? 0) * 100);
+    return (
+      <View style={{ gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={[s.progLabel, { color: theme.textSecondary }]}>{t('programs.daysDone', { done: p.decided, total: p.total, defaultValue: `${p.decided} of ${p.total} days done` })}</Text>
+          <Text style={[s.progPct, { color: Colors.electric }]}>{pct}%</Text>
+        </View>
+        <View style={[s.progBar, { backgroundColor: theme.cardAlt }]}>
+          <View style={[s.progBarFill, { width: `${Math.max(3, pct)}%`, backgroundColor: Colors.electric }]} />
+        </View>
+      </View>
+    );
+  })() : null;
   const reportRowEl = enrolled ? (
     <Pressable
       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/program-report/${enrolled.id}` as any); }}
@@ -697,18 +713,24 @@ export default function ProgramBuilderScreen() {
                     <Ionicons name="chevron-forward" size={18} color="#04120B" />
                   </Pressable>
                 )}
-                {runStatsEl}
+                {/* simple progress only — full stats/report live in the opened run */}
+                {simpleProgressEl}
                 {!todayPos?.finishedPlan && (
                   <Pressable
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setRunView(true); }}
-                    style={({ pressed }) => [s.startProgramBtn, { backgroundColor: Colors.electric, marginBottom: 0, opacity: pressed ? 0.9 : 1 }]}
+                    style={({ pressed }) => [s.openBtn, { backgroundColor: Colors.electric, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] }]}
                   >
                     <Ionicons name="play" size={17} color="#04120B" />
-                    <Text style={s.startProgramText}>{t('programs.openRun', { defaultValue: 'Open active program' })}</Text>
+                    <Text style={s.openBtnText}>{t('programs.openRun', { defaultValue: 'Open active program' })}</Text>
+                    <Ionicons name="chevron-forward" size={17} color="#04120B" />
                   </Pressable>
                 )}
-                {reportRowEl}
-                {endBtnEl}
+                {!todayPos?.finishedPlan && (
+                  <Pressable onPress={endActiveProgram} hitSlop={8} style={({ pressed }) => [s.endLink, { opacity: pressed ? 0.5 : 1 }]}>
+                    <Ionicons name="stop-circle-outline" size={15} color={theme.textMuted} />
+                    <Text style={[s.endLinkText, { color: theme.textMuted }]}>{t('programs.endProgram', { defaultValue: 'End program' })}</Text>
+                  </Pressable>
+                )}
               </View>
             );
           }
@@ -1337,6 +1359,14 @@ const s = StyleSheet.create({
   detailSub: { fontSize: 12, fontWeight: '500', marginTop: 1 },
   activeDot2: { width: 9, height: 9, borderRadius: 5 },
   activeCardTitle: { fontSize: 15.5, fontWeight: '800' },
+  progLabel: { fontSize: 13, fontWeight: '600' },
+  progPct: { fontSize: 13, fontWeight: '800' },
+  progBar: { height: 8, borderRadius: 4, overflow: 'hidden' },
+  progBarFill: { height: '100%', borderRadius: 4 },
+  openBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 15, borderRadius: 14 },
+  openBtnText: { color: '#04120B', fontSize: 15, fontWeight: '800' },
+  endLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 4 },
+  endLinkText: { fontSize: 13, fontWeight: '600' },
   endBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 12, borderRadius: 12, borderWidth: 1 },
   endBtnText: { fontSize: 14, fontWeight: '700' },
   finishBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14 },
