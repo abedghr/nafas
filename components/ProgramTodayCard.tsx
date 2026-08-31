@@ -28,7 +28,6 @@ export default function ProgramTodayCard() {
   const [swapping, setSwapping] = useState(false);
   const [skipping, setSkipping] = useState(false);
   const [dur, setDur] = useState('');
-  const [markWhen, setMarkWhen] = useState<'today' | 'earlier'>('today');
   const [markDate, setMarkDate] = useState<string | null>(null);
   const [textDay, setTextDay] = useState<any | null>(null);
 
@@ -58,6 +57,12 @@ export default function ProgramTodayCard() {
   const start = (sd: SeqDay, sessionIndex = pos.sessionIndex) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push(`/prepare-workout?programId=${program.id}&weekIndex=${sd.weekIndex}&dayIndex=${sd.dayIndex}&session=${sessionIndex}&run=1&enrollmentId=${activeEnrollment.id}&slotDay=${sd.dayIndex}` as any);
+  };
+  // review the prescribed sets, adjust to what was actually done, then mark done —
+  // no live session (for a workout already trained). log=1 flips prepare-workout.
+  const reviewLog = (sd: SeqDay, completedDate: string, sessionIndex = pos.sessionIndex) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(`/prepare-workout?programId=${program.id}&weekIndex=${sd.weekIndex}&dayIndex=${sd.dayIndex}&session=${sessionIndex}&log=1&enrollmentId=${activeEnrollment.id}&slotDay=${sd.dayIndex}&completedDate=${encodeURIComponent(completedDate)}` as any);
   };
   // header tap → open the active program (run view); the template stays reachable
   // from the run's "Plan" chip inside that screen.
@@ -160,10 +165,9 @@ export default function ProgramTodayCard() {
         <Pressable style={s.overlay} onPress={() => setSheetOpen(false)}>
           <Pressable style={[s.sheet, { backgroundColor: theme.background }]} onPress={(e) => e.stopPropagation()}>
             {today && (() => {
-              const yesterday = new Date(Date.now() - 86400000);
               const commitDone = () => {
                 const mins = parseInt(dur, 10);
-                const completedDate = markWhen === 'earlier' ? (markDate || yesterday.toISOString()) : new Date().toISOString();
+                const completedDate = markDate || new Date().toISOString();
                 setEnrollmentDay(activeEnrollment.id, today.weekIndex, today.dayIndex, 'done', { sessionIndex: pos.sessionIndex, completedDate, ...(Number.isFinite(mins) && mins > 0 ? { durationMin: mins } : {}) });
                 setSheetOpen(false);
               };
@@ -189,29 +193,18 @@ export default function ProgramTodayCard() {
                 return (
                   <>
                     <Text style={[s.sheetTitle, { color: theme.text }]}>{t('programs.markDoneTitle', { defaultValue: 'Mark this day done' })}</Text>
-                    {/* when did you train it? a backdated day keeps today open */}
-                    <Text style={[s.durLabel, { color: theme.textSecondary }]}>{t('programs.whenDone', { defaultValue: 'When did you do it?' })}</Text>
-                    <View style={s.whenRow}>
-                      {(['today', 'earlier'] as const).map((k) => (
-                        <Pressable key={k} onPress={() => { Haptics.selectionAsync(); setMarkWhen(k); }} style={[s.whenPill, { backgroundColor: markWhen === k ? Colors.electric : theme.card, borderColor: markWhen === k ? Colors.electric : theme.border }]}>
-                          <Text style={[s.whenPillText, { color: markWhen === k ? '#04120B' : theme.textSecondary }]}>{k === 'today' ? t('programs.whenToday', { defaultValue: 'Today' }) : t('programs.whenEarlier', { defaultValue: 'Earlier' })}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                    {markWhen === 'earlier' && (
-                      <View style={{ marginBottom: 10 }}>
-                        <DateTimeField label={t('programs.dateDone', { defaultValue: 'Date trained' })} value={markDate ?? yesterday.toISOString()} onChange={setMarkDate} theme={theme} dateOnly maxDate={yesterday} />
-                      </View>
-                    )}
+                    {/* pick when you trained it — a past date keeps today open */}
+                    <DateTimeField label={t('programs.whenDone', { defaultValue: 'When did you do it?' })} value={markDate ?? new Date().toISOString()} onChange={setMarkDate} theme={theme} dateOnly maxDate={new Date()} />
+                    <View style={{ height: 12 }} />
                     <Text style={[s.durLabel, { color: theme.textSecondary }]}>{t('programs.durationMinutes', { defaultValue: 'Duration (minutes)' })}</Text>
                     <TextInput style={[s.durInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]} value={dur} onChangeText={setDur} keyboardType="number-pad" placeholder="45" placeholderTextColor={theme.textMuted} />
                     <Pressable onPress={commitDone} style={[s.confirmBtn, { backgroundColor: Colors.electric }]}>
                       <Ionicons name="checkmark-circle" size={18} color="#04120B" /><Text style={s.confirmText}>{t('programs.markDone', { defaultValue: 'Mark done' })}</Text>
                     </Pressable>
                     {runnable && (
-                      <Pressable onPress={() => { setSheetOpen(false); setMarking(false); start(today); }} hitSlop={6} style={s.logFullLink}>
-                        <Ionicons name="list" size={14} color={Colors.electric} />
-                        <Text style={[s.logFullText, { color: Colors.electric }]}>{t('programs.logFull', { defaultValue: 'Log every set instead — start the workout' })}</Text>
+                      <Pressable onPress={() => { const cd = markDate || new Date().toISOString(); setSheetOpen(false); setMarking(false); reviewLog(today, cd); }} hitSlop={6} style={s.logFullLink}>
+                        <Ionicons name="create-outline" size={14} color={Colors.electric} />
+                        <Text style={[s.logFullText, { color: Colors.electric }]}>{t('programs.logFull', { defaultValue: 'Review sets & mark done' })}</Text>
                       </Pressable>
                     )}
                   </>
@@ -236,7 +229,7 @@ export default function ProgramTodayCard() {
                   {runnable && (
                     <SheetBtn icon="reader-outline" color={theme.text} label={t('workoutPrep.viewAsText', { defaultValue: 'View as text' })} onPress={() => { setTextDay({ name: curName, exercises: resolveDayExercises(activeEnrollment, today.weekIndex, today.dayIndex, (curSession?.exercises as any[]) || []) }); setSheetOpen(false); }} theme={theme} />
                   )}
-                  <SheetBtn icon="checkmark-circle" color={Colors.semantic.success} label={t('programs.markDone', { defaultValue: 'Mark done' })} onPress={() => { setMarkWhen('today'); setMarkDate(null); setDur(''); setMarking(true); }} theme={theme} />
+                  <SheetBtn icon="checkmark-circle" color={Colors.semantic.success} label={t('programs.markDone', { defaultValue: 'Mark done' })} onPress={() => { setMarkDate(null); setDur(''); setMarking(true); }} theme={theme} />
                   <SheetBtn icon="play-skip-forward" color={Colors.semantic.warn} label={t('programs.skipToday', { defaultValue: 'Skip today' })} onPress={() => setSkipping(true)} theme={theme} />
                   <SheetBtn icon="swap-horizontal" color={theme.text} label={t('programs.swapDay', { defaultValue: 'Swap with another day' })} onPress={() => setSwapping(true)} theme={theme} />
                   {(activeEnrollment.dayOrder?.length ?? 0) > 0 && <SheetBtn icon="arrow-undo" color={theme.textSecondary} label={t('programs.resetOrder', { defaultValue: 'Reset day order' })} onPress={() => { updateEnrollmentLocal(activeEnrollment.id, { dayOrder: [] }); setSheetOpen(false); }} theme={theme} />}

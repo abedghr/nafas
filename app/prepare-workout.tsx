@@ -13,6 +13,7 @@ import { useApp } from '@/lib/app-context';
 import { alertDialog, confirmDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
 import { componentToSetConfig } from '@/components/ComboBuilderModal';
+import { buildLog } from '@/lib/workout-log';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
 import WorkoutBuilder, { type PrepExercise } from '@/components/WorkoutBuilder';
 import { resolveDayExercises } from '@/lib/program-schedule';
@@ -163,13 +164,14 @@ function TemplatePickerModal({ visible, onClose, onSelect, onEdit, onDelete, tem
 export default function PrepareWorkoutScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { templateId, run, programId, weekIndex, dayIndex, session, enrollmentId, slotDay, subEnroll, subWeek, subDay } = useLocalSearchParams<{ templateId?: string; run?: string; programId?: string; weekIndex?: string; dayIndex?: string; session?: string; enrollmentId?: string; slotDay?: string; subEnroll?: string; subWeek?: string; subDay?: string }>();
+  const { templateId, run, log, completedDate, programId, weekIndex, dayIndex, session, enrollmentId, slotDay, subEnroll, subWeek, subDay } = useLocalSearchParams<{ templateId?: string; run?: string; log?: string; completedDate?: string; programId?: string; weekIndex?: string; dayIndex?: string; session?: string; enrollmentId?: string; slotDay?: string; subEnroll?: string; subWeek?: string; subDay?: string }>();
+  const isLogMode = !!log; // review the prescribed sets, then mark the day done (no live session)
   const sessionIndex = session != null ? Number(session) : 0;
   const inProgram = !!programId;
   const isRunning = !!run; // running a program day (start live) vs authoring a program day (save only)
   const {
     workoutTemplates, addWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate, setActiveSession,
-    user, programs, updateProgram, activeEnrollment, enrollments, isDark,
+    user, programs, updateProgram, activeEnrollment, enrollments, isDark, addWorkoutLog, setEnrollmentDay,
   } = useApp();
   // A run follows the structure frozen when it started (snapshot). When launched
   // from an enrollment, resolve days from that snapshot, not the (maybe-edited) template.
@@ -377,6 +379,41 @@ export default function PrepareWorkoutScreen() {
     router.replace('/live-workout' as any);
   };
 
+  // log mode: review the prescribed sets, adjust, then mark the day done WITHOUT a
+  // live session — build a completed log (all sets marked done at their values).
+  const handleLogDone = () => {
+    if (exercises.length === 0) { alertDialog(t('workoutPrep.noExercisesTitle'), t('workoutPrep.noExercisesStartMsg')); return; }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const when = completedDate ? new Date(completedDate) : new Date();
+    const sessionExercises = exercises.map(e => {
+      if (e.kind === 'intervals') {
+        return { exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, restSeconds: e.restSeconds, sets: [] as any[], kind: 'intervals' as const, intervals: e.intervals };
+      }
+      if (e.combo && e.components) {
+        return {
+          exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, restSeconds: e.restSeconds, sets: [] as any[],
+          combo: true, unbroken: e.unbroken, mode: e.mode ?? 'circuit', intervalSeconds: e.intervalSeconds ?? 60, timeCapSeconds: e.timeCapSeconds,
+          components: e.components.map(c => ({ exerciseId: c.exerciseId, name: c.name, muscleGroup: c.muscleGroup })),
+          rounds: Array.from({ length: Math.max(1, e.comboRounds ?? 1) }, () => ({ status: 'done' as const, entries: e.components!.map(c => componentToSetConfig(c)) })),
+        };
+      }
+      return {
+        exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, restSeconds: e.restSeconds,
+        sets: e.sets.map(setConfig => ({ config: { ...setConfig }, actual: { ...setConfig }, status: 'done' as const })),
+      };
+    });
+    const log = buildLog(
+      { workoutName: resolvedName || t('report.workout', { defaultValue: 'Workout' }), workoutType: workoutType || undefined, preWorkout: false, exercises: sessionExercises as any },
+      { userId: user?.id || 'u1', date: when.toISOString().split('T')[0], startTime: when.toISOString(), endTime: when.toISOString(), durationMinutes: 0 },
+    );
+    const logId = Crypto.randomUUID();
+    addWorkoutLog({ ...log, id: logId });
+    if (enrollmentId && slotDay != null) {
+      setEnrollmentDay(enrollmentId, Number(weekIndex), Number(slotDay), 'done', { logId, sessionIndex, completedDate: when.toISOString(), durationMin: log.durationMinutes || undefined });
+    }
+    router.back();
+  };
+
   // program mode: save the built exercises onto the program day (inline workout)
   const handleSaveToProgram = () => {
     if (!programId) return;
@@ -418,7 +455,7 @@ export default function PrepareWorkoutScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12} style={s.backBtn}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
-        <Display variant="d3" color={theme.text}>{t('workoutPrep.newWorkout')}</Display>
+        <Display variant="d3" color={theme.text}>{isLogMode ? t('programs.reviewLog', { defaultValue: 'Review & mark done' }) : t('workoutPrep.newWorkout')}</Display>
         <View style={{ width: 32 }} />
       </View>
 
@@ -465,25 +502,36 @@ export default function PrepareWorkoutScreen() {
         <View style={s.bottomRow}>
           {/* running a program day → Start live (no save). authoring a day → Save to Program.
               normal workout → Save template + Start. */}
-          {!isRunning && (
-            <Pressable
-              onPress={inProgram ? handleSaveToProgram : handleSaveTemplate}
-              disabled={!inProgram && alreadySaved && !editingId}
-              style={({ pressed }) => [s.templateBtn, inProgram && { flex: 1 }, { opacity: (!inProgram && alreadySaved && !editingId) ? 0.6 : pressed ? 0.9 : 1, backgroundColor: inProgram ? Colors.electric : theme.card, borderColor: inProgram ? Colors.electric : (editingId || alreadySaved) ? Colors.primary : theme.border }]}
-            >
-              <Ionicons name={inProgram ? 'calendar-outline' : editingId ? 'save-outline' : alreadySaved ? 'checkmark-circle' : 'bookmark-outline'} size={16} color={inProgram ? '#04120B' : Colors.primary} />
-              <Text style={[s.templateBtnText, { color: inProgram ? '#04120B' : (editingId || alreadySaved) ? Colors.primary : theme.text }]}>{inProgram ? t('programs.saveToProgram', { defaultValue: 'Save to Program' }) : editingId ? t('workoutPrep.update', { defaultValue: 'Update' }) : alreadySaved ? t('workoutPrep.saved') : t('workoutPrep.save')}</Text>
-            </Pressable>
-          )}
-
-          {(!inProgram || isRunning) && (
+          {isLogMode ? (
             <UIButton
               variant="solid"
-              icon="flash"
-              label={t('workoutPrep.startWorkout')}
-              onPress={handleStartWorkout}
+              icon="checkmark-circle"
+              label={t('programs.markDone', { defaultValue: 'Mark done' })}
+              onPress={handleLogDone}
               style={{ flex: 1 }}
             />
+          ) : (
+            <>
+              {!isRunning && (
+                <Pressable
+                  onPress={inProgram ? handleSaveToProgram : handleSaveTemplate}
+                  disabled={!inProgram && alreadySaved && !editingId}
+                  style={({ pressed }) => [s.templateBtn, inProgram && { flex: 1 }, { opacity: (!inProgram && alreadySaved && !editingId) ? 0.6 : pressed ? 0.9 : 1, backgroundColor: inProgram ? Colors.electric : theme.card, borderColor: inProgram ? Colors.electric : (editingId || alreadySaved) ? Colors.primary : theme.border }]}
+                >
+                  <Ionicons name={inProgram ? 'calendar-outline' : editingId ? 'save-outline' : alreadySaved ? 'checkmark-circle' : 'bookmark-outline'} size={16} color={inProgram ? '#04120B' : Colors.primary} />
+                  <Text style={[s.templateBtnText, { color: inProgram ? '#04120B' : (editingId || alreadySaved) ? Colors.primary : theme.text }]}>{inProgram ? t('programs.saveToProgram', { defaultValue: 'Save to Program' }) : editingId ? t('workoutPrep.update', { defaultValue: 'Update' }) : alreadySaved ? t('workoutPrep.saved') : t('workoutPrep.save')}</Text>
+                </Pressable>
+              )}
+              {(!inProgram || isRunning) && (
+                <UIButton
+                  variant="solid"
+                  icon="flash"
+                  label={t('workoutPrep.startWorkout')}
+                  onPress={handleStartWorkout}
+                  style={{ flex: 1 }}
+                />
+              )}
+            </>
           )}
         </View>
       </View>
