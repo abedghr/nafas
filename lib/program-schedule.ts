@@ -123,16 +123,26 @@ export function positionToday(enr: Enrollment, program: Program): Position {
   return { ordinal, week: cell?.weekIndex ?? 0, dayIndex: cell?.dayIndex ?? 0, sessionIndex, started: true, finishedPlan };
 }
 
-// Can the current day be started right now? Its scheduled date must have arrived
-// (past/today — a backdated plan can be caught up). All sessions of the CURRENT
-// day are doable today (morning + evening); the NEXT day only becomes current
-// once this one is fully decided, and its date gates it — so no running ahead.
+// Did the athlete already train a program day TODAY? (a real session logged with
+// today's completion date — a rest or a backdated backfill does not count.)
+export function trainedToday(enr: Enrollment): boolean {
+  const today = startOfDay(new Date()).getTime();
+  return (enr.completions ?? []).some((c) => {
+    const trained = c.status === 'done' || (c.status === 'skipped' && !!c.logId);
+    return trained && !!c.completedDate && startOfDay(new Date(c.completedDate)).getTime() === today;
+  });
+}
+
+// Can the current day be started right now? Pacing is one program day per calendar
+// day: it's reachable unless you've ALREADY trained a day today and the current
+// day is still ahead of schedule. A backfill (marked with a past date) does not
+// count as training today, so it keeps today open for the real current day.
 export function currentDayReachable(enr: Enrollment, program: Program): boolean {
   const pos = positionToday(enr, program);
   if (pos.finishedPlan) return false;
   const due = startOfDay(dateForOrdinal(enr, pos.ordinal)).getTime();
   const now = startOfDay(new Date()).getTime();
-  return due <= now;
+  return due <= now || !trainedToday(enr);
 }
 
 // progress counted in SESSION units: total = Σ (rest day = 1, else its session
