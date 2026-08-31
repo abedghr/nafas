@@ -33,7 +33,7 @@ import { Fonts } from '@/constants/typography';
 export default function ProgramBuilderScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>();
+  const { id, edit, run } = useLocalSearchParams<{ id: string; edit?: string; run?: string }>();
   const { programs, updateProgram, deleteProgram, workoutTemplates, isDark, user, enrollments, activeEnrollment, startProgram, endEnrollment, updateEnrollmentLocal, updateRunStructure, setEnrollmentDay, clearEnrollmentDay, workoutLogs, weightUnit } = useApp();
   const theme = isDark ? Colors.dark : Colors.light;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
@@ -92,7 +92,8 @@ export default function ProgramBuilderScreen() {
   const [mode, setMode] = useState<'view' | 'edit'>(edit ? 'edit' : 'view');
   // The screen IS the template (core). When a run is active it shows an "Active
   // program" card you can open (runView) to do/track that run's days.
-  const [runView, setRunView] = useState(false);
+  // ?run=1 (from the dashboard card) opens straight into the active run
+  const [runView, setRunView] = useState(run === '1' || run === 'true');
   const isEdit = mode === 'edit';
   const enrolled = program && activeEnrollment && activeEnrollment.programId === program.id ? activeEnrollment : null;
   const hasRun = !!enrolled;

@@ -56,7 +56,9 @@ export default function ProgramTodayCard() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push(`/prepare-workout?programId=${program.id}&weekIndex=${sd.weekIndex}&dayIndex=${sd.dayIndex}&session=${sessionIndex}&run=1&enrollmentId=${activeEnrollment.id}&slotDay=${sd.dayIndex}` as any);
   };
-  const openDetail = () => router.push(`/program/${program.id}` as any);
+  // header tap → open the active program (run view); the template stays reachable
+  // from the run's "Plan" chip inside that screen.
+  const openDetail = () => router.push(`/program/${program.id}?run=1` as any);
 
   return (
     <View style={{ paddingHorizontal: 20 }}>
