@@ -20,6 +20,7 @@ import { workoutApi } from '@/src/features/workout/api';
 import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult } from '@/components/ComboBuilderModal';
 import IntervalBuilderModal from '@/components/IntervalBuilderModal';
 import { ExerciseConfigModal } from '@/components/WorkoutBuilder';
+import WorkoutGuideSheet from '@/components/WorkoutGuideSheet';
 import ExerciseRow from '@/components/ExerciseRow';
 import ExerciseFilterBar from '@/components/ExerciseFilterBar';
 import { matchExercise } from '@/lib/exercise-search';
@@ -1833,6 +1834,7 @@ export default function LiveWorkoutScreen() {
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [showComboBuilder, setShowComboBuilder] = useState(false);
   const [showIntervalBuilder, setShowIntervalBuilder] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const [menuExerciseIndex, setMenuExerciseIndex] = useState<number | null>(null);
   const [configExIdx, setConfigExIdx] = useState<number | null>(null);
   const [configPrep, setConfigPrep] = useState<any | null>(null);
@@ -2632,7 +2634,13 @@ export default function LiveWorkoutScreen() {
           </Animated.View>
         ))}
 
-        <Text style={[styles.addSectionLabel, { color: theme.textMuted }]}>{t('workoutPrep.addToWorkout', { defaultValue: 'Add to workout' })}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={[styles.addSectionLabel, { color: theme.textMuted }]}>{t('workoutPrep.addToWorkout', { defaultValue: 'Add to workout' })}</Text>
+          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowGuide(true); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="help-circle-outline" size={15} color={theme.textMuted} />
+            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.textMuted }}>{t('guide.trigger', { defaultValue: 'Types guide' })}</Text>
+          </Pressable>
+        </View>
         <View style={styles.addTilesRow}>
           <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowExercisePicker(true); }} style={({ pressed }) => [styles.addTile, { backgroundColor: theme.card, borderColor: Colors.primary + (isDark ? '55' : '40'), opacity: pressed ? 0.85 : 1 }]}>
             <View style={[styles.addTileIcon, { backgroundColor: Colors.primary + '1F' }]}><Ionicons name="add" size={18} color={Colors.primary} /></View>
@@ -2766,6 +2774,8 @@ export default function LiveWorkoutScreen() {
         onCreate={addInterval as any}
         theme={theme}
       />
+
+      <WorkoutGuideSheet visible={showGuide} onClose={() => setShowGuide(false)} theme={theme} />
 
       <ExerciseConfigModal
         visible={configExIdx !== null}

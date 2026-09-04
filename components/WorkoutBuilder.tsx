@@ -17,6 +17,7 @@ import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import { workoutApi, EQUIPMENT_OPTIONS, MUSCLE_CATEGORIES } from '@/src/features/workout/api';
 import ComboBuilderModal, { type ComboBuildResult, type ComboSetType } from '@/components/ComboBuilderModal';
 import ExerciseInfoSheet from '@/components/ExerciseInfoSheet';
+import WorkoutGuideSheet from '@/components/WorkoutGuideSheet';
 
 // training-day split → the primary muscles to recommend in the exercise picker
 const REC_BY_TYPE: Record<string, string[]> = {
@@ -1204,6 +1205,7 @@ export default function WorkoutBuilder({
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [typePickerOpen, setTypePickerOpen] = useState(false);
   const [typeSearch, setTypeSearch] = useState('');
+  const [showGuide, setShowGuide] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const toggleCollapse = useCallback((uid: string) => {
@@ -1338,8 +1340,15 @@ export default function WorkoutBuilder({
         )}
       </View>
 
-      {exercises.length > 0 && (
-        <View style={s.toolRow}>
+      <View style={s.toolRow}>
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowGuide(true); }}
+            hitSlop={6}
+            style={[s.collapseAllBtn, { marginRight: 'auto' }]}
+          >
+            <Ionicons name="help-circle-outline" size={15} color={theme.textMuted} />
+            <Text style={[s.collapseAllText, { color: theme.textMuted }]}>{t('guide.trigger', { defaultValue: 'Types guide' })}</Text>
+          </Pressable>
           {onViewAsText && (
             <Pressable
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onViewAsText(); }}
@@ -1366,7 +1375,6 @@ export default function WorkoutBuilder({
             </Pressable>
           )}
         </View>
-      )}
 
       {exercises.map((item, i) => (
         <View key={item.uid} style={{ marginBottom: 14 }}>
@@ -1554,6 +1562,8 @@ export default function WorkoutBuilder({
         }}
         theme={theme}
       />
+
+      <WorkoutGuideSheet visible={showGuide} onClose={() => setShowGuide(false)} theme={theme} />
     </>
   );
 }

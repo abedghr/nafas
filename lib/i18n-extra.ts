@@ -1,6 +1,22 @@
 // Translation namespaces for screens localized in a batch (auth, workout tab,
 // workout prep, workout session/history). Spread into i18n.ts resources.
 export const extraEn = {
+  guide: {
+    trigger: "Types guide", title: "Workout types",
+    setsHeading: "Set types", setsSub: "How one set is measured",
+    repsTitle: "Reps", repsDesc: "A number of repetitions, with optional weight.", repsEx: "Bench Press, 10 reps at 60 kg.",
+    holdTitle: "Hold", holdDesc: "An isometric hold for a number of seconds (no reps). Can also be a max hold to failure.", holdEx: "Plank for 60 s, or a 90° Dip Hold for 20 s.",
+    emomSetTitle: "EMOM", emomSetDesc: "Every Minute On the Minute: do fixed reps at the start of each interval, rest the rest of the minute, repeat for N intervals.", emomSetEx: "5 Pull-ups every 60 s for 10 minutes = 50 total.",
+    blocksHeading: "Block types", blocksSub: "What one row in the workout is",
+    exerciseTitle: "Exercise", exerciseDesc: "One movement with its own sets.", exerciseEx: "Squat: 8, 8, 6 reps across 3 sets.",
+    comboTitle: "Combo", comboDesc: "Several movements chained back-to-back as one unit (a superset / circuit). It has a mode, below.", comboEx: "Pull-up + Dip + Push-up done together.",
+    intervalsTitle: "Intervals", intervalsDesc: "A cardio work / recovery block (run, bike, row), repeated for rounds. Work and recovery can be by time or distance, with an optional target pace.", intervalsEx: "Run 400 m hard, jog 200 m easy, × 8.",
+    modesHeading: "Combo modes", modesSub: "How a combo is paced",
+    circuitTitle: "Circuit", circuitDesc: "Do each move once in sequence = one round, rest, repeat for R rounds.", circuitEx: "3 rounds of 10 Pull-ups + 15 Dips + 20 Push-ups.",
+    emomComboTitle: "EMOM (combo)", emomComboDesc: "The combo is paced by the clock: start the next round each minute, rest the remainder.", emomComboEx: "Every minute: 5 Thrusters + 5 Burpees, for 10 minutes.",
+    amrapTitle: "AMRAP", amrapDesc: "As Many Rounds As Possible inside a fixed time cap. You count completed rounds.", amrapEx: "10-min AMRAP of 5 Pull-ups + 10 Push-ups + 15 Squats.",
+    unbrokenTitle: "Unbroken", unbrokenDesc: "A flag on a combo: do all moves in a round with no rest and without putting the weight down.", unbrokenEx: "Unbroken set of Curl + Press + Row, no rest until the round ends.",
+  },
   profilex: {
     weightUnit: "Weight Unit",
   },
@@ -298,6 +314,22 @@ export const extraEn = {
 };
 
 export const extraAr = {
+  guide: {
+    trigger: "دليل الأنواع", title: "أنواع التمارين",
+    setsHeading: "أنواع المجموعات", setsSub: "كيف تُقاس المجموعة الواحدة",
+    repsTitle: "تكرارات", repsDesc: "عدد من التكرارات، مع وزن اختياري.", repsEx: "بنش برس، 10 تكرارات بوزن 60 كغ.",
+    holdTitle: "ثبات", holdDesc: "ثبات ثابت لعدد من الثواني (بدون تكرارات). يمكن أن يكون ثباتًا حتى الفشل.", holdEx: "بلانك 60 ثانية، أو ثبات ديب بزاوية 90° لمدة 20 ثانية.",
+    emomSetTitle: "EMOM", emomSetDesc: "كل دقيقة عند بدايتها: نفّذ تكرارات ثابتة في بداية كل فترة، ارتح بقية الدقيقة، كرّر لعدد الفترات.", emomSetEx: "5 عقلات كل 60 ثانية لمدة 10 دقائق = 50 إجمالًا.",
+    blocksHeading: "أنواع الكتل", blocksSub: "ما هو الصف الواحد في التمرين",
+    exerciseTitle: "تمرين", exerciseDesc: "حركة واحدة بمجموعاتها.", exerciseEx: "سكوات: 8، 8، 6 تكرارات عبر 3 مجموعات.",
+    comboTitle: "كومبو", comboDesc: "عدة حركات متتالية كوحدة واحدة (سوبرست / سيركت). له وضع، أدناه.", comboEx: "عقلة + ديب + ضغط معًا.",
+    intervalsTitle: "فواصل", intervalsDesc: "كتلة كارديو عمل/راحة (جري، دراجة، تجديف)، تتكرر لجولات. العمل والراحة بالوقت أو المسافة، مع وتيرة اختيارية.", intervalsEx: "اركض 400م بقوة، هرول 200م، × 8.",
+    modesHeading: "أوضاع الكومبو", modesSub: "كيف يُضبط إيقاع الكومبو",
+    circuitTitle: "سيركت", circuitDesc: "نفّذ كل حركة مرة بالتسلسل = جولة، ارتح، كرّر لعدد الجولات.", circuitEx: "3 جولات من 10 عقلات + 15 ديب + 20 ضغط.",
+    emomComboTitle: "EMOM (كومبو)", emomComboDesc: "الكومبو مضبوط بالساعة: ابدأ الجولة التالية كل دقيقة، ارتح الباقي.", emomComboEx: "كل دقيقة: 5 ثراستر + 5 بيربي، لمدة 10 دقائق.",
+    amrapTitle: "AMRAP", amrapDesc: "أكبر عدد ممكن من الجولات ضمن حد زمني. تعدّ الجولات المكتملة.", amrapEx: "AMRAP لـ10 دقائق: 5 عقلات + 10 ضغط + 15 سكوات.",
+    unbrokenTitle: "بدون توقّف", unbrokenDesc: "علامة على الكومبو: نفّذ كل الحركات في الجولة دون راحة ودون إنزال الوزن.", unbrokenEx: "مجموعة بدون توقّف: كرل + بريس + رو، بلا راحة حتى نهاية الجولة.",
+  },
   profilex: {
     weightUnit: "وحدة الوزن",
   },
