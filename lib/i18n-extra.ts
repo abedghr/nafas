@@ -3,7 +3,7 @@
 export const extraEn = {
   guide: {
     trigger: "Types guide", title: "Workout types",
-    setsHeading: "Set types", setsSub: "How one set is measured",
+    setsHeading: "Set types", setsSub: "How one set is measured", calShort: "cal",
     repsTitle: "Reps", repsDesc: "A number of repetitions, with optional weight.", repsEx: "Bench Press, 10 reps at 60 kg.",
     holdTitle: "Hold", holdDesc: "An isometric hold for a number of seconds (no reps). Can also be a max hold to failure.", holdEx: "Plank for 60 s, or a 90° Dip Hold for 20 s.",
     emomSetTitle: "EMOM", emomSetDesc: "Every Minute On the Minute: do fixed reps at the start of each interval, rest the rest of the minute, repeat for N intervals.", emomSetEx: "5 Pull-ups every 60 s for 10 minutes = 50 total.",
@@ -175,6 +175,7 @@ export const extraEn = {
     save: "Save Template", saved: "Saved", startWorkout: "Start Workout", addSet: "Add Set", removeExercise: "Remove Exercise", restBetweenSets: "Rest between sets:",
     setN: "Set {{n}}", colSet: "Set", reps: "Reps", weightKg: "Weight ({{unit}})", durationSec: "Duration (sec)", repsPerInterval: "Reps / Interval", totalIntervals: "Total Intervals",
     weightKgOptional: "Weight ({{unit}}) — optional", bodyweightPlaceholder: "0 (bodyweight)", intervalDuration: "Interval Duration",
+    distance: "Distance", calories: "Calories", unitLaps: "laps",
     emomSummary: "{{reps}} reps every {{s}}s for {{n}} intervals", emomSummaryWithWeight: "{{reps}} reps every {{s}}s for {{n}} intervals @ {{w}}{{unit}}",
     noteOptional: "Note (optional)", notePlaceholder: "e.g. tempo, RPE, form cue", searchExercises: "Search exercises...", all: "All", customBadge: "Custom",
     createCustomExercise: "Create Custom Exercise", requiredTitle: "Required", enterExerciseName: "Please enter an exercise name.",
@@ -277,7 +278,7 @@ export const extraEn = {
   },
   workoutSession: {
     tooShortTitle: "Too short to finish", tooShortMsg: "This workout is under a minute — keep training, then finish. Your progress is safe.", saveToGalleryBtn: "Save to gallery", saveTransparentPng: "Save transparent PNG", savedToGallery: "Saved to your gallery", savedTransparent: "Transparent PNG — overlay it on any photo.", galleryPermission: "Allow photo access to save the image.", saveFailed: "Could not save the image", topExercises: "Top exercises",
-    setOptions: "Set Options", skipSet: "Skip Set", skipSetConfirm: "Skip set {{n}}? It won't count toward your workout.", cancel: "Cancel", delete: "Delete", setN: "Set {{n}}", reps: "reps", kg: "kg",
+    setOptions: "Set Options", skipSet: "Skip Set", skipSetConfirm: "Skip set {{n}}? It won't count toward your workout.", cancel: "Cancel", delete: "Delete", setN: "Set {{n}}", reps: "reps", kg: "kg", wt: "wt",
     lastTimeHint: "Last: {{weight}} {{unit}} × {{reps}} · {{date}}",
     newPr: "New Personal Record!", newPrs: "{{count}} New Personal Records!", prevBest: "prev {{weight}} {{unit}}",
     repsValue: "{{n}} reps", kgValue: "{{n}} kg", secondsValue: "{{n}}s", done: "DONE", getReady: "GET READY", holdStartsIn: "Hold starts in {{n}}s",
@@ -316,7 +317,7 @@ export const extraEn = {
 export const extraAr = {
   guide: {
     trigger: "دليل الأنواع", title: "أنواع التمارين",
-    setsHeading: "أنواع المجموعات", setsSub: "كيف تُقاس المجموعة الواحدة",
+    setsHeading: "أنواع المجموعات", setsSub: "كيف تُقاس المجموعة الواحدة", calShort: "سعرة",
     repsTitle: "تكرارات", repsDesc: "عدد من التكرارات، مع وزن اختياري.", repsEx: "بنش برس، 10 تكرارات بوزن 60 كغ.",
     holdTitle: "ثبات", holdDesc: "ثبات ثابت لعدد من الثواني (بدون تكرارات). يمكن أن يكون ثباتًا حتى الفشل.", holdEx: "بلانك 60 ثانية، أو ثبات ديب بزاوية 90° لمدة 20 ثانية.",
     emomSetTitle: "EMOM", emomSetDesc: "كل دقيقة عند بدايتها: نفّذ تكرارات ثابتة في بداية كل فترة، ارتح بقية الدقيقة، كرّر لعدد الفترات.", emomSetEx: "5 عقلات كل 60 ثانية لمدة 10 دقائق = 50 إجمالًا.",
@@ -489,6 +490,7 @@ export const extraAr = {
     save: "حفظ القالب", saved: "تم الحفظ", startWorkout: "ابدأ التمرين", addSet: "إضافة مجموعة", removeExercise: "إزالة التمرين", restBetweenSets: "الراحة بين المجموعات:",
     setN: "المجموعة {{n}}", colSet: "المجموعة", reps: "التكرارات", weightKg: "الوزن ({{unit}})", durationSec: "المدة (ثانية)", repsPerInterval: "تكرارات / فترة", totalIntervals: "إجمالي الفترات",
     weightKgOptional: "الوزن ({{unit}}) — اختياري", bodyweightPlaceholder: "0 (وزن الجسم)", intervalDuration: "مدة الفترة",
+    distance: "المسافة", calories: "السعرات", unitLaps: "لفّات",
     emomSummary: "{{reps}} تكرار كل {{s}} ثانية لمدة {{n}} فترات", emomSummaryWithWeight: "{{reps}} تكرار كل {{s}} ثانية لمدة {{n}} فترات بوزن {{w}} {{unit}}",
     noteOptional: "ملاحظة (اختياري)", notePlaceholder: "مثال: الإيقاع، معدّل الجهد المُدرَك، تنبيه على الأداء", searchExercises: "ابحث عن التمارين...", all: "الكل", customBadge: "مخصّص",
     createCustomExercise: "إنشاء تمرين مخصّص", requiredTitle: "مطلوب", enterExerciseName: "يرجى إدخال اسم التمرين.",
@@ -591,7 +593,7 @@ export const extraAr = {
   },
   workoutSession: {
     tooShortTitle: "قصير جداً للإنهاء", tooShortMsg: "هذا التمرين أقل من دقيقة — تابع التمرّن ثم أنهِه. تقدّمك محفوظ.", saveToGalleryBtn: "حفظ في المعرض", saveTransparentPng: "حفظ PNG شفاف", savedToGallery: "حُفظ في معرضك", savedTransparent: "PNG شفاف — ضعه فوق أي صورة.", galleryPermission: "اسمح بالوصول للصور لحفظ الصورة.", saveFailed: "تعذّر حفظ الصورة", topExercises: "أبرز التمارين",
-    setOptions: "خيارات المجموعة", skipSet: "تخطّي المجموعة", skipSetConfirm: "تخطّي المجموعة {{n}}؟ لن تُحتسب ضمن تمرينك.", cancel: "إلغاء", delete: "حذف", setN: "المجموعة {{n}}", reps: "تكرارات", kg: "كغ",
+    setOptions: "خيارات المجموعة", skipSet: "تخطّي المجموعة", skipSetConfirm: "تخطّي المجموعة {{n}}؟ لن تُحتسب ضمن تمرينك.", cancel: "إلغاء", delete: "حذف", setN: "المجموعة {{n}}", reps: "تكرارات", kg: "كغ", wt: "وزن",
     lastTimeHint: "آخر مرة: {{weight}} {{unit}} × {{reps}} · {{date}}",
     newPr: "رقم قياسي جديد!", newPrs: "{{count}} أرقام قياسية جديدة!", prevBest: "السابق {{weight}} {{unit}}",
     repsValue: "{{n}} تكرار", kgValue: "{{n}} كغ", secondsValue: "{{n}} ث", done: "تم", getReady: "استعد", holdStartsIn: "يبدأ الثبات خلال {{n}} ث",

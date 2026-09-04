@@ -691,6 +691,121 @@ function SetCues({ set, theme }: { set: SessionSet; theme: typeof Colors.dark })
   );
 }
 
+// distance (laps/km/mi/m, optionally weighted) or calories cardio set
+function CardioSetRow({ set, setIndex, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
+  set: SessionSet;
+  setIndex: number;
+  onMarkDone: () => void;
+  onSkip: () => void;
+  onUpdateActual: (actual: SetConfig) => void;
+  onReopen: () => void;
+  theme: typeof Colors.dark;
+}) {
+  const { t } = useTranslation();
+  const weightUnit = useSessionUnit();
+  const isDistance = set.config.type === 'distance';
+  const planVal = isDistance ? set.config.distanceValue : set.config.calories;
+  const unitLbl = isDistance
+    ? (set.config.distanceUnit === 'lap' ? t('workoutPrep.unitLaps', { defaultValue: 'laps' }) : (set.config.distanceUnit || 'km'))
+    : t('guide.calShort', { defaultValue: 'cal' });
+  const [editVal, setEditVal] = useState(String((isDistance ? set.actual.distanceValue : set.actual.calories) ?? planVal ?? ''));
+  const [editWeight, setEditWeight] = useState(() => {
+    const kg = set.actual.weight ?? set.config.weight;
+    return kg == null || kg === 0 ? '' : String(toDisplayWeight(kg, weightUnit));
+  });
+
+  const isDone = set.status === 'done';
+  const isSkipped = set.status === 'skipped';
+  const isInProgress = set.status === 'in_progress';
+  const bgColor = isDone ? Colors.primary + '10' : isSkipped ? theme.surface + '80' : isInProgress ? Colors.primary + '08' : 'transparent';
+  const borderColor = isInProgress ? Colors.primary + '40' : 'transparent';
+
+  const complete = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const v = parseFloat(editVal) || planVal || 0;
+    const pw = parseFloat(editWeight);
+    onUpdateActual({
+      ...set.actual,
+      ...(isDistance ? { distanceValue: v, distanceUnit: set.config.distanceUnit } : { calories: v }),
+      weight: pw ? fromDisplayWeight(pw, weightUnit) : set.config.weight || 0,
+    });
+    onMarkDone();
+  };
+
+  const confirmSkip = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(t('workoutSession.skipSetConfirm', { n: setIndex + 1 }))) onSkip();
+      return;
+    }
+    Alert.alert(t('workoutSession.skipSet'), t('workoutSession.skipSetConfirm', { n: setIndex + 1 }), [
+      { text: t('workoutSession.cancel'), style: 'cancel' },
+      { text: t('workoutSession.skip'), style: 'destructive', onPress: onSkip },
+    ]);
+  };
+
+  const leadChip = isDone ? (
+    <View style={[styles.setCircle, { backgroundColor: Colors.primary, borderColor: Colors.primary }]}>
+      <Ionicons name="checkmark" size={13} color="#fff" />
+    </View>
+  ) : isSkipped ? (
+    <View style={[styles.setCircle, { borderColor: theme.border }]}>
+      <Ionicons name="close" size={12} color={theme.textMuted} />
+    </View>
+  ) : (
+    <View style={[styles.setCircle, { borderColor: isInProgress ? Colors.primary : theme.border }]}>
+      <Text style={[styles.setCircleText, { color: isInProgress ? Colors.primary : theme.textMuted }]}>{setIndex + 1}</Text>
+    </View>
+  );
+
+  if (isDone || isSkipped) {
+    const doneVal = isDistance ? set.actual.distanceValue : set.actual.calories;
+    return (
+      <Pressable onPress={onReopen} style={[styles.setGridRow, { backgroundColor: bgColor }]}>
+        <View style={styles.setColLead}>{leadChip}</View>
+        <Text style={[styles.setCellValue, { color: isSkipped ? theme.textMuted : theme.text }, isSkipped && styles.strikethrough]}>
+          {isSkipped ? '—' : `${doneVal ?? 0} ${unitLbl}`}
+        </Text>
+        <Text style={[styles.setCellValue, { color: isSkipped ? theme.textMuted : theme.text }, isSkipped && styles.strikethrough]}>
+          {isSkipped || !set.actual.weight ? '—' : toDisplayWeight(set.actual.weight, weightUnit)}
+        </Text>
+        <View style={styles.setColAction}>
+          <View style={[styles.doneBadge, { backgroundColor: isDone ? Colors.primary + '20' : theme.surface }]}>
+            <Text style={[styles.doneBadgeText, { color: isDone ? Colors.primary : theme.textMuted }]}>{isDone ? t('workoutSession.done') : t('workoutSession.skip')}</Text>
+          </View>
+        </View>
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={[styles.setGridRow, { backgroundColor: bgColor, borderLeftColor: borderColor, borderLeftWidth: isInProgress ? 3 : 0 }]}>
+      <View style={styles.setColLead}>{leadChip}</View>
+      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+        <TextInput
+          style={[styles.setCellInput, { flex: 0, width: 60, backgroundColor: theme.surface, color: theme.text, borderColor: isInProgress ? Colors.primary + '55' : theme.border }]}
+          value={editVal} onChangeText={setEditVal} keyboardType="numeric"
+          placeholder={String(planVal ?? 0)} placeholderTextColor={theme.textMuted} selectTextOnFocus
+        />
+        <Text style={{ color: theme.textMuted, fontSize: 12, fontWeight: '600' }}>{unitLbl}</Text>
+      </View>
+      <TextInput
+        style={[styles.setCellInput, { backgroundColor: theme.surface, color: theme.text, borderColor: isInProgress ? Colors.primary + '55' : theme.border }]}
+        value={editWeight} onChangeText={setEditWeight} keyboardType="numeric"
+        placeholder={t('workoutSession.wt', { defaultValue: 'wt' })} placeholderTextColor={theme.textMuted} selectTextOnFocus
+      />
+      <View style={styles.setColAction}>
+        <Pressable onPress={complete} hitSlop={8} style={[styles.doneBtn, { marginLeft: 0, backgroundColor: Colors.primary }]}>
+          <Ionicons name="checkmark" size={18} color="#fff" />
+        </Pressable>
+        <Pressable onPress={confirmSkip} hitSlop={8} style={[styles.skipBtn, { marginLeft: 0 }]}>
+          <Ionicons name="close" size={16} color="#F87171" />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 function SetRowItem({ set, setIndex, exerciseIndex, onMarkDone, onSkip, onUpdateActual, onReopen, theme }: {
   set: SessionSet;
   setIndex: number;
@@ -709,6 +824,7 @@ function SetRowItem({ set, setIndex, exerciseIndex, onMarkDone, onSkip, onUpdate
     setType === 'reps' ? <RepsSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} onReopen={onReopen} theme={theme} />
     : setType === 'hold' ? <HoldSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} onReopen={onReopen} theme={theme} />
     : setType === 'emom' ? <EmomSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} onReopen={onReopen} theme={theme} />
+    : (setType === 'distance' || setType === 'calories') ? <CardioSetRow set={set} setIndex={setIndex} onMarkDone={onMarkDone} onSkip={onSkip} onUpdateActual={onUpdateActual} onReopen={onReopen} theme={theme} />
     : null;
   return (
     <View>
@@ -1784,6 +1900,8 @@ function getDefaultSetConfig(type: SetConfig['type']): SetConfig {
     case 'reps': return { type: 'reps', reps: 10, weight: 0 };
     case 'hold': return { type: 'hold', durationSeconds: 30 };
     case 'emom': return { type: 'emom', repsPerInterval: 10, intervalSeconds: 60, totalIntervals: 10 };
+    case 'distance': return { type: 'distance', distanceValue: 1, distanceUnit: 'km', weight: 0 };
+    case 'calories': return { type: 'calories', calories: 60, weight: 0 };
   }
 }
 

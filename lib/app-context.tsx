@@ -91,8 +91,9 @@ export interface UserProfile {
 }
 
 export type AssistKind = 'none' | 'band' | 'assisted' | 'partner';
+export type DistanceUnit = 'm' | 'km' | 'mi' | 'lap';
 export interface SetConfig {
-  type: 'reps' | 'hold' | 'emom';
+  type: 'reps' | 'hold' | 'emom' | 'distance' | 'calories';
   reps?: number;
   weight?: number;
   durationSeconds?: number;
@@ -101,6 +102,10 @@ export interface SetConfig {
   totalIntervals?: number;
   minutes?: number[]; // EMOM per-minute reps override (length = totalIntervals); absent = uniform repsPerInterval
   note?: string;
+  // cardio measures — distance (laps/km/mi/m, optionally weighted) and calories
+  distanceValue?: number;
+  distanceUnit?: DistanceUnit;
+  calories?: number;
   // ── composable prescription (all optional; missing = today's behavior) ──
   measure?: 'reps' | 'time' | 'distance'; // default derived from type
   distanceMeters?: number;

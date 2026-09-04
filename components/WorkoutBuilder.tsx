@@ -32,15 +32,17 @@ import ExerciseRow from '@/components/ExerciseRow';
 import ExerciseFilterBar from '@/components/ExerciseFilterBar';
 import { matchExercise } from '@/lib/exercise-search';
 import { muscleLabel, equipLabel } from '@/lib/exercise-i18n';
-import type { SetConfig, TemplateExercise, WorkoutType, AssistKind } from '@/lib/app-context';
+import type { SetConfig, TemplateExercise, WorkoutType, AssistKind, DistanceUnit } from '@/lib/app-context';
 import { WORKOUT_TYPES } from '@/lib/app-context';
 
-const SET_TYPES: SetConfig['type'][] = ['reps', 'hold', 'emom'];
+const SET_TYPES: SetConfig['type'][] = ['reps', 'hold', 'emom', 'distance', 'calories'];
 
 const SET_TYPE_LABELS: Record<SetConfig['type'], string> = {
   reps: 'REPS',
   hold: 'HOLD',
   emom: 'EMOM',
+  distance: 'DISTANCE',
+  calories: 'CALORIES',
 };
 
 const INTERVAL_OPTIONS = [30, 45, 60, 90, 120, 180];
@@ -74,6 +76,8 @@ function getDefaultSetConfig(type: SetConfig['type']): SetConfig {
     case 'reps': return { type: 'reps', reps: 10, weight: 0 };
     case 'hold': return { type: 'hold', durationSeconds: 30 };
     case 'emom': return { type: 'emom', repsPerInterval: 10, intervalSeconds: 60, totalIntervals: 10 };
+    case 'distance': return { type: 'distance', distanceValue: 1, distanceUnit: 'km', weight: 0 };
+    case 'calories': return { type: 'calories', calories: 60, weight: 0 };
   }
 }
 
@@ -340,6 +344,65 @@ function SetTypeFields({ config, onChange, theme }: {
         {noteField}
         </View>
       );
+    case 'distance': {
+      const UNITS: { k: DistanceUnit; label: string }[] = [
+        { k: 'lap', label: t('workoutPrep.unitLaps', { defaultValue: 'laps' }) },
+        { k: 'km', label: 'km' }, { k: 'mi', label: 'mi' }, { k: 'm', label: 'm' },
+      ];
+      return (
+        <View style={{ gap: 8 }}>
+          <View style={s.setFieldsRow}>
+            <View style={s.fieldGroup}>
+              <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.distance', { defaultValue: 'Distance' })}</Text>
+              <TextInput style={inputStyle} value={config.distanceValue ? String(config.distanceValue) : ''} onChangeText={v => onChange({ ...config, distanceValue: parseFloat(v) || 0 })} keyboardType="numeric" placeholder="1" placeholderTextColor={theme.textMuted} />
+            </View>
+            <View style={s.fieldGroup}>
+              <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.weightKgOptional', { unit: unitLabel(weightUnit) })}</Text>
+              <TextInput style={inputStyle} value={config.weight ? String(toDisplayWeight(config.weight, weightUnit)) : ''} onChangeText={v => onChange({ ...config, weight: fromDisplayWeight(parseFloat(v) || 0, weightUnit) })} keyboardType="numeric" placeholder={t('workoutPrep.bodyweightPlaceholder')} placeholderTextColor={theme.textMuted} />
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {UNITS.map(u => {
+              const on = (config.distanceUnit || 'km') === u.k;
+              return (
+                <Pressable key={u.k} onPress={() => onChange({ ...config, distanceUnit: u.k })} style={[s.assistChip, { backgroundColor: on ? Colors.electric : theme.surface, borderColor: on ? Colors.electric : theme.border }]}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: on ? '#04120B' : theme.textSecondary }}>{u.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {noteField}
+        </View>
+      );
+    }
+    case 'calories':
+      return (
+        <View style={{ gap: 8 }}>
+          <View style={s.setFieldsRow}>
+            <View style={s.fieldGroup}>
+              <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.calories', { defaultValue: 'Calories' })}</Text>
+              <TextInput style={inputStyle} value={config.calories ? String(config.calories) : ''} onChangeText={v => onChange({ ...config, calories: parseInt(v) || 0 })} keyboardType="numeric" placeholder="60" placeholderTextColor={theme.textMuted} />
+            </View>
+            <View style={s.fieldGroup}>
+              <Text style={[s.fieldMiniLabel, { color: theme.textMuted }]}>{t('workoutPrep.weightKgOptional', { unit: unitLabel(weightUnit) })}</Text>
+              <TextInput style={inputStyle} value={config.weight ? String(toDisplayWeight(config.weight, weightUnit)) : ''} onChangeText={v => onChange({ ...config, weight: fromDisplayWeight(parseFloat(v) || 0, weightUnit) })} keyboardType="numeric" placeholder={t('workoutPrep.bodyweightPlaceholder')} placeholderTextColor={theme.textMuted} />
+            </View>
+          </View>
+          {noteField}
+        </View>
+      );
+  }
+}
+
+// short human label for a set's target, e.g. "10 reps", "2 laps", "60 cal", "20kg · 1 km"
+export function formatSetTarget(cfg: SetConfig, weightPart?: string): string {
+  const w = cfg.weight ? `${weightPart ?? `${cfg.weight}kg`} · ` : '';
+  switch (cfg.type) {
+    case 'reps': return cfg.weight ? `${weightPart ?? `${cfg.weight}kg`} × ${cfg.reps ?? 0}` : `${cfg.reps ?? 0} reps`;
+    case 'hold': return `${w}${cfg.durationSeconds ?? 0}s`;
+    case 'emom': return `${cfg.repsPerInterval ?? 0}×${cfg.totalIntervals ?? 0} @ ${cfg.intervalSeconds ?? 60}s`;
+    case 'distance': { const u = cfg.distanceUnit === 'lap' ? (cfg.distanceValue === 1 ? 'lap' : 'laps') : (cfg.distanceUnit || 'km'); return `${w}${cfg.distanceValue ?? 0} ${u}`; }
+    case 'calories': return `${w}${cfg.calories ?? 0} cal`;
   }
 }
 

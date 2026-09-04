@@ -32,6 +32,12 @@ export default function WorkoutGuideSheet({ visible, onClose, theme }: {
         { icon: 'stopwatch-outline', color: Colors.accent, title: t('guide.emomSetTitle', { defaultValue: 'EMOM' }),
           desc: t('guide.emomSetDesc', { defaultValue: 'Every Minute On the Minute: do fixed reps at the start of each interval, rest the rest of the minute, repeat for N intervals.' }),
           example: t('guide.emomSetEx', { defaultValue: '5 Pull-ups every 60 s for 10 minutes = 50 total.' }) },
+        { icon: 'walk-outline', color: Colors.electric, title: t('guide.distanceTitle', { defaultValue: 'Distance' }),
+          desc: t('guide.distanceDesc', { defaultValue: 'A distance target — laps, km, miles or metres — with optional added weight (e.g. a weighted vest).' }),
+          example: t('guide.distanceEx', { defaultValue: 'Run 2 laps, or a 1 km row. Farmer carry 40 m at 20 kg.' }) },
+        { icon: 'flame-outline', color: Colors.accent, title: t('guide.caloriesTitle', { defaultValue: 'Calories' }),
+          desc: t('guide.caloriesDesc', { defaultValue: 'A calorie target on a cardio machine (bike, rower, ski-erg), with optional added weight.' }),
+          example: t('guide.caloriesEx', { defaultValue: 'Assault bike for 60 cal.' }) },
       ],
     },
     {
