@@ -17,7 +17,7 @@ import { Display } from '@/components/ui';
 import Colors from '@/constants/colors';
 import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
-import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult } from '@/components/ComboBuilderModal';
+import ComboBuilderModal, { componentToSetConfig, comboRoundEntries, type ComboBuildResult } from '@/components/ComboBuilderModal';
 import IntervalBuilderModal from '@/components/IntervalBuilderModal';
 import { ExerciseConfigModal } from '@/components/WorkoutBuilder';
 import WorkoutGuideSheet from '@/components/WorkoutGuideSheet';
@@ -1408,11 +1408,14 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
                   <Text style={[styles.comboRoundSummary, { color: theme.textSecondary }]} numberOfLines={1}>
                     {components.map((c, ci) => {
                       const e = round.entries[ci];
-                      const ty = e?.type ?? 'reps';
-                      if (ty === 'hold') return `${e?.durationSeconds || 0}s`;
-                      if (ty === 'emom') return `${e?.repsPerInterval || 0}×${e?.totalIntervals || 0}`;
-                      return `${e?.reps || 0}${e?.weight ? '×' + toDisplayWeight(e.weight, weightUnit) : ''}`;
-                    }).join(' · ')}
+                      if (e == null) return null; // sat out this round
+                      const ty = e.type ?? 'reps';
+                      if (ty === 'hold') return `${e.durationSeconds || 0}s`;
+                      if (ty === 'emom') return `${e.repsPerInterval || 0}×${e.totalIntervals || 0}`;
+                      if (ty === 'distance') return `${e.distanceValue || 0}${e.distanceUnit || ''}`;
+                      if (ty === 'calories') return `${e.calories || 0}cal`;
+                      return `${e.reps || 0}${e.weight ? '×' + toDisplayWeight(e.weight, weightUnit) : ''}`;
+                    }).filter(Boolean).join(' · ')}
                   </Text>
                 )}
                 <Ionicons name="pencil" size={13} color={theme.textMuted} />
@@ -1439,6 +1442,7 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
             </View>
             {components.map((c, ci) => {
               const entry = round.entries[ci];
+              if (entry == null) return null; // this move sits this round out (uneven sets)
               const ty = entry?.type ?? 'reps';
               const inputStyle = [styles.inlineInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }];
               return (
@@ -2274,9 +2278,9 @@ export default function LiveWorkoutScreen() {
         mode: data.mode ?? 'circuit',
         intervalSeconds: data.intervalSeconds ?? 60,
         components: data.components.map(c => ({ exerciseId: c.exerciseId, name: c.name, muscleGroup: c.muscleGroup })),
-        rounds: Array.from({ length: Math.max(1, data.rounds) }, () => ({
+        rounds: Array.from({ length: Math.max(1, data.rounds) }, (_, r) => ({
           status: 'pending' as const,
-          entries: data.components.map(c => componentToSetConfig(c)),
+          entries: comboRoundEntries(data.components, r, Math.max(1, data.rounds)),
         })),
       }],
     }));
@@ -2312,7 +2316,7 @@ export default function LiveWorkoutScreen() {
       const n = Math.max(0, completedRounds);
       ex.rounds = Array.from({ length: n }, () => ({
         status: 'done' as const,
-        entries: template.map(e => ({ ...e })),
+        entries: template.map(e => (e ? { ...e } : null)),
       }));
       exercises[exIdx] = ex;
       return { ...s, exercises };
@@ -2324,7 +2328,7 @@ export default function LiveWorkoutScreen() {
       const exercises = [...s.exercises];
       const ex = { ...exercises[exIdx] };
       const rounds = [...(ex.rounds || [])];
-      const round = { ...rounds[roundIdx], entries: rounds[roundIdx].entries.map((e, i) => i === compIdx ? { ...e, ...patch } : e) };
+      const round = { ...rounds[roundIdx], entries: rounds[roundIdx].entries.map((e, i) => i === compIdx && e ? { ...e, ...patch } : e) };
       rounds[roundIdx] = round;
       ex.rounds = rounds;
       exercises[exIdx] = ex;
@@ -2356,7 +2360,7 @@ export default function LiveWorkoutScreen() {
       const ex = { ...exercises[exIdx] };
       const rounds = [...(ex.rounds || [])];
       const last = rounds[rounds.length - 1];
-      rounds.push({ status: 'pending', entries: (last?.entries || []).map(e => ({ ...e })) });
+      rounds.push({ status: 'pending', entries: (last?.entries || []).map(e => (e ? { ...e } : null)) });
       ex.rounds = rounds;
       exercises[exIdx] = ex;
       return { ...s, exercises };
@@ -2413,12 +2417,13 @@ export default function LiveWorkoutScreen() {
           comboId,
           comboLabel: ex.name,
           comboUnbroken: !!ex.unbroken,
-          sets: (ex.rounds || []).map(r => {
+          sets: (ex.rounds || []).flatMap(r => {
             const raw = r.entries[ci];
+            if (raw == null) return []; // this move sat this round out (uneven sets)
             // entries persisted before per-component set types have no `type` → treat as reps
-            const cfg: SetConfig = raw ? { ...raw, type: raw.type || 'reps' } : { type: 'reps', reps: 0, weight: 0 };
+            const cfg: SetConfig = { ...raw, type: raw.type || 'reps' };
             tallySet(r.status, cfg.type, cfg.reps || 0, cfg.weight || 0);
-            return { type: cfg.type, planned: { ...cfg }, actual: { ...cfg }, status: r.status } as LogSetData;
+            return [{ type: cfg.type, planned: { ...cfg }, actual: { ...cfg }, status: r.status } as LogSetData];
           }),
         }));
       }
@@ -2570,7 +2575,7 @@ export default function LiveWorkoutScreen() {
             if (ex.combo) {
               for (const r of ex.rounds || []) {
                 total++;
-                if (r.status === 'done') { done++; for (const e of r.entries) { if (!e.type || e.type === 'reps') vol += (e.reps || 0) * (e.weight || 0); } }
+                if (r.status === 'done') { done++; for (const e of r.entries) { if (e && (!e.type || e.type === 'reps')) vol += (e.reps || 0) * (e.weight || 0); } }
               }
             } else for (const st of ex.sets) {
               total++;

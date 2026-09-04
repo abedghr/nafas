@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { useApp } from '@/lib/app-context';
 import { alertDialog, confirmDialog } from '@/lib/dialog';
 import Colors from '@/constants/colors';
-import { componentToSetConfig } from '@/components/ComboBuilderModal';
+import { componentToSetConfig, comboRoundEntries } from '@/components/ComboBuilderModal';
 import { buildLog } from '@/lib/workout-log';
 import WorkoutTextModal from '@/components/WorkoutTextModal';
 import WorkoutBuilder, { type PrepExercise } from '@/components/WorkoutBuilder';
@@ -347,9 +347,9 @@ export default function PrepareWorkoutScreen() {
             intervalSeconds: e.intervalSeconds ?? 60,
             timeCapSeconds: e.timeCapSeconds,
             components: e.components.map(c => ({ exerciseId: c.exerciseId, name: c.name, muscleGroup: c.muscleGroup })),
-            rounds: Array.from({ length: Math.max(1, e.comboRounds ?? 1) }, () => ({
+            rounds: Array.from({ length: Math.max(1, e.comboRounds ?? 1) }, (_, r) => ({
               status: 'pending' as const,
-              entries: e.components!.map(c => componentToSetConfig(c)),
+              entries: comboRoundEntries(e.components!, r, Math.max(1, e.comboRounds ?? 1)),
             })),
           };
         }
@@ -394,7 +394,7 @@ export default function PrepareWorkoutScreen() {
           exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, restSeconds: e.restSeconds, sets: [] as any[],
           combo: true, unbroken: e.unbroken, mode: e.mode ?? 'circuit', intervalSeconds: e.intervalSeconds ?? 60, timeCapSeconds: e.timeCapSeconds,
           components: e.components.map(c => ({ exerciseId: c.exerciseId, name: c.name, muscleGroup: c.muscleGroup })),
-          rounds: Array.from({ length: Math.max(1, e.comboRounds ?? 1) }, () => ({ status: 'done' as const, entries: e.components!.map(c => componentToSetConfig(c)) })),
+          rounds: Array.from({ length: Math.max(1, e.comboRounds ?? 1) }, (_, r) => ({ status: 'done' as const, entries: comboRoundEntries(e.components!, r, Math.max(1, e.comboRounds ?? 1)) })),
         };
       }
       return {

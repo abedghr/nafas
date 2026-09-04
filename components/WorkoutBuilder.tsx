@@ -623,6 +623,17 @@ function ComboPrepCard({ exercise, onUpdate, onRemove, onMoveUp, onMoveDown, can
                   />
                   <Text style={[s.cpCompUnit, { color: theme.textMuted }]}>{unitLabel(weightUnit)}</Text>
                 </View>
+                {comboMode === 'circuit' && rounds > 1 && (
+                  <View style={s.cpCompSetsRow}>
+                    <Text style={[s.cpCompUnit, { color: theme.textMuted }]}>{t('workoutSession.sets', { defaultValue: 'sets' })}</Text>
+                    <Pressable onPress={() => updateComponent(ci, { sets: Math.max(1, (c.sets ?? rounds) - 1) })} hitSlop={8} style={[s.cpStepBtn, { borderColor: theme.border }]}><Ionicons name="remove" size={14} color={theme.text} /></Pressable>
+                    <Text style={[s.cpStepVal, { color: theme.text }]}>{Math.min(c.sets ?? rounds, rounds)}</Text>
+                    <Pressable onPress={() => updateComponent(ci, { sets: Math.min(rounds, (c.sets ?? rounds) + 1) })} hitSlop={8} style={[s.cpStepBtn, { borderColor: theme.border }]}><Ionicons name="add" size={14} color={theme.text} /></Pressable>
+                    {(c.sets ?? rounds) < rounds && (
+                      <Text style={[s.cpCompUnit, { color: theme.textMuted, fontStyle: 'italic' }]}>{t('workoutSession.ofN', { n: rounds, defaultValue: 'of {{n}}' })}</Text>
+                    )}
+                  </View>
+                )}
               </View>
             </View>
           );
@@ -1794,6 +1805,7 @@ const s = StyleSheet.create({
   cpTypeChip: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, borderWidth: 1 },
   cpTypeChipText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
   cpFieldRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, flexShrink: 1 },
+  cpCompSetsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '100%', marginTop: 2 },
   cpCompIdx: { fontSize: 12, fontWeight: '800', width: 16, textAlign: 'center' },
   cpCompName: { fontSize: 14, fontWeight: '500', flex: 1 },
   cpCompInput: { width: 44, height: 32, borderRadius: 8, borderWidth: 1, textAlign: 'center', fontSize: 14, fontWeight: '600', paddingVertical: 0 },

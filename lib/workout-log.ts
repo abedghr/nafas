@@ -25,11 +25,12 @@ export function buildLog(
         comboId,
         comboLabel: ex.name,
         comboUnbroken: !!ex.unbroken,
-        sets: (ex.rounds || []).map((r) => {
+        sets: (ex.rounds || []).flatMap((r) => {
           const raw = r.entries[ci];
-          const cfg: SetConfig = raw ? { ...raw, type: raw.type || 'reps' } : { type: 'reps', reps: 0, weight: 0 };
+          if (raw == null) return []; // move sat this round out (uneven sets)
+          const cfg: SetConfig = { ...raw, type: raw.type || 'reps' };
           tally(r.status, cfg.type, cfg.reps || 0, cfg.weight || 0);
-          return { type: cfg.type, planned: { ...cfg }, actual: { ...cfg }, status: r.status } as LogSetData;
+          return [{ type: cfg.type, planned: { ...cfg }, actual: { ...cfg }, status: r.status } as LogSetData];
         }),
       }));
     }

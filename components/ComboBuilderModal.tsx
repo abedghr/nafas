@@ -27,6 +27,7 @@ export interface ComboComponent {
   repsPerInterval?: number; // emom
   intervalSeconds?: number; // emom (default 60)
   totalIntervals?: number; // emom
+  sets?: number; // circuit only: how many of the combo's rounds this move joins (default = all, front-loaded)
 }
 
 // Convert a combo component (from the builder OR a persisted template, where
@@ -46,6 +47,17 @@ export function componentToSetConfig(c: {
     weight: c.weight || 0,
   };
   return { type: 'reps', reps: c.reps || 0, weight: c.weight || 0 };
+}
+
+// Build one round's entries (round index r, 0-based) for `rounds` total rounds.
+// A component with `sets < rounds` joins only its first `sets` rounds
+// (front-loaded); later rounds get null for it. Missing sets = all rounds
+// (uniform, the classic combo). Shared by every combo→session expansion so the
+// uneven-sets rule stays in one place.
+export function comboRoundEntries(
+  components: { sets?: number }[], r: number, rounds: number,
+): (SetConfig | null)[] {
+  return components.map(c => (r < (c.sets ?? rounds) ? componentToSetConfig(c as any) : null));
 }
 
 export type ComboMode = 'circuit' | 'emom' | 'amrap';
@@ -229,6 +241,17 @@ export default function ComboBuilderModal({ visible, onClose, onCreate, customEx
                         />
                         <Text style={[s.comboCompUnit, { color: theme.textMuted }]}>{unitLabel(weightUnit)}</Text>
                       </View>
+                      {mode === 'circuit' && rounds > 1 && (
+                        <View style={s.compSetsRow}>
+                          <Text style={[s.comboCompUnit, { color: theme.textMuted }]}>{t('workoutSession.sets', { defaultValue: 'sets' })}</Text>
+                          <Pressable onPress={() => updateComponent(i, { sets: Math.max(1, (c.sets ?? rounds) - 1) })} hitSlop={8} style={[s.stepBtn, { borderColor: theme.border }]}><Ionicons name="remove" size={14} color={theme.text} /></Pressable>
+                          <Text style={[s.stepVal, { color: theme.text, minWidth: 20, textAlign: 'center' }]}>{Math.min(c.sets ?? rounds, rounds)}</Text>
+                          <Pressable onPress={() => updateComponent(i, { sets: Math.min(rounds, (c.sets ?? rounds) + 1) })} hitSlop={8} style={[s.stepBtn, { borderColor: theme.border }]}><Ionicons name="add" size={14} color={theme.text} /></Pressable>
+                          {(c.sets ?? rounds) < rounds && (
+                            <Text style={[s.comboCompUnit, { color: theme.textMuted, fontStyle: 'italic' }]}>{t('workoutSession.ofN', { n: rounds, defaultValue: 'of {{n}}' })}</Text>
+                          )}
+                        </View>
+                      )}
                     </View>
                   </View>
                 ))}
@@ -381,6 +404,7 @@ const s = StyleSheet.create({
   typeChip: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, borderWidth: 1 },
   typeChipText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
   fieldRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, flexShrink: 1 },
+  compSetsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '100%', marginTop: 2 },
   comboCompName: { fontSize: 13, fontWeight: '600', flex: 1 },
   comboCompUnit: { fontSize: 9, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
   modeRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },

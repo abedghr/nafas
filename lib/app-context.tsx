@@ -138,6 +138,7 @@ export interface TemplateExercise {
     setType?: 'reps' | 'hold' | 'emom'; // absent = 'reps' (backward compat)
     reps?: number; weight?: number;
     durationSeconds?: number; repsPerInterval?: number; intervalSeconds?: number; totalIntervals?: number;
+    sets?: number; // circuit combo only: rounds this move joins (default = all, front-loaded)
   }[];
   comboRounds?: number;
   comboReps?: number;
@@ -337,7 +338,8 @@ export interface ActiveSession {
       // aligned to components; each entry carries its component's set type + fields.
       // Sessions persisted before per-component set types have {reps,weight}-only
       // entries (no `type`) — readers must treat a missing type as 'reps'.
-      entries: SetConfig[];
+      // A null entry = that component sits this round out (uneven circuit sets).
+      entries: (SetConfig | null)[];
     }[];
   }[];
 }
