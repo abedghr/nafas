@@ -1558,6 +1558,57 @@ export default function WorkoutBuilder({
   );
 }
 
+// Single-exercise config modal — reuses the builder's ExerciseCard so editing an
+// exercise inside a live session gets the exact same set-type UX (reps/hold/EMOM
+// with full fields) as creating a workout.
+export function ExerciseConfigModal({ visible, exercise, onSave, onClose, theme, title }: {
+  visible: boolean;
+  exercise: PrepExercise | null;
+  onSave: (ex: PrepExercise) => void;
+  onClose: () => void;
+  theme: typeof Colors.dark;
+  title?: string;
+}) {
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const [ex, setEx] = useState<PrepExercise | null>(exercise);
+  useEffect(() => { setEx(exercise); }, [exercise, visible]);
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+        <Pressable style={{ flex: 1 }} onPress={onClose} />
+        <View style={{ backgroundColor: theme.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '86%', paddingHorizontal: 16 }}>
+          <View style={{ alignItems: 'center', paddingVertical: 10 }}><View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: theme.border }} /></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: theme.text }}>{title || t('workoutSession.configureExercise', { defaultValue: 'Configure exercise' })}</Text>
+            <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={24} color={theme.text} /></Pressable>
+          </View>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingBottom: 8 }}>
+            {ex && (
+              <ExerciseCard
+                exercise={ex}
+                index={0}
+                onUpdate={setEx}
+                onRemove={() => {}}
+                theme={theme}
+              />
+            )}
+          </ScrollView>
+          <View style={{ paddingBottom: Platform.OS === 'web' ? 16 : insets.bottom + 12, paddingTop: 8 }}>
+            <Pressable
+              onPress={() => { if (ex) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); onSave(ex); } }}
+              style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 14, backgroundColor: Colors.primary, opacity: pressed ? 0.9 : 1 }]}
+            >
+              <Ionicons name="checkmark-circle" size={18} color="#04120B" />
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#04120B' }}>{t('workoutSession.done', { defaultValue: 'Done' })}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const s = StyleSheet.create({
   container: {
     flex: 1,

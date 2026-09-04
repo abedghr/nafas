@@ -19,6 +19,7 @@ import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
 import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult } from '@/components/ComboBuilderModal';
 import IntervalBuilderModal from '@/components/IntervalBuilderModal';
+import { ExerciseConfigModal } from '@/components/WorkoutBuilder';
 import ExerciseRow from '@/components/ExerciseRow';
 import ExerciseFilterBar from '@/components/ExerciseFilterBar';
 import { matchExercise } from '@/lib/exercise-search';
@@ -749,40 +750,30 @@ function SetRowItem({ set, setIndex, exerciseIndex, onMarkDone, onSkip, onUpdate
   );
 }
 
-function ExerciseMenuModal({ visible, onClose, onAddSet, onCompleteAll, onSkipAll, onDelete, onMoveUp, onMoveDown, onSetType, currentType, canMoveUp, canMoveDown, theme }: {
+function ExerciseMenuModal({ visible, onClose, onConfigure, onAddSet, onCompleteAll, onSkipAll, onDelete, onMoveUp, onMoveDown, canMoveUp, canMoveDown, theme }: {
   visible: boolean;
   onClose: () => void;
+  onConfigure: () => void;
   onAddSet: () => void;
   onCompleteAll: () => void;
   onSkipAll: () => void;
   onDelete: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
-  onSetType: (type: 'reps' | 'hold' | 'emom') => void;
-  currentType: 'reps' | 'hold' | 'emom';
   canMoveUp: boolean;
   canMoveDown: boolean;
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
-  const types: { key: 'reps' | 'hold' | 'emom'; label: string }[] = [
-    { key: 'reps', label: t('workoutSession.reps', { defaultValue: 'Reps' }) },
-    { key: 'hold', label: t('workoutSession.hold', { defaultValue: 'Hold' }) },
-    { key: 'emom', label: t('workoutSession.emom', { defaultValue: 'EMOM' }) },
-  ];
   return (
     <Modal visible={visible} transparent animationType="fade">
       <Pressable style={styles.menuOverlay} onPress={onClose}>
         <View style={[styles.menuSheet, { backgroundColor: theme.card }]}>
-          {/* set type — switch the whole exercise between reps / hold / EMOM */}
-          <Text style={[styles.menuSectionLabel, { color: theme.textMuted }]}>{t('workoutSession.setType', { defaultValue: 'Set type' })}</Text>
-          <View style={styles.menuTypeRow}>
-            {types.map((ty) => (
-              <Pressable key={ty.key} onPress={() => { onSetType(ty.key); onClose(); }} style={[styles.menuTypePill, { backgroundColor: currentType === ty.key ? Colors.primary : theme.cardAlt, borderColor: currentType === ty.key ? Colors.primary : theme.border }]}>
-                <Text style={[styles.menuTypePillText, { color: currentType === ty.key ? '#04120B' : theme.textSecondary }]}>{ty.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+          {/* full set/type editor — same UX as building a workout */}
+          <Pressable onPress={() => { onConfigure(); onClose(); }} style={styles.menuItem}>
+            <Ionicons name="options-outline" size={20} color={Colors.primary} />
+            <Text style={[styles.menuItemText, { color: theme.text }]}>{t('workoutSession.editSets', { defaultValue: 'Edit sets & type' })}</Text>
+          </Pressable>
           <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
           {canMoveUp && (
             <>
@@ -1843,6 +1834,8 @@ export default function LiveWorkoutScreen() {
   const [showComboBuilder, setShowComboBuilder] = useState(false);
   const [showIntervalBuilder, setShowIntervalBuilder] = useState(false);
   const [menuExerciseIndex, setMenuExerciseIndex] = useState<number | null>(null);
+  const [configExIdx, setConfigExIdx] = useState<number | null>(null);
+  const [configPrep, setConfigPrep] = useState<any | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const toggleCollapse = useCallback((key: string) => {
@@ -2044,21 +2037,40 @@ export default function LiveWorkoutScreen() {
     });
   }, [updateSession]);
 
-  // switch an exercise's set type (reps/hold/emom) — rebuild its sets with the
-  // new type's defaults, keeping the same count. Lets you e.g. do push-ups as EMOM.
-  const setExerciseType = useCallback((exIdx: number, type: SetConfig['type']) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const def = getDefaultSetConfig(type);
+  // ── configure an exercise's sets/type with the SAME builder UX as create ──
+  // open the shared ExerciseConfigModal seeded from the live exercise (as a PrepExercise)
+  const openConfig = useCallback((exIdx: number) => {
+    const ex = sessionRef.current?.exercises[exIdx];
+    if (!ex || ex.combo || ex.kind === 'intervals') return; // combos/intervals use their own builders
+    setConfigExIdx(exIdx);
+    setConfigPrep({
+      uid: Crypto.randomUUID(),
+      exerciseId: ex.exerciseId, name: ex.name, muscleGroup: ex.muscleGroup, restSeconds: ex.restSeconds ?? 90,
+      sets: (ex.sets ?? []).map((st: any) => ({ ...st.config })),
+    } as any);
+  }, []);
+  // save the reconfigured exercise back, preserving done/actual for sets that map
+  // by index + type; changed/new sets reset to pending.
+  const saveConfig = useCallback((prep: { sets: SetConfig[] }) => {
+    if (configExIdx == null) return;
+    const idx = configExIdx;
     updateSession(s => {
       const exercises = [...s.exercises];
-      const ex = { ...exercises[exIdx] };
-      if (ex.combo || ex.kind === 'intervals') return s; // only plain exercises
-      const count = Math.max(1, ex.sets.length);
-      ex.sets = Array.from({ length: count }, () => ({ config: { ...def }, actual: { ...def }, status: 'pending' as const }));
-      exercises[exIdx] = ex;
+      const prev = exercises[idx];
+      if (!prev) return s;
+      exercises[idx] = {
+        ...prev,
+        sets: prep.sets.map((cfg, i) => {
+          const old = prev.sets?.[i];
+          return old && old.config.type === cfg.type
+            ? { config: { ...cfg }, actual: { ...old.actual }, status: old.status }
+            : { config: { ...cfg }, actual: { ...cfg }, status: 'pending' as const };
+        }),
+      };
       return { ...s, exercises };
     });
-  }, [updateSession]);
+    setConfigExIdx(null); setConfigPrep(null);
+  }, [configExIdx, updateSession]);
 
   // mark every pending set of an exercise done (actual = its config)
   const completeAllSets = useCallback((exIdx: number) => {
@@ -2100,20 +2112,17 @@ export default function LiveWorkoutScreen() {
   const addExercise = useCallback((ex: { id: string; name: string; muscleGroup: string; defaultSetType: string }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const defaultConfig = getDefaultSetConfig(ex.defaultSetType as SetConfig['type']);
+    const newIdx = sessionRef.current?.exercises.length ?? 0;
     updateSession(s => ({
       ...s,
       exercises: [...s.exercises, {
-        exerciseId: ex.id,
-        name: ex.name,
-        muscleGroup: ex.muscleGroup,
-        restSeconds: 90,
-        sets: [
-          { config: { ...defaultConfig }, actual: { ...defaultConfig }, status: 'pending' },
-          { config: { ...defaultConfig }, actual: { ...defaultConfig }, status: 'pending' },
-          { config: { ...defaultConfig }, actual: { ...defaultConfig }, status: 'pending' },
-        ],
+        exerciseId: ex.id, name: ex.name, muscleGroup: ex.muscleGroup, restSeconds: 90,
+        sets: [{ config: { ...defaultConfig }, actual: { ...defaultConfig }, status: 'pending' }],
       }],
     }));
+    // open the full config editor (same UX as create) so type/sets can be set up
+    setConfigExIdx(newIdx);
+    setConfigPrep({ uid: Crypto.randomUUID(), exerciseId: ex.id, name: ex.name, muscleGroup: ex.muscleGroup, restSeconds: 90, sets: [{ ...defaultConfig }] } as any);
   }, [updateSession]);
 
   // add an interval/cardio block mid-session (built by IntervalBuilderModal)
@@ -2720,10 +2729,9 @@ export default function LiveWorkoutScreen() {
           visible={true}
           onClose={() => setMenuExerciseIndex(null)}
           onAddSet={() => addSetToExercise(menuExerciseIndex)}
+          onConfigure={() => openConfig(menuExerciseIndex)}
           onCompleteAll={() => completeAllSets(menuExerciseIndex)}
           onSkipAll={() => skipAllSets(menuExerciseIndex)}
-          onSetType={(ty) => setExerciseType(menuExerciseIndex, ty)}
-          currentType={(session.exercises[menuExerciseIndex]?.sets?.[0]?.config?.type ?? 'reps') as 'reps' | 'hold' | 'emom'}
           onMoveUp={() => moveExercise(menuExerciseIndex, -1)}
           onMoveDown={() => moveExercise(menuExerciseIndex, 1)}
           canMoveUp={menuExerciseIndex > 0}
@@ -2756,6 +2764,14 @@ export default function LiveWorkoutScreen() {
         visible={showIntervalBuilder}
         onClose={() => setShowIntervalBuilder(false)}
         onCreate={addInterval as any}
+        theme={theme}
+      />
+
+      <ExerciseConfigModal
+        visible={configExIdx !== null}
+        exercise={configPrep}
+        onSave={(ex) => saveConfig(ex as any)}
+        onClose={() => { setConfigExIdx(null); setConfigPrep(null); }}
         theme={theme}
       />
     </View>
