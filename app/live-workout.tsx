@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ScrollView, Platform, Modal,
-  TextInput, Alert, Dimensions, Switch, useWindowDimensions,
+  TextInput, Alert, Dimensions, Switch, useWindowDimensions, AppState,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +18,7 @@ import Colors from '@/constants/colors';
 import { exerciseLibrary } from '@/src/features/workout/library-cache';
 import { workoutApi } from '@/src/features/workout/api';
 import ComboBuilderModal, { componentToSetConfig, type ComboBuildResult } from '@/components/ComboBuilderModal';
+import IntervalBuilderModal from '@/components/IntervalBuilderModal';
 import ExerciseRow from '@/components/ExerciseRow';
 import ExerciseFilterBar from '@/components/ExerciseFilterBar';
 import { matchExercise } from '@/lib/exercise-search';
@@ -748,10 +749,11 @@ function SetRowItem({ set, setIndex, exerciseIndex, onMarkDone, onSkip, onUpdate
   );
 }
 
-function ExerciseMenuModal({ visible, onClose, onAddSet, onSkipAll, onDelete, onMoveUp, onMoveDown, canMoveUp, canMoveDown, theme }: {
+function ExerciseMenuModal({ visible, onClose, onAddSet, onCompleteAll, onSkipAll, onDelete, onMoveUp, onMoveDown, canMoveUp, canMoveDown, theme }: {
   visible: boolean;
   onClose: () => void;
   onAddSet: () => void;
+  onCompleteAll: () => void;
   onSkipAll: () => void;
   onDelete: () => void;
   onMoveUp: () => void;
@@ -789,6 +791,14 @@ function ExerciseMenuModal({ visible, onClose, onAddSet, onSkipAll, onDelete, on
           >
             <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
             <Text style={[styles.menuItemText, { color: theme.text }]}>{t('workoutSession.addSet')}</Text>
+          </Pressable>
+          <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+          <Pressable
+            onPress={() => { onCompleteAll(); onClose(); }}
+            style={styles.menuItem}
+          >
+            <Ionicons name="checkmark-done" size={20} color={Colors.primary} />
+            <Text style={[styles.menuItemText, { color: theme.text }]}>{t('workoutSession.completeAllSets', { defaultValue: 'Complete all sets' })}</Text>
           </Pressable>
           <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
           <Pressable
@@ -1202,11 +1212,27 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
             )}
           </View>
           <Text style={[styles.exCardName, { color: theme.text, marginTop: 4 }]}>{combo.name}</Text>
-          {collapsed && (
-            <Text style={[styles.collapsedSummary, { color: theme.textMuted }]}>
-              {t('workoutPrep.comboSummary', { r: rounds.length, m: components.length })}
-            </Text>
-          )}
+          {collapsed && (() => {
+            // show the actual moves + their prescribed values, not just counts
+            const first = (combo.rounds?.[0]?.entries ?? []) as any[];
+            const moves = components.map((c: any, i: number) => {
+              const e = first[i] || {};
+              const val = e.type === 'hold' ? `${e.durationSeconds ?? 0}s`
+                : e.type === 'emom' ? `${e.repsPerInterval ?? e.reps ?? 0}/min`
+                : `×${e.reps ?? 0}${e.weight ? ` · ${e.weight}` : ''}`;
+              return `${c.name} ${val}`;
+            });
+            return (
+              <>
+                <Text style={[styles.collapsedSummary, { color: theme.textMuted }]}>
+                  {t('workoutPrep.comboSummary', { r: rounds.length, m: components.length })}
+                </Text>
+                {moves.map((mv, i) => (
+                  <Text key={i} style={[styles.collapsedMove, { color: theme.textSecondary }]} numberOfLines={1}>• {mv}</Text>
+                ))}
+              </>
+            );
+          })()}
         </View>
         <Pressable onPress={onToggleCollapse} hitSlop={8} style={styles.menuBtn}>
           <Ionicons name={collapsed ? 'chevron-forward' : 'chevron-down'} size={18} color={theme.textMuted} />
@@ -1775,6 +1801,7 @@ export default function LiveWorkoutScreen() {
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [showComboBuilder, setShowComboBuilder] = useState(false);
+  const [showIntervalBuilder, setShowIntervalBuilder] = useState(false);
   const [menuExerciseIndex, setMenuExerciseIndex] = useState<number | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -1813,10 +1840,13 @@ export default function LiveWorkoutScreen() {
 
   useEffect(() => {
     if (!session) return;
-    const timer = setInterval(() => {
-      setElapsed(formatTime(Date.now() - session.startTimestamp));
-    }, 1000);
-    return () => clearInterval(timer);
+    // wall-clock based: elapsed always = now - startTimestamp, so it stays correct
+    // across backgrounding / app restart (JS timers pause in background).
+    const tick = () => setElapsed(formatTime(Date.now() - session.startTimestamp));
+    tick(); // immediate, no 1s stale after mount/resume
+    const timer = setInterval(tick, 1000);
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') tick(); });
+    return () => { clearInterval(timer); sub.remove(); };
   }, [session?.startTimestamp]);
 
   // keep the latest session in a ref and flush it to the store when leaving the
@@ -1974,6 +2004,18 @@ export default function LiveWorkoutScreen() {
     });
   }, [updateSession]);
 
+  // mark every pending set of an exercise done (actual = its config)
+  const completeAllSets = useCallback((exIdx: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    updateSession(s => {
+      const exercises = [...s.exercises];
+      const ex = { ...exercises[exIdx] };
+      ex.sets = ex.sets.map(st => st.status === 'pending' ? { ...st, actual: { ...st.config }, status: 'done' as const } : st);
+      exercises[exIdx] = ex;
+      return { ...s, exercises };
+    });
+  }, [updateSession]);
+
   const moveExercise = useCallback((exIdx: number, dir: -1 | 1) => {
     updateSession(s => {
       const j = exIdx + dir;
@@ -1985,20 +2027,19 @@ export default function LiveWorkoutScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [updateSession]);
 
-  const deleteExercise = useCallback((exIdx: number) => {
-    Alert.alert(t('workoutSession.deleteExercise'), t('workoutSession.removeExerciseConfirm'), [
-      { text: t('workoutSession.cancel'), style: 'cancel' },
-      {
-        text: t('workoutSession.delete'), style: 'destructive', onPress: () => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          updateSession(s => ({
-            ...s,
-            exercises: s.exercises.filter((_, i) => i !== exIdx),
-          }));
-        },
-      },
-    ]);
-  }, [updateSession]);
+  const deleteExercise = useCallback(async (exIdx: number) => {
+    // confirmDialog is cross-platform (Alert.alert button callbacks don't fire on web)
+    const ok = await confirmDialog({
+      title: t('workoutSession.deleteExercise'),
+      message: t('workoutSession.removeExerciseConfirm'),
+      destructive: true,
+      confirmText: t('workoutSession.delete'),
+      cancelText: t('workoutSession.cancel'),
+    });
+    if (!ok) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    updateSession(s => ({ ...s, exercises: s.exercises.filter((_, i) => i !== exIdx) }));
+  }, [updateSession, t]);
 
   const addExercise = useCallback((ex: { id: string; name: string; muscleGroup: string; defaultSetType: string }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -2015,6 +2056,18 @@ export default function LiveWorkoutScreen() {
           { config: { ...defaultConfig }, actual: { ...defaultConfig }, status: 'pending' },
           { config: { ...defaultConfig }, actual: { ...defaultConfig }, status: 'pending' },
         ],
+      }],
+    }));
+  }, [updateSession]);
+
+  // add an interval/cardio block mid-session (built by IntervalBuilderModal)
+  const addInterval = useCallback((block: { exerciseId: string; name: string; muscleGroup: string; restSeconds: number; intervals: any }) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    updateSession(s => ({
+      ...s,
+      exercises: [...s.exercises, {
+        exerciseId: block.exerciseId, name: block.name, muscleGroup: block.muscleGroup,
+        restSeconds: block.restSeconds, sets: [], kind: 'intervals' as const, intervals: block.intervals,
       }],
     }));
   }, [updateSession]);
@@ -2353,25 +2406,25 @@ export default function LiveWorkoutScreen() {
         })()}
 
         <Animated.View entering={FadeInDown.duration(300)}>
+          {/* whole card toggles — a single Pressable (the old inner Switch double-fired
+              the toggle when tapped, cancelling it out). Right side is a display chip. */}
           <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); updateSession(s => ({ ...s, preWorkout: !s.preWorkout })); }}
-            style={[styles.preWorkoutCard, { backgroundColor: theme.card, borderWidth: 1, borderColor: session.preWorkout ? Colors.accent + '55' : theme.border, flexDirection: 'row', alignItems: 'center', gap: 10 }]}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); updateSession(s => ({ ...s, preWorkout: !s.preWorkout })); }}
+            style={({ pressed }) => [styles.preWorkoutCard, { backgroundColor: session.preWorkout ? Colors.accent + '14' : theme.card, borderWidth: 1, borderColor: session.preWorkout ? Colors.accent : theme.border, flexDirection: 'row', alignItems: 'center', gap: 12, opacity: pressed ? 0.9 : 1 }]}
           >
-            <View style={[styles.preWorkoutIcon, { backgroundColor: (session.preWorkout ? Colors.accent : theme.textMuted) + '1F' }]}>
-              <Ionicons name="flask" size={17} color={session.preWorkout ? Colors.accent : theme.textMuted} />
+            <View style={[styles.preWorkoutIcon, { backgroundColor: (session.preWorkout ? Colors.accent : theme.textMuted) + '22' }]}>
+              <Ionicons name={session.preWorkout ? 'flask' : 'flask-outline'} size={18} color={session.preWorkout ? Colors.accent : theme.textMuted} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.preWorkoutText, { color: theme.text }]}>{t('workoutSession.preWorkout', { defaultValue: 'Pre-workout' })}</Text>
-              <Text style={[styles.preWorkoutSub, { color: theme.textMuted }]}>
+              <Text style={[styles.preWorkoutSub, { color: session.preWorkout ? Colors.accent : theme.textMuted }]}>
                 {session.preWorkout ? t('workoutSession.preWorkoutTakenYes', { defaultValue: 'Taken before this session' }) : t('workoutSession.preWorkoutTapIfTaken', { defaultValue: 'Tap if you took one' })}
               </Text>
             </View>
-            <Switch
-              value={!!session.preWorkout}
-              onValueChange={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); updateSession(s => ({ ...s, preWorkout: !s.preWorkout })); }}
-              trackColor={{ false: theme.border, true: Colors.accent }}
-              thumbColor="#fff"
-            />
+            <View pointerEvents="none" style={[styles.preWorkoutChip, { backgroundColor: session.preWorkout ? Colors.accent : theme.cardAlt }]}>
+              {session.preWorkout && <Ionicons name="checkmark" size={13} color="#04120B" />}
+              <Text style={[styles.preWorkoutChipText, { color: session.preWorkout ? '#04120B' : theme.textMuted }]}>{session.preWorkout ? t('workoutSession.on', { defaultValue: 'YES' }) : t('workoutSession.off', { defaultValue: 'NO' })}</Text>
+            </View>
           </Pressable>
         </Animated.View>
 
@@ -2524,6 +2577,10 @@ export default function LiveWorkoutScreen() {
             <View style={[styles.addTileIcon, { backgroundColor: Colors.accent + '1F' }]}><Ionicons name="git-merge-outline" size={18} color={Colors.accent} /></View>
             <Text style={[styles.addTileText, { color: theme.text }]}>{t('workoutSession.addCombo')}</Text>
           </Pressable>
+          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowIntervalBuilder(true); }} style={({ pressed }) => [styles.addTile, { backgroundColor: theme.card, borderColor: Colors.semantic.info + (isDark ? '55' : '40'), opacity: pressed ? 0.85 : 1 }]}>
+            <View style={[styles.addTileIcon, { backgroundColor: Colors.semantic.info + '1F' }]}><Ionicons name="timer-outline" size={18} color={Colors.semantic.info} /></View>
+            <Text style={[styles.addTileText, { color: theme.text }]}>{t('workoutSession.addIntervals', { defaultValue: 'Add Intervals' })}</Text>
+          </Pressable>
         </View>
       </ScrollView>
 
@@ -2607,6 +2664,7 @@ export default function LiveWorkoutScreen() {
           visible={true}
           onClose={() => setMenuExerciseIndex(null)}
           onAddSet={() => addSetToExercise(menuExerciseIndex)}
+          onCompleteAll={() => completeAllSets(menuExerciseIndex)}
           onSkipAll={() => skipAllSets(menuExerciseIndex)}
           onMoveUp={() => moveExercise(menuExerciseIndex, -1)}
           onMoveDown={() => moveExercise(menuExerciseIndex, 1)}
@@ -2633,6 +2691,13 @@ export default function LiveWorkoutScreen() {
         onClose={() => setShowComboBuilder(false)}
         onCreate={addCombo}
         customExercises={customExercises}
+        theme={theme}
+      />
+
+      <IntervalBuilderModal
+        visible={showIntervalBuilder}
+        onClose={() => setShowIntervalBuilder(false)}
+        onCreate={addInterval as any}
         theme={theme}
       />
     </View>
@@ -2670,6 +2735,8 @@ const styles = StyleSheet.create({
   preWorkoutIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   preWorkoutText: { fontSize: 15, fontWeight: '600' as const },
   preWorkoutSub: { fontSize: 12, fontWeight: '400' as const, marginTop: 2 },
+  preWorkoutChip: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
+  preWorkoutChipText: { fontSize: 12, fontWeight: '800' as const, letterSpacing: 0.5 },
   addSectionLabel: { fontSize: 12, fontWeight: '600' as const, letterSpacing: 0.3, textTransform: 'uppercase', marginTop: 14, marginBottom: 10 },
   addTilesRow: { flexDirection: 'row', gap: 10, paddingBottom: 12 },
   addTile: { flex: 1, alignItems: 'center', gap: 8, paddingVertical: 14, borderRadius: 16, borderWidth: 1 },
@@ -2684,6 +2751,7 @@ const styles = StyleSheet.create({
   muscleTagText: { fontSize: 11, fontWeight: '600' as const },
   menuBtn: { width: 28, height: 28, justifyContent: 'center', alignItems: 'center' },
   collapsedSummary: { fontSize: 12, fontWeight: '500' as const, marginTop: 3 },
+  collapsedMove: { fontSize: 12.5, fontWeight: '500' as const, marginTop: 2 },
   collapseAllBtn: { alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 4 },
   collapseAllText: { fontSize: 12, fontWeight: '600' as const },
   setRow: {
