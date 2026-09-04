@@ -749,7 +749,7 @@ function SetRowItem({ set, setIndex, exerciseIndex, onMarkDone, onSkip, onUpdate
   );
 }
 
-function ExerciseMenuModal({ visible, onClose, onAddSet, onCompleteAll, onSkipAll, onDelete, onMoveUp, onMoveDown, canMoveUp, canMoveDown, theme }: {
+function ExerciseMenuModal({ visible, onClose, onAddSet, onCompleteAll, onSkipAll, onDelete, onMoveUp, onMoveDown, onSetType, currentType, canMoveUp, canMoveDown, theme }: {
   visible: boolean;
   onClose: () => void;
   onAddSet: () => void;
@@ -758,15 +758,32 @@ function ExerciseMenuModal({ visible, onClose, onAddSet, onCompleteAll, onSkipAl
   onDelete: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  onSetType: (type: 'reps' | 'hold' | 'emom') => void;
+  currentType: 'reps' | 'hold' | 'emom';
   canMoveUp: boolean;
   canMoveDown: boolean;
   theme: typeof Colors.dark;
 }) {
   const { t } = useTranslation();
+  const types: { key: 'reps' | 'hold' | 'emom'; label: string }[] = [
+    { key: 'reps', label: t('workoutSession.reps', { defaultValue: 'Reps' }) },
+    { key: 'hold', label: t('workoutSession.hold', { defaultValue: 'Hold' }) },
+    { key: 'emom', label: t('workoutSession.emom', { defaultValue: 'EMOM' }) },
+  ];
   return (
     <Modal visible={visible} transparent animationType="fade">
       <Pressable style={styles.menuOverlay} onPress={onClose}>
         <View style={[styles.menuSheet, { backgroundColor: theme.card }]}>
+          {/* set type — switch the whole exercise between reps / hold / EMOM */}
+          <Text style={[styles.menuSectionLabel, { color: theme.textMuted }]}>{t('workoutSession.setType', { defaultValue: 'Set type' })}</Text>
+          <View style={styles.menuTypeRow}>
+            {types.map((ty) => (
+              <Pressable key={ty.key} onPress={() => { onSetType(ty.key); onClose(); }} style={[styles.menuTypePill, { backgroundColor: currentType === ty.key ? Colors.primary : theme.cardAlt, borderColor: currentType === ty.key ? Colors.primary : theme.border }]}>
+                <Text style={[styles.menuTypePillText, { color: currentType === ty.key ? '#04120B' : theme.textSecondary }]}>{ty.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
           {canMoveUp && (
             <>
               <Pressable onPress={() => { onMoveUp(); onClose(); }} style={styles.menuItem}>
@@ -1180,6 +1197,7 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
   const mode = combo.mode ?? 'circuit'; // no mode = circuit (backward compat)
   const isEmom = mode === 'emom';
   const isAmrap = mode === 'amrap';
+  const [menuOpen, setMenuOpen] = useState(false);
   const hasPending = rounds.some(r => r.status === 'pending' || r.status === 'in_progress');
 
   return (
@@ -1237,10 +1255,32 @@ function ComboCard({ combo, onUpdateEntry, onRoundDone, onRoundSkip, onRoundReop
         <Pressable onPress={onToggleCollapse} hitSlop={8} style={styles.menuBtn}>
           <Ionicons name={collapsed ? 'chevron-forward' : 'chevron-down'} size={18} color={theme.textMuted} />
         </Pressable>
-        <Pressable onPress={onDelete} hitSlop={8} style={styles.menuBtn}>
-          <Ionicons name="trash-outline" size={18} color={theme.textMuted} />
+        <Pressable onPress={() => setMenuOpen(true)} hitSlop={8} style={styles.menuBtn}>
+          <Ionicons name="ellipsis-vertical" size={18} color={theme.textMuted} />
         </Pressable>
       </View>
+
+      {/* combo 3-dot menu (matches the exercise cards) */}
+      <Modal visible={menuOpen} transparent animationType="fade">
+        <Pressable style={styles.menuOverlay} onPress={() => setMenuOpen(false)}>
+          <View style={[styles.menuSheet, { backgroundColor: theme.card }]}>
+            <Pressable onPress={() => { setMenuOpen(false); onAddRound(); }} style={styles.menuItem}>
+              <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>{t('workoutSession.addRound', { defaultValue: 'Add round' })}</Text>
+            </Pressable>
+            <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+            <Pressable onPress={() => { setMenuOpen(false); onToggleCollapse?.(); }} style={styles.menuItem}>
+              <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={20} color={theme.text} />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>{collapsed ? t('workoutSession.expand', { defaultValue: 'Expand' }) : t('workoutSession.collapse', { defaultValue: 'Collapse' })}</Text>
+            </Pressable>
+            <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+            <Pressable onPress={() => { setMenuOpen(false); onDelete(); }} style={styles.menuItem}>
+              <Ionicons name="trash-outline" size={20} color="#FF4458" />
+              <Text style={[styles.menuItemText, { color: '#FF4458' }]}>{t('workoutSession.deleteCombo', { defaultValue: 'Delete combo' })}</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
 
       {!collapsed && (
       <>
@@ -2004,6 +2044,22 @@ export default function LiveWorkoutScreen() {
     });
   }, [updateSession]);
 
+  // switch an exercise's set type (reps/hold/emom) — rebuild its sets with the
+  // new type's defaults, keeping the same count. Lets you e.g. do push-ups as EMOM.
+  const setExerciseType = useCallback((exIdx: number, type: SetConfig['type']) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const def = getDefaultSetConfig(type);
+    updateSession(s => {
+      const exercises = [...s.exercises];
+      const ex = { ...exercises[exIdx] };
+      if (ex.combo || ex.kind === 'intervals') return s; // only plain exercises
+      const count = Math.max(1, ex.sets.length);
+      ex.sets = Array.from({ length: count }, () => ({ config: { ...def }, actual: { ...def }, status: 'pending' as const }));
+      exercises[exIdx] = ex;
+      return { ...s, exercises };
+    });
+  }, [updateSession]);
+
   // mark every pending set of an exercise done (actual = its config)
   const completeAllSets = useCallback((exIdx: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -2666,6 +2722,8 @@ export default function LiveWorkoutScreen() {
           onAddSet={() => addSetToExercise(menuExerciseIndex)}
           onCompleteAll={() => completeAllSets(menuExerciseIndex)}
           onSkipAll={() => skipAllSets(menuExerciseIndex)}
+          onSetType={(ty) => setExerciseType(menuExerciseIndex, ty)}
+          currentType={(session.exercises[menuExerciseIndex]?.sets?.[0]?.config?.type ?? 'reps') as 'reps' | 'hold' | 'emom'}
           onMoveUp={() => moveExercise(menuExerciseIndex, -1)}
           onMoveDown={() => moveExercise(menuExerciseIndex, 1)}
           canMoveUp={menuExerciseIndex > 0}
@@ -2972,6 +3030,10 @@ const styles = StyleSheet.create({
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 16 },
   menuItemText: { fontSize: 15, fontWeight: '500' as const },
   menuDivider: { height: 1, marginHorizontal: 16 },
+  menuSectionLabel: { fontSize: 11, fontWeight: '700' as const, letterSpacing: 0.5, textTransform: 'uppercase', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8 },
+  menuTypeRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 8 },
+  menuTypePill: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 10, borderWidth: 1 },
+  menuTypePillText: { fontSize: 13, fontWeight: '700' as const },
   // set-row prescription cues (tempo / assist / to-failure)
   cueRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 8, marginTop: -2, marginBottom: 6 },
   cueBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7 },
