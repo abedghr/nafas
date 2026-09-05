@@ -16,6 +16,7 @@ export const extraEn = {
     emomComboTitle: "EMOM (combo)", emomComboDesc: "The combo is paced by the clock: start the next round each minute, rest the remainder.", emomComboEx: "Every minute: 5 Thrusters + 5 Burpees, for 10 minutes.",
     amrapTitle: "AMRAP", amrapDesc: "As Many Rounds As Possible inside a fixed time cap. You count completed rounds.", amrapEx: "10-min AMRAP of 5 Pull-ups + 10 Push-ups + 15 Squats.",
     unbrokenTitle: "Unbroken", unbrokenDesc: "A flag on a combo: do all moves in a round with no rest and without putting the weight down.", unbrokenEx: "Unbroken set of Curl + Press + Row, no rest until the round ends.",
+    unevenTitle: "Uneven sets", unevenDesc: "In a circuit, each move can have its own set count (up to the round count). A move with fewer sets does them first, then sits out the later rounds.", unevenEx: "Bench x4 / Pull-up x2 over 4 rounds: both in rounds 1-2, bench only in 3-4.",
   },
   profilex: {
     weightUnit: "Weight Unit",
@@ -330,6 +331,7 @@ export const extraAr = {
     emomComboTitle: "EMOM (كومبو)", emomComboDesc: "الكومبو مضبوط بالساعة: ابدأ الجولة التالية كل دقيقة، ارتح الباقي.", emomComboEx: "كل دقيقة: 5 ثراستر + 5 بيربي، لمدة 10 دقائق.",
     amrapTitle: "AMRAP", amrapDesc: "أكبر عدد ممكن من الجولات ضمن حد زمني. تعدّ الجولات المكتملة.", amrapEx: "AMRAP لـ10 دقائق: 5 عقلات + 10 ضغط + 15 سكوات.",
     unbrokenTitle: "بدون توقّف", unbrokenDesc: "علامة على الكومبو: نفّذ كل الحركات في الجولة دون راحة ودون إنزال الوزن.", unbrokenEx: "مجموعة بدون توقّف: كرل + بريس + رو، بلا راحة حتى نهاية الجولة.",
+    unevenTitle: "مجموعات غير متساوية", unevenDesc: "في الدائري، لكل حركة عدد مجموعات خاص بها (حتى عدد الجولات). الحركة ذات المجموعات الأقل تؤدّيها أولاً ثم تتوقّف في الجولات المتبقّية.", unevenEx: "بنش ×4 / عقلة ×2 على 4 جولات: كلاهما في الجولتين 1-2، وبنش فقط في 3-4.",
   },
   profilex: {
     weightUnit: "وحدة الوزن",

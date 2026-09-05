@@ -73,6 +73,9 @@ export default function WorkoutGuideSheet({ visible, onClose, theme }: {
         { icon: 'link-outline', color: Colors.semantic.warn, title: t('guide.unbrokenTitle', { defaultValue: 'Unbroken' }),
           desc: t('guide.unbrokenDesc', { defaultValue: 'A flag on a combo: do all moves in a round with no rest and without putting the weight down.' }),
           example: t('guide.unbrokenEx', { defaultValue: 'Unbroken set of Curl + Press + Row, no rest until the round ends.' }) },
+        { icon: 'layers-outline', color: Colors.electric, title: t('guide.unevenTitle', { defaultValue: 'Uneven sets' }),
+          desc: t('guide.unevenDesc', { defaultValue: 'In a circuit, each move can have its own set count (up to the round count). A move with fewer sets does them first, then sits out the later rounds.' }),
+          example: t('guide.unevenEx', { defaultValue: 'Bench x4 / Pull-up x2 over 4 rounds: both in rounds 1-2, bench only in 3-4.' }) },
       ],
     },
   ];
